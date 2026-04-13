@@ -19,7 +19,22 @@ function assertSupportedFile(fileName) {
 }
 
 async function extractTextFromPdf(buffer) {
-  const result = await pdfParse(buffer);
+  let result;
+
+  // pdf-parse v1 exports a function; v2 exports a PDFParse class.
+  if (typeof pdfParse === 'function') {
+    result = await pdfParse(buffer);
+  } else if (pdfParse && typeof pdfParse.PDFParse === 'function') {
+    const parser = new pdfParse.PDFParse({ data: buffer });
+    try {
+      result = await parser.getText();
+    } finally {
+      await parser.destroy();
+    }
+  } else {
+    throw new Error('Integracion de PDF no compatible con la version instalada de pdf-parse.');
+  }
+
   const text = (result.text || '').trim();
 
   if (!text) {
