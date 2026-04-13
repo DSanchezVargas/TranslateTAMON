@@ -13,7 +13,9 @@ app.get('/health', (_, res) => {
 app.use('/api', translationRoutes);
 app.use('/api/memory', memoryRoutes);
 
-app.use((error, _, res, __) => {
+app.use((error, req, res, next) => {
+  void req;
+  void next;
   const status = error.status || 500;
   res.status(status).json({ error: error.message || 'Error interno del servidor.' });
 });

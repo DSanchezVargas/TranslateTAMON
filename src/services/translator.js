@@ -50,7 +50,6 @@ async function translateText(text, sourceLanguage, targetLanguage) {
   const translatedChunks = [];
 
   for (const chunk of chunks) {
-    // eslint-disable-next-line no-await-in-loop
     const translated = await translateChunk(chunk, sourceLanguage, targetLanguage);
     translatedChunks.push(translated);
   }

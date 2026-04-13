@@ -1,6 +1,10 @@
 # TranslateTAMON - MVP Opción 2
 
-MVP para traducir documentos de entrada **PDF / DOCX / JPG / PNG** y devolver siempre un archivo **DOCX** ordenado con la traducción.
+MVP para traducir documentos de entrada **PDF / DOCX / JPG / PNG** con:
+
+- **Vista previa de traducción** para revisión/corrección.
+- Salida final en **DOCX** ordenado.
+- **Aprendizaje controlado por admin** (no por usuarios finales) sobre correcciones.
 
 ## Stack
 
@@ -26,6 +30,7 @@ cp .env.example .env
 
 2. Configura `MONGO_URI` para usar Compass.
 3. (Opcional) configura `LIBRETRANSLATE_API_KEY` si tu proveedor lo requiere.
+4. Configura `ADMIN_TOKEN` para acciones de administración.
 
 ## Ejecutar
 
@@ -52,6 +57,32 @@ Respuesta:
 
 - Archivo `*.docx` con traducción.
 
+### `POST /api/translate/preview`
+
+`multipart/form-data`:
+
+- `document` (archivo: pdf/docx/jpg/jpeg/png)
+- `sourceLanguage`
+- `targetLanguage`
+- `project` (opcional)
+- `domain` (opcional)
+
+Respuesta:
+
+- JSON con `previewId`, `originalText`, `translatedText`.
+
+### `POST /api/translate/finalize`
+
+`application/json`:
+
+- `previewId` (opcional, si vienes de preview)
+- `translatedText` (opcional si usas `previewId`; útil cuando el usuario corrigió texto)
+- `sourceLanguage`, `targetLanguage`, `originalFileName` (obligatorios si no hay `previewId`)
+
+Respuesta:
+
+- Archivo `*.docx` final con traducción/corrección aprobada.
+
 ## Memoria controlada (MongoDB)
 
 Se implementan colecciones para evolucionar a hiperautomatización:
@@ -65,9 +96,13 @@ Se implementan colecciones para evolucionar a hiperautomatización:
 
 - `GET/POST /api/memory/glossary`
 - `GET/POST /api/memory/corrections`
+- `POST /api/memory/corrections/suggestions` (usuario propone corrección pendiente)
+- `POST /api/memory/corrections/suggestions/:id/approve` (solo admin aprueba y entrena memoria)
 - `GET/POST /api/memory/rules`
 
 > Si `MONGO_URI` no está configurado, la app funciona sin persistencia y los endpoints de memoria devuelven 503.
+>
+> `POST /api/memory/corrections` y aprobación de sugerencias requieren header `x-admin-token` con `ADMIN_TOKEN`.
 
 ## Scripts
 

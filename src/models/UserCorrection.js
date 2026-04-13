@@ -6,7 +6,8 @@ const userCorrectionSchema = new mongoose.Schema(
     sourceLanguage: { type: String, required: true },
     targetLanguage: { type: String, required: true },
     originalTranslation: { type: String, required: true },
-    correctedTranslation: { type: String, required: true }
+    correctedTranslation: { type: String, required: true },
+    createdByRole: { type: String, enum: ['admin'], default: 'admin' }
   },
   { timestamps: true }
 );
