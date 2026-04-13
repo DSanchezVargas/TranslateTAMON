@@ -21,7 +21,7 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos para el registro.' });
     }
 
-  // Verificar si ya existe antes de intentar guardar
+    // Verificar si ya existe antes de intentar guardar
     let userExists = await User.findOne({ correo: correo.toLowerCase() });
     if (userExists) {
       // Es vital retornar aquí para que el código no siga ejecutándose
