@@ -156,7 +156,12 @@ async function requestPreview(event) {
     method: 'POST',
     body: formData
   });
-  const data = await response.json();
+  let data = {};
+  try {
+    data = await response.json();
+  } catch (error) {
+    void error;
+  }
 
   if (!response.ok) {
     stopProcessTicker();
