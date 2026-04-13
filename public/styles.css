@@ -1,10 +1,10 @@
 :root {
-  --tamon-primary: #12b9ff;
-  --tamon-secondary: #6c63ff;
-  --tamon-accent: #8b5cf6;
-  --tamon-neutral: #e2e8f0;
-  --tamon-surface: #0f172a;
-  --tamon-soft: #020617;
+  --tamon-primary: #f2a6c6;
+  --tamon-secondary: #d97fa8;
+  --tamon-accent: #f6d9c5;
+  --tamon-neutral: #fff1f8;
+  --tamon-surface: #4b2c3f;
+  --tamon-soft: #1f1220;
 }
 
 * {
@@ -15,7 +15,7 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   color: var(--tamon-neutral);
-  background: radial-gradient(circle at top, #1e1b4b, var(--tamon-soft) 55%);
+  background: radial-gradient(circle at top, #f9bfd8, var(--tamon-soft) 58%);
 }
 
 .app-shell {
@@ -29,10 +29,10 @@ body {
   gap: 1rem;
   align-items: center;
   background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary));
-  color: #fff;
+  color: #2d1221;
   border-radius: 1rem;
   padding: 1rem;
-  box-shadow: 0 14px 36px rgba(18, 185, 255, 0.28);
+  box-shadow: 0 14px 36px rgba(242, 166, 198, 0.45);
 }
 
 .hero-icon {
@@ -54,15 +54,15 @@ body {
 .panel {
   margin-top: 1rem;
   background: var(--tamon-surface);
-  border: 1px solid #1e293b;
+  border: 1px solid #74465f;
   border-radius: 1rem;
   padding: 1rem;
   box-shadow: 0 10px 24px rgba(2, 6, 23, 0.4);
 }
 
 .neural-banner {
-  background: linear-gradient(135deg, rgba(18, 185, 255, 0.15), rgba(139, 92, 246, 0.2));
-  border-color: rgba(18, 185, 255, 0.4);
+  background: linear-gradient(135deg, rgba(242, 166, 198, 0.22), rgba(246, 217, 197, 0.2));
+  border-color: rgba(242, 166, 198, 0.55);
 }
 
 .neural-banner p {
@@ -76,8 +76,8 @@ body {
 }
 
 .tab-btn {
-  border: 1px solid #334155;
-  background: #111827;
+  border: 1px solid #855574;
+  background: #301b2b;
   color: var(--tamon-neutral);
   border-radius: 0.7rem;
   padding: 0.6rem 0.9rem;
@@ -113,9 +113,9 @@ button {
 input,
 select,
 textarea {
-  background: #0b1220;
+  background: #2b1728;
   color: var(--tamon-neutral);
-  border: 1px solid #334155;
+  border: 1px solid #855574;
   border-radius: 0.5rem;
   padding: 0.55rem 0.65rem;
 }
@@ -164,7 +164,7 @@ textarea {
   width: 100%;
   height: 12px;
   border-radius: 999px;
-  background: #e2e8f0;
+  background: #f4d4e3;
   overflow: hidden;
 }
 
@@ -187,12 +187,12 @@ textarea {
 
 .meta {
   margin-top: 0;
-  color: #cbd5e1;
+  color: #f5dbe8;
 }
 
 .quick-output {
   margin-top: 0.5rem;
-  background: #111827;
+  background: #301b2b;
 }
 
 .hidden {

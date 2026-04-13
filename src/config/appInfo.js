@@ -1,11 +1,11 @@
 const APP_NAME = "Tamon's Translator";
 const SYSTEM_ICON_PATH = '/icons/tamon.svg';
 const BRAND_COLORS = {
-  primary: '#12b9ff',
-  secondary: '#6c63ff',
-  accent: '#8b5cf6',
-  neutral: '#e2e8f0',
-  surface: '#0f172a'
+  primary: '#f2a6c6',
+  secondary: '#d97fa8',
+  accent: '#f6d9c5',
+  neutral: '#fff1f8',
+  surface: '#4b2c3f'
 };
 const HYPERAUTOMATION_FLOW = [
   'Entrada inteligente de documento',
