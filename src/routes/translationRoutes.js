@@ -52,15 +52,6 @@ function buildAssistantMessage(status) {
   return `${ASSISTANT_TAGLINE} · status: ${status}`;
 }
 
-function escapeAssistantText(value) {
-  return String(value)
-    .replaceAll('&', '&amp;')
-    .replaceAll('<', '&lt;')
-    .replaceAll('>', '&gt;')
-    .replaceAll('"', '&quot;')
-    .replaceAll("'", '&#39;');
-}
-
 function setExperienceHeaders(res, { traceId, status, processingMs }) {
   res.setHeader('X-Tamon-Trace-Id', traceId);
   res.setHeader('X-Tamon-Status', status);
@@ -334,8 +325,6 @@ router.post('/assistant/translate-text', async (req, res, next) => {
     const userName = sanitizeString(req.body.userName || 'usuario', { required: true, maxLength: 80 });
 
     const translatedText = await translateText(text, sourceLanguage, targetLanguage);
-    const assistantSafeUserName = escapeAssistantText(userName);
-    const assistantSafeTranslatedText = escapeAssistantText(translatedText);
     const processingMs = Date.now() - startedAt;
 
     await saveHistory({
@@ -359,7 +348,7 @@ router.post('/assistant/translate-text', async (req, res, next) => {
       sourceLanguage,
       targetLanguage,
       translatedText,
-      assistantResponse: `Bueno ${assistantSafeUserName}, tu traducción a ${targetLanguage} es: ${assistantSafeTranslatedText}`,
+      assistantResponse: `Bueno ${userName}, tu traducción a ${targetLanguage} es: ${translatedText}`,
       learningState: 'Tamon está aprendiendo y mejora en cada interacción.'
     });
   } catch (error) {
