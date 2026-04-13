@@ -16,22 +16,22 @@ const { isDbReady } = require('../config/db');
 const TranslationHistory = require('../models/TranslationHistory');
 const CorrectionSuggestion = require('../models/CorrectionSuggestion');
 const { sanitizeString } = require('../utils/validation');
+const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
 const router = express.Router();
+const DEFAULT_UPLOAD_LIMIT_MB = 100;
+const uploadLimitMb = Math.max(Number(process.env.MAX_UPLOAD_MB) || DEFAULT_UPLOAD_LIMIT_MB, 1);
+if (!process.env.MAX_UPLOAD_MB && process.env.NODE_ENV !== 'test') {
+  console.warn(`MAX_UPLOAD_MB no configurado. Se usa valor por defecto: ${DEFAULT_UPLOAD_LIMIT_MB}MB`);
+}
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }
+  limits: { fileSize: uploadLimitMb * 1024 * 1024 }
 });
 const previewStore = new Map();
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
-const translationJobs = new Map();
-const JOB_TTL_MS = 24 * 60 * 60 * 1000;
-
-function isInvalidTranslatedText(text) {
-  if (!text || typeof text !== 'string') return true;
-  const upper = text.toUpperCase();
-  return upper.includes('QUERY LENGTH LIMIT EXCEEDED') || upper.includes('MAX ALLOWED QUERY');
-}
+const MAX_ESTIMATED_SECONDS = 23 * 60 * 60;
+const ASSISTANT_TEXT_PREVIEW_LIMIT = 220;
 
 async function saveHistory(record) {
   if (!isDbReady()) return;
@@ -58,69 +58,20 @@ function computeSourceHash(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
 }
 
-function splitIntoParagraphs(text) {
-  return (text || '')
-    .split(/\n+/)
-    .map((line) => line.trim())
-    .filter(Boolean);
+function buildAssistantMessage(status) {
+  return `${ASSISTANT_TAGLINE} · status: ${status}`;
 }
 
-function getAutoLearningPairs(originalTranslatedText, userFinalText) {
-  const originalParagraphs = splitIntoParagraphs(originalTranslatedText);
-  const finalParagraphs = splitIntoParagraphs(userFinalText);
-  const maxLength = Math.min(originalParagraphs.length, finalParagraphs.length);
-  const pairs = [];
-
-  for (let index = 0; index < maxLength; index += 1) {
-    const originalParagraph = originalParagraphs[index];
-    const finalParagraph = finalParagraphs[index];
-
-    if (!originalParagraph || !finalParagraph) continue;
-    if (originalParagraph === finalParagraph) continue;
-
-    // Mantiene sugerencias compactas para memoria accionable y revisión admin.
-    if (originalParagraph.length > 2000 || finalParagraph.length > 2000) continue;
-
-    pairs.push({ originalParagraph, finalParagraph });
-  }
-
-  return pairs.slice(0, 50);
+function setExperienceHeaders(res, { traceId, status, processingMs }) {
+  res.setHeader('X-Tamon-Trace-Id', traceId);
+  res.setHeader('X-Tamon-Status', status);
+  res.setHeader('X-Tamon-Processing-Ms', String(processingMs));
+  res.setHeader('X-Tamon-Assistant-Message', buildAssistantMessage(status));
 }
 
-async function saveUserLearningSuggestions(preview, userFinalText) {
-  if (!isDbReady()) return;
-  if (!preview?.translatedText || !userFinalText) return;
-  if (preview.translatedText === userFinalText) return;
-
-  const pairs = getAutoLearningPairs(preview.translatedText, userFinalText);
-  if (!pairs.length) return;
-
-  const operations = pairs.map(({ originalParagraph, finalParagraph }) => {
-    return CorrectionSuggestion.findOneAndUpdate(
-      {
-        project: preview.project,
-        sourceLanguage: preview.sourceLanguage,
-        targetLanguage: preview.targetLanguage,
-        originalTranslation: originalParagraph,
-        suggestedTranslation: finalParagraph,
-        status: 'pending'
-      },
-      {
-        $setOnInsert: {
-          project: preview.project,
-          sourceLanguage: preview.sourceLanguage,
-          targetLanguage: preview.targetLanguage,
-          originalTranslation: originalParagraph,
-          suggestedTranslation: finalParagraph,
-          status: 'pending',
-          reviewedBy: undefined
-        }
-      },
-      { upsert: true, new: false }
-    );
-  });
-
-  await Promise.all(operations);
+function estimateTranslationSecondsByText(text = '') {
+  const estimated = Math.ceil(text.length / 900);
+  return Math.min(Math.max(estimated, 10), MAX_ESTIMATED_SECONDS);
 }
 
 async function findCachedTranslation({ sourceHash, sourceLanguage, targetLanguage, project, domain }) {
@@ -391,6 +342,8 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
 }
 
 async function processTranslationRequest(req, res, next, shouldReturnPreview = false) {
+  const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
   let sourceLanguage;
   let targetLanguage;
   let project;
@@ -406,7 +359,7 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
     project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
     domain = sanitizeString(req.body.domain || 'general', { required: true, maxLength: 120 });
 
-    const { originalText, translatedText, sourceTextHash } = await createPreviewFromFile({
+    const { originalText, translatedText, sourceTextHash, fromCache } = await createPreviewFromFile({
       file: req.file,
       sourceLanguage,
       targetLanguage,
@@ -429,6 +382,8 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
     });
 
     if (shouldReturnPreview) {
+      const processingMs = Date.now() - startedAt;
+      setExperienceHeaders(res, { traceId, status: 'preview_ready', processingMs });
       await saveHistory({
         originalFileName: req.file.originalname,
         fileType: path.extname(req.file.originalname).replace('.', ''),
@@ -444,11 +399,23 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
       });
       return res.status(200).json({
         previewId,
+        traceId,
         originalFileName: req.file.originalname,
         sourceLanguage,
         targetLanguage,
         originalText,
-        translatedText
+        translatedText,
+        experience: {
+          status: 'preview_ready',
+          processingMs,
+          estimatedCompletionSeconds: estimateTranslationSecondsByText(originalText),
+          fromCache,
+          progress: {
+            completionPercent: 100,
+            stage: 'preview_ready'
+          },
+          assistantMessage: buildAssistantMessage('preview_ready')
+        }
       });
     }
 
@@ -475,7 +442,9 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
 
     const baseName = path.parse(req.file.originalname).name;
     const outputName = `${baseName}-${targetLanguage}.docx`;
+    const processingMs = Date.now() - startedAt;
 
+    setExperienceHeaders(res, { traceId, status: 'document_ready', processingMs });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
     return res.status(200).send(translatedDocxBuffer);
@@ -589,10 +558,12 @@ router.get('/translate/jobs/:id', (req, res) => {
 });
 
 router.post('/translate/finalize', async (req, res, next) => {
+  const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
   try {
     const previewId = req.body.previewId ? sanitizeString(req.body.previewId, { maxLength: 120 }) : undefined;
     const translatedText = req.body.translatedText
-      ? sanitizeString(req.body.translatedText, { maxLength: 300000 })
+      ? sanitizeString(req.body.translatedText, { maxLength: null })
       : undefined;
     const sourceLanguage = req.body.sourceLanguage
       ? sanitizeString(req.body.sourceLanguage, { maxLength: 20 })
@@ -631,6 +602,7 @@ router.post('/translate/finalize', async (req, res, next) => {
 
     const baseName = path.parse(finalFileName).name;
     const outputName = `${baseName}-${finalTargetLanguage}.docx`;
+    const processingMs = Date.now() - startedAt;
 
     await saveHistory({
       originalFileName: finalFileName,
@@ -646,10 +618,67 @@ router.post('/translate/finalize', async (req, res, next) => {
       status: 'success'
     });
 
+    setExperienceHeaders(res, { traceId, status: 'finalized', processingMs });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
     return res.status(200).send(translatedDocxBuffer);
   } catch (error) {
+    if (
+      error.message.includes('Campo ')
+      || error.message.includes('Formato de campo inválido')
+    ) {
+      error.status = 400;
+    }
+    return next(error);
+  }
+});
+
+router.post('/assistant/translate-text', async (req, res, next) => {
+  const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
+  try {
+    const text = sanitizeString(req.body.text, { required: true, maxLength: 12000 });
+    const sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });
+    const targetLanguage = sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 });
+    const userName = sanitizeString(req.body.userName || 'usuario', { required: true, maxLength: 80 });
+
+    const translatedText = await translateText(text, sourceLanguage, targetLanguage);
+    const translatedTextPreview = translatedText.length > ASSISTANT_TEXT_PREVIEW_LIMIT
+      ? `${translatedText.slice(0, ASSISTANT_TEXT_PREVIEW_LIMIT)}...`
+      : translatedText;
+    const processingMs = Date.now() - startedAt;
+
+    await saveHistory({
+      originalFileName: 'quick-text-input.txt',
+      fileType: 'txt',
+      sourceLanguage,
+      targetLanguage,
+      project: 'assistant-chat',
+      domain: 'general',
+      sourceTextHash: computeSourceHash(text),
+      translatedTextCache: translatedText,
+      sourceTextLength: text.length,
+      translatedTextLength: translatedText.length,
+      status: 'success'
+    });
+
+    setExperienceHeaders(res, { traceId, status: 'text_translation_ready', processingMs });
+    return res.status(200).json({
+      traceId,
+      userName,
+      sourceLanguage,
+      targetLanguage,
+      translatedText,
+      assistantResponse: `Bueno ${userName}, tu traducción a ${targetLanguage} es: ${translatedTextPreview}`,
+      learningState: 'Tamon está aprendiendo y mejora en cada interacción.'
+    });
+  } catch (error) {
+    if (
+      error.message.includes('Campo ')
+      || error.message.includes('Formato de campo inválido')
+    ) {
+      error.status = 400;
+    }
     return next(error);
   }
 });

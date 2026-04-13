@@ -1,0 +1,141 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tamon IA · Traducción hiperautomatizada</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <img src="/icons/tamon.svg" alt="Tamon" class="hero-icon" />
+        <div>
+          <p class="eyebrow">Tamon IA en aprendizaje continuo</p>
+          <h1>Tamon Translator</h1>
+          <p class="subtitle">Traducción hiperautomatizada para archivos y mensajes directos, con memoria progresiva para crecer como IA poderosa.</p>
+        </div>
+      </header>
+
+      <section class="panel neural-banner">
+        <p>
+          Tamon es una IA en desarrollo: aprende en cada traducción, aplica memoria útil y mantiene soporte para
+          PDF, DOCX, JPG, PNG y TXT en inglés, español, francés, italiano, portugués y alemán.
+        </p>
+      </section>
+
+      <nav class="panel tabs">
+        <button id="tab-translation" class="tab-btn is-active" type="button">Menú principal · Traducción</button>
+        <button id="tab-comments" class="tab-btn" type="button">Comentarios de usuario</button>
+      </nav>
+
+      <section id="translation-view">
+        <section class="panel">
+          <h2>1) Entrada inteligente</h2>
+          <form id="translate-form" class="grid-form">
+            <label>Documento
+              <input type="file" id="document" name="document" accept=".pdf,.docx,.jpg,.jpeg,.png,.txt" required />
+            </label>
+            <label>Idioma origen
+              <select id="sourceLanguage" name="sourceLanguage" required></select>
+            </label>
+            <label>Idioma destino
+              <select id="targetLanguage" name="targetLanguage" required></select>
+            </label>
+            <label>Proyecto
+              <input type="text" id="project" name="project" value="default" />
+            </label>
+            <label>Dominio
+              <input type="text" id="domain" name="domain" value="general" />
+            </label>
+            <button type="submit" class="btn-primary">Generar vista previa IA</button>
+          </form>
+        </section>
+
+        <section class="panel" id="status-panel">
+          <h2>2) Flujo hiperautomatizado</h2>
+          <ol class="flow-steps">
+            <li id="step-upload">Entrada de documento</li>
+            <li id="step-preview">Traducción y vista previa</li>
+            <li id="step-correction">Corrección guiada</li>
+            <li id="step-download">Descarga + memoria aplicada</li>
+          </ol>
+          <p id="assistant-status">Asistente listo para iniciar.</p>
+          <p class="meta" id="eta-text">Tiempo estimado de traducción: pendiente.</p>
+          <div class="progress-block">
+            <p>Progreso de proceso</p>
+            <div class="progress-track"><div id="process-progress" class="progress-fill"></div></div>
+          </div>
+          <div class="progress-block">
+            <p>Barra de historial y aprendizaje Tamon</p>
+            <div class="progress-track"><div id="history-progress" class="progress-fill history"></div></div>
+          </div>
+        </section>
+
+        <section class="panel hidden" id="preview-panel">
+          <h2>3) Corrección guiada</h2>
+          <p class="meta" id="preview-meta"></p>
+          <div class="live-grid">
+            <label>Vista de traducción (origen)
+              <textarea id="originalTextPreview" rows="8" readonly></textarea>
+            </label>
+            <label>Texto traducido editable
+              <textarea id="translatedText" rows="8"></textarea>
+            </label>
+          </div>
+          <button id="finalize-btn" class="btn-secondary">Finalizar y descargar DOCX</button>
+        </section>
+
+        <section class="panel" id="quick-translate-panel">
+          <h2>4) Habla con Tamon</h2>
+          <p class="meta">Traduce texto rápido sin archivo. Tamon te responde como asistente y sigue aprendiendo.</p>
+          <form id="quick-translate-form" class="grid-form">
+            <label>Tu nombre
+              <input type="text" id="quickUserName" value="usuario" required />
+            </label>
+            <label>Idioma origen
+              <select id="quickSourceLanguage" required></select>
+            </label>
+            <label>Idioma destino
+              <select id="quickTargetLanguage" required></select>
+            </label>
+            <label>Texto a traducir
+              <textarea id="quickText" rows="4" maxlength="12000" placeholder='Ejemplo: hello you are the most amazing thing in the world' required></textarea>
+            </label>
+            <button type="submit" class="btn-primary">Traducir con Tamon</button>
+          </form>
+          <p class="meta" id="quick-translate-status">Tamon listo para traducir mensajes rápidos.</p>
+          <textarea id="quick-translate-output" class="quick-output" rows="4" readonly></textarea>
+        </section>
+      </section>
+
+      <section id="comments-view" class="hidden">
+        <section class="panel">
+          <h2>Comentarios de usuario para enriquecer diccionario</h2>
+          <p class="meta">Estas sugerencias ayudan a Tamon a mejorar continuamente, incluso cuando el admin no está disponible.</p>
+          <form id="comments-form" class="grid-form">
+            <label>Proyecto
+              <input type="text" id="commentProject" value="default" required />
+            </label>
+            <label>Idioma origen
+              <select id="commentSourceLanguage" required></select>
+            </label>
+            <label>Idioma destino
+              <select id="commentTargetLanguage" required></select>
+            </label>
+            <label>Traducción original detectada
+              <textarea id="originalTranslation" rows="3" required></textarea>
+            </label>
+            <label>Traducción sugerida por usuario
+              <textarea id="suggestedTranslation" rows="3" required></textarea>
+            </label>
+            <button type="submit" class="btn-primary">Enviar comentario para memoria IA</button>
+          </form>
+          <p class="meta" id="comments-status">Sin comentarios enviados todavía.</p>
+        </section>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

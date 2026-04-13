@@ -4,70 +4,7 @@ const Tesseract = require('tesseract.js');
 const path = require('path');
 const { getTesseractLang } = require('../config/languages');
 
-const SUPPORTED_EXTENSIONS = new Set(['.pdf', '.docx', '.jpg', '.jpeg', '.png']);
-const PDF_PAGE_MIN_TEXT_LENGTH = 100;
-const PDF_OCR_MAX_PAGES = Number(process.env.PDF_OCR_MAX_PAGES || 40);
-
-function compactText(value) {
-  return (value || '').replace(/\s+/g, ' ').trim();
-}
-
-function joinPdfPages(pages) {
-  return pages
-    .map((page) => page.text || '')
-    .filter((pageText) => pageText.trim())
-    .join('\n\n');
-}
-
-function mergeNativeAndOcr(nativeText, ocrText) {
-  const nativeCompact = compactText(nativeText);
-  const ocrCompact = compactText(ocrText);
-  if (!ocrCompact) return nativeCompact;
-  if (!nativeCompact) return ocrCompact;
-
-  // Si OCR ya contiene el texto nativo, usar OCR completo.
-  if (ocrCompact.includes(nativeCompact)) return ocrCompact;
-
-  // Si el nativo ya cubre OCR, mantener nativo.
-  if (nativeCompact.includes(ocrCompact)) return nativeCompact;
-
-  // Complementar para no perder bloques de texto de ninguna fuente.
-  return `${nativeCompact}\n${ocrCompact}`;
-}
-
-async function runOcrOnPdfPage(parser, pageNumber, sourceLanguage) {
-  const screenshot = await parser.getScreenshot({
-    partial: [pageNumber],
-    desiredWidth: 1400,
-    imageBuffer: true,
-    imageDataUrl: false
-  });
-
-  const pageImage = screenshot?.pages?.[0]?.data;
-  if (!pageImage) return '';
-
-  const tesseractLang = getTesseractLang(sourceLanguage);
-  const ocr = await Tesseract.recognize(Buffer.from(pageImage), tesseractLang);
-  return compactText(ocr.data?.text || '');
-}
-
-async function enhancePdfTextWithOcr(parser, pages, sourceLanguage) {
-  const candidates = pages
-    .filter((page) => compactText(page.text).length < PDF_PAGE_MIN_TEXT_LENGTH)
-    .slice(0, PDF_OCR_MAX_PAGES);
-
-  for (const page of candidates) {
-    try {
-      const ocrText = await runOcrOnPdfPage(parser, page.num, sourceLanguage);
-      const nativeText = compactText(page.text);
-      page.text = mergeNativeAndOcr(nativeText, ocrText);
-    } catch (error) {
-      void error;
-    }
-  }
-
-  return pages;
-}
+const SUPPORTED_EXTENSIONS = new Set(['.pdf', '.docx', '.jpg', '.jpeg', '.png', '.txt']);
 
 function getExtension(fileName = '') {
   return path.extname(fileName).toLowerCase();
@@ -76,7 +13,7 @@ function getExtension(fileName = '') {
 function assertSupportedFile(fileName) {
   const extension = getExtension(fileName);
   if (!SUPPORTED_EXTENSIONS.has(extension)) {
-    throw new Error('Formato no soportado. Usa PDF, DOCX, JPG, JPEG o PNG.');
+    throw new Error('Formato no soportado. Usa PDF, DOCX, JPG, JPEG, PNG o TXT.');
   }
   return extension;
 }
@@ -133,6 +70,14 @@ async function extractTextFromImage(buffer, sourceLanguage) {
   return text;
 }
 
+function extractTextFromTxt(buffer) {
+  const text = buffer.toString('utf8').trim();
+  if (!text) {
+    throw new Error('El archivo TXT no contiene texto legible.');
+  }
+  return text;
+}
+
 async function extractTextByFile(file, sourceLanguage) {
   if (!file || !file.buffer) {
     throw new Error('Archivo inválido o vacío.');
@@ -145,6 +90,7 @@ async function extractTextByFile(file, sourceLanguage) {
   if (extension === '.jpg' || extension === '.jpeg' || extension === '.png') {
     return extractTextFromImage(file.buffer, sourceLanguage);
   }
+  if (extension === '.txt') return extractTextFromTxt(file.buffer);
 
   throw new Error('Formato no soportado.');
 }

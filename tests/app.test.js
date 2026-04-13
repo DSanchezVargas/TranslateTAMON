@@ -15,14 +15,51 @@ describe('app routes', () => {
   test('GET /health responds ok', async () => {
     const response = await request(app).get('/health');
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
+    expect(response.body).toEqual(expect.objectContaining({
       status: 'ok',
       system: "Tamon's Translator",
-      learning: {
-        adminContributes: true,
-        automaticReuse: true
-      }
+      systemIconPath: '/icons/tamon.svg'
+    }));
+    expect(response.body.learning).toEqual({
+      adminContributes: true,
+      automaticReuse: true
     });
+    expect(response.body.branding).toEqual({
+      colors: expect.objectContaining({
+        primary: '#eaa8c1',
+        secondary: '#d983ab'
+      })
+    });
+  });
+
+  test('GET / serves frontend shell', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.text).toContain('Tamon Translator');
+  });
+
+  test('GET /icons/tamon.svg serves icon file', async () => {
+    const response = await request(app).get('/icons/tamon.svg');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('image/svg+xml');
+  });
+
+  test('GET /api/assistant/status responds with product metadata', async () => {
+    const response = await request(app).get('/api/assistant/status');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({
+      status: 'ready',
+      system: "Tamon's Translator",
+      assistantTagline: expect.any(String)
+    }));
+    expect(response.body.hyperautomationFlow).toEqual(expect.arrayContaining([
+      expect.stringContaining('Entrada'),
+      expect.stringContaining('Traducción')
+    ]));
+    expect(response.body.learning).toEqual(expect.objectContaining({
+      autonomousWhenAdminOffline: true
+    }));
   });
 
   test('POST /api/translate requires file', async () => {
@@ -41,6 +78,39 @@ describe('app routes', () => {
       .field('targetLanguage', 'es');
 
     expect(response.status).toBe(400);
+  });
+
+  test('POST /api/assistant/translate-text requires text', async () => {
+    const response = await request(app)
+      .post('/api/assistant/translate-text')
+      .send({
+        userName: 'usuario',
+        sourceLanguage: 'en',
+        targetLanguage: 'es'
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Campo requerido');
+  });
+
+  test('POST /api/assistant/translate-text returns assistant response', async () => {
+    const response = await request(app)
+      .post('/api/assistant/translate-text')
+      .send({
+        userName: 'Daniela',
+        text: 'hello you are the most amazing thing in the world',
+        sourceLanguage: 'en',
+        targetLanguage: 'en'
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({
+      userName: 'Daniela',
+      sourceLanguage: 'en',
+      targetLanguage: 'en',
+      translatedText: 'hello you are the most amazing thing in the world'
+    }));
+    expect(response.body.assistantResponse).toContain('Bueno Daniela');
   });
 
   test('POST /api/memory/corrections rejects non-admin', async () => {
