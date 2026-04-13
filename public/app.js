@@ -6,6 +6,16 @@ const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
   { value: 'it', label: 'Italiano' }
 ];
+const UI_TEXT = {
+  processing: 'Asistente IA: procesando entrada y memoria contextual...',
+  previewError: 'No se pudo generar la vista previa.',
+  previewReady: 'Vista previa lista para corrección.',
+  fromMemory: 'resultado desde memoria',
+  fromModel: 'resultado generado por IA',
+  finalizing: 'Asistente IA: finalizando documento y aplicando aprendizaje...',
+  finalizeError: 'No se pudo finalizar la traducción.',
+  downloaded: 'Documento final listo y descargado.'
+};
 
 const form = document.querySelector('#translate-form');
 const previewPanel = document.querySelector('#preview-panel');
@@ -48,7 +58,7 @@ async function requestPreview(event) {
   event.preventDefault();
   const formData = new FormData(form);
   setStep('step-upload');
-  setStatus('Asistente IA: procesando entrada y memoria contextual...');
+  setStatus(UI_TEXT.processing);
 
   const response = await fetch('/api/translate/preview', {
     method: 'POST',
@@ -57,18 +67,18 @@ async function requestPreview(event) {
   const data = await response.json();
 
   if (!response.ok) {
-    throw new Error(data.error || 'No se pudo generar la vista previa.');
+    throw new Error(data.error || UI_TEXT.previewError);
   }
 
   previewState = data;
   previewPanel.classList.remove('hidden');
   translatedTextInput.value = data.translatedText;
   previewMeta.textContent = `Trace: ${data.traceId} · ${
-    data.experience?.fromCache ? 'resultado desde memoria' : 'resultado generado por IA'
+    data.experience?.fromCache ? UI_TEXT.fromMemory : UI_TEXT.fromModel
   } · ${data.experience?.processingMs || '-'}ms`;
 
   setStep('step-preview');
-  setStatus(data.experience?.assistantMessage || 'Vista previa lista para corrección.');
+  setStatus(data.experience?.assistantMessage || UI_TEXT.previewReady);
 }
 
 function triggerDownload(blob, filename) {
@@ -85,7 +95,7 @@ function triggerDownload(blob, filename) {
 async function finalizeTranslation() {
   if (!previewState) return;
   setStep('step-correction');
-  setStatus('Asistente IA: finalizando documento y aplicando aprendizaje...');
+  setStatus(UI_TEXT.finalizing);
 
   const payload = {
     previewId: previewState.previewId,
@@ -103,7 +113,7 @@ async function finalizeTranslation() {
 
   if (!response.ok) {
     const data = await response.json();
-    throw new Error(data.error || 'No se pudo finalizar la traducción.');
+    throw new Error(data.error || UI_TEXT.finalizeError);
   }
 
   const blob = await response.blob();
@@ -113,7 +123,7 @@ async function finalizeTranslation() {
   triggerDownload(blob, filename);
 
   setStep('step-download');
-  setStatus(response.headers.get('x-tamon-assistant-message') || 'Documento final listo y descargado.');
+  setStatus(response.headers.get('x-tamon-assistant-message') || UI_TEXT.downloaded);
 }
 
 form.addEventListener('submit', (event) => {

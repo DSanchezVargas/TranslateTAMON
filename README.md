@@ -47,6 +47,7 @@ npm run dev
 ```
 
 Servidor por defecto: `http://localhost:3000`
+
 Interfaz web: `GET /`
 
 ## Ícono del sistema

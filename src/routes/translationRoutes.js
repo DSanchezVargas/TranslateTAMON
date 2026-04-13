@@ -18,10 +18,7 @@ const { sanitizeString } = require('../utils/validation');
 const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
 const router = express.Router();
-const configuredUploadLimitMb = Number(process.env.MAX_UPLOAD_MB || 100);
-const uploadLimitMb = Number.isFinite(configuredUploadLimitMb) && configuredUploadLimitMb > 0
-  ? configuredUploadLimitMb
-  : 100;
+const uploadLimitMb = Math.max(Number(process.env.MAX_UPLOAD_MB) || 100, 1);
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: uploadLimitMb * 1024 * 1024 }
@@ -47,7 +44,7 @@ function computeSourceHash(text) {
 }
 
 function buildAssistantMessage(status) {
-  return `${ASSISTANT_TAGLINE} · estado: ${status}`;
+  return `${ASSISTANT_TAGLINE} · status: ${status}`;
 }
 
 function setExperienceHeaders(res, { traceId, status, processingMs }) {
