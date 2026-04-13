@@ -30,6 +30,7 @@ const upload = multer({
 const previewStore = new Map();
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
 const MAX_ESTIMATED_SECONDS = 23 * 60 * 60;
+const ASSISTANT_TEXT_PREVIEW_LIMIT = 220;
 
 async function saveHistory(record) {
   if (!isDbReady()) return;
@@ -325,6 +326,9 @@ router.post('/assistant/translate-text', async (req, res, next) => {
     const userName = sanitizeString(req.body.userName || 'usuario', { required: true, maxLength: 80 });
 
     const translatedText = await translateText(text, sourceLanguage, targetLanguage);
+    const translatedTextPreview = translatedText.length > ASSISTANT_TEXT_PREVIEW_LIMIT
+      ? `${translatedText.slice(0, ASSISTANT_TEXT_PREVIEW_LIMIT)}...`
+      : translatedText;
     const processingMs = Date.now() - startedAt;
 
     await saveHistory({
@@ -348,7 +352,7 @@ router.post('/assistant/translate-text', async (req, res, next) => {
       sourceLanguage,
       targetLanguage,
       translatedText,
-      assistantResponse: `Bueno ${userName}, tu traducción a ${targetLanguage} es: ${translatedText}`,
+      assistantResponse: `Bueno ${userName}, tu traducción a ${targetLanguage} es: ${translatedTextPreview}`,
       learningState: 'Tamon está aprendiendo y mejora en cada interacción.'
     });
   } catch (error) {
