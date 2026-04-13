@@ -18,6 +18,20 @@ function assertSupportedFile(fileName) {
   return extension;
 }
 
+// AÑADE ESTA FUNCIÓN PARA EVITAR EL CRASH:
+async function enhancePdfTextWithOcr(parser, pages, sourceLanguage) {
+  // Por el momento, dejamos que pdf-parse extraiga el texto nativo del PDF.
+  // Aquí podrás integrar Tesseract para PDFs escaneados en el futuro.
+  return;
+}
+
+// AÑADE ESTA FUNCIÓN PARA UNIR LAS PÁGINAS DEL PDF:
+function joinPdfPages(pages) {
+  if (!Array.isArray(pages)) return '';
+  // Une todas las páginas con un salto de línea doble entre cada una
+  return pages.join('\n\n'); 
+}
+
 async function extractTextFromPdf(buffer, sourceLanguage) {
   let result;
 

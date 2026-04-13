@@ -15,7 +15,7 @@ const {
 const { isDbReady } = require('../config/db');
 const TranslationHistory = require('../models/TranslationHistory');
 const CorrectionSuggestion = require('../models/CorrectionSuggestion');
-const { sanitizeString } = require('../utils/validation');
+const { sanitizeString, isInvalidTranslatedText } = require('../utils/validation');
 const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
 const router = express.Router();
@@ -28,10 +28,20 @@ const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: uploadLimitMb * 1024 * 1024 }
 });
+
+// VARIABLES GLOBALES FALTANTES AGREGADAS AQUÍ
 const previewStore = new Map();
+const translationJobs = new Map(); 
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
+const JOB_TTL_MS = 60 * 60 * 1000;
 const MAX_ESTIMATED_SECONDS = 23 * 60 * 60;
 const ASSISTANT_TEXT_PREVIEW_LIMIT = 220;
+
+// FUNCIÓN DE RESPALDO PARA EVITAR CRASH AL FINALIZAR
+async function saveUserLearningSuggestions(preview, finalText) {
+  // Aquí puedes implementar la lógica para guardar sugerencias en el futuro
+  return;
+}
 
 async function saveHistory(record) {
   if (!isDbReady()) return;
@@ -294,13 +304,14 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
     job.error = error.message;
     addJobHistory(job, `Error: ${error.message}`);
 
+    // CORRECCIÓN: Valores de respaldo
     await saveHistory({
       originalFileName: file?.originalname || 'unknown',
       fileType: path.extname(file?.originalname || '').replace('.', ''),
-      sourceLanguage,
-      targetLanguage,
-      project,
-      domain,
+      sourceLanguage: sourceLanguage || 'unknown',
+      targetLanguage: targetLanguage || 'unknown',
+      project: project || 'default',
+      domain: domain || 'general',
       sourceTextLength: 0,
       translatedTextLength: 0,
       status: 'failed',
@@ -449,13 +460,14 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
     return res.status(200).send(translatedDocxBuffer);
   } catch (error) {
+    // CORRECCIÓN: Valores de respaldo
     await saveHistory({
       originalFileName: req.file?.originalname || 'unknown',
       fileType: path.extname(req.file?.originalname || '').replace('.', ''),
-      sourceLanguage,
-      targetLanguage,
-      project,
-      domain,
+      sourceLanguage: sourceLanguage || req.body?.sourceLanguage || 'unknown',
+      targetLanguage: targetLanguage || req.body?.targetLanguage || 'unknown',
+      project: project || req.body?.project || 'default',
+      domain: domain || req.body?.domain || 'general',
       sourceTextLength: 0,
       translatedTextLength: 0,
       status: 'failed',

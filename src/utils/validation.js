@@ -20,6 +20,14 @@ function sanitizeString(value, { required = false, maxLength = 2000 } = {}) {
   return normalized;
 }
 
+function isInvalidTranslatedText(text) {
+  if (!text || typeof text !== 'string') return true;
+  const upper = text.toUpperCase();
+  // Validar si el proveedor gratuito tiró error de límite
+  return upper.includes('QUERY LENGTH LIMIT EXCEEDED') || upper.includes('MAX ALLOWED QUERY');
+}
+
 module.exports = {
-  sanitizeString
+  sanitizeString,
+  isInvalidTranslatedText
 };
