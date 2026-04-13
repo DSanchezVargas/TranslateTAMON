@@ -51,7 +51,7 @@ router.get('/glossary', memoryRateLimiter, requireDb, async (req, res, next) => 
   }
 });
 
-router.post('/glossary', memoryRateLimiter, requireDb, async (req, res, next) => {
+router.post('/glossary', memoryRateLimiter, requireAdmin, requireDb, async (req, res, next) => {
   try {
     const created = await GlossaryEntry.create({
       project: sanitizeString(req.body.project, { required: true, maxLength: 120 }),
@@ -150,7 +150,7 @@ router.get('/rules', memoryRateLimiter, requireDb, async (req, res, next) => {
   }
 });
 
-router.post('/rules', memoryRateLimiter, requireDb, async (req, res, next) => {
+router.post('/rules', memoryRateLimiter, requireAdmin, requireDb, async (req, res, next) => {
   try {
     const created = await DomainRule.create({
       project: sanitizeString(req.body.project, { required: true, maxLength: 120 }),

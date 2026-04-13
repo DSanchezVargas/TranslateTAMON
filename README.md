@@ -1,4 +1,4 @@
-# TranslateTAMON - MVP Opción 2
+# Tamon's Translator (TranslateTAMON) - MVP Opción 2
 
 MVP para traducir documentos de entrada **PDF / DOCX / JPG / PNG** con:
 
@@ -97,15 +97,17 @@ Además, la app reutiliza traducciones previas automáticamente (cache por hash 
 
 ### Endpoints de memoria
 
-- `GET/POST /api/memory/glossary`
+- `GET /api/memory/glossary`
+- `POST /api/memory/glossary` (solo admin)
 - `GET/POST /api/memory/corrections`
 - `POST /api/memory/corrections/suggestions` (usuario propone corrección pendiente)
 - `POST /api/memory/corrections/suggestions/:id/approve` (solo admin aprueba y entrena memoria)
-- `GET/POST /api/memory/rules`
+- `GET /api/memory/rules`
+- `POST /api/memory/rules` (solo admin)
 
 > Si `MONGO_URI` no está configurado, la app funciona sin persistencia y los endpoints de memoria devuelven 503.
 >
-> `POST /api/memory/corrections` y aprobación de sugerencias requieren header `x-admin-token` con `ADMIN_TOKEN`.
+> `POST /api/memory/glossary`, `POST /api/memory/corrections`, `POST /api/memory/rules` y la aprobación de sugerencias requieren header `x-admin-token` con `ADMIN_TOKEN`.
 
 ## Scripts
 
