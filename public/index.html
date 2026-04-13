@@ -17,46 +17,93 @@
         </div>
       </header>
 
-      <section class="panel">
-        <h2>1) Entrada inteligente</h2>
-        <form id="translate-form" class="grid-form">
-          <label>Documento
-            <input type="file" id="document" name="document" accept=".pdf,.docx,.jpg,.jpeg,.png" required />
-          </label>
-          <label>Idioma origen
-            <select id="sourceLanguage" name="sourceLanguage" required></select>
-          </label>
-          <label>Idioma destino
-            <select id="targetLanguage" name="targetLanguage" required></select>
-          </label>
-          <label>Proyecto
-            <input type="text" id="project" name="project" value="default" />
-          </label>
-          <label>Dominio
-            <input type="text" id="domain" name="domain" value="general" />
-          </label>
-          <button type="submit" class="btn-primary">Generar vista previa IA</button>
-        </form>
+      <nav class="panel tabs">
+        <button id="tab-translation" class="tab-btn is-active" type="button">Menú principal · Traducción</button>
+        <button id="tab-comments" class="tab-btn" type="button">Comentarios de usuario</button>
+      </nav>
+
+      <section id="translation-view">
+        <section class="panel">
+          <h2>1) Entrada inteligente</h2>
+          <form id="translate-form" class="grid-form">
+            <label>Documento
+              <input type="file" id="document" name="document" accept=".pdf,.docx,.jpg,.jpeg,.png,.txt" required />
+            </label>
+            <label>Idioma origen
+              <select id="sourceLanguage" name="sourceLanguage" required></select>
+            </label>
+            <label>Idioma destino
+              <select id="targetLanguage" name="targetLanguage" required></select>
+            </label>
+            <label>Proyecto
+              <input type="text" id="project" name="project" value="default" />
+            </label>
+            <label>Dominio
+              <input type="text" id="domain" name="domain" value="general" />
+            </label>
+            <button type="submit" class="btn-primary">Generar vista previa IA</button>
+          </form>
+        </section>
+
+        <section class="panel" id="status-panel">
+          <h2>2) Flujo hiperautomatizado</h2>
+          <ol class="flow-steps">
+            <li id="step-upload">Entrada de documento</li>
+            <li id="step-preview">Traducción y vista previa</li>
+            <li id="step-correction">Corrección guiada</li>
+            <li id="step-download">Descarga + memoria aplicada</li>
+          </ol>
+          <p id="assistant-status">Asistente listo para iniciar.</p>
+          <p class="meta" id="eta-text">Tiempo estimado de traducción: pendiente.</p>
+          <div class="progress-block">
+            <p>Progreso de proceso</p>
+            <div class="progress-track"><div id="process-progress" class="progress-fill"></div></div>
+          </div>
+          <div class="progress-block">
+            <p>Barra de historial y aprendizaje Tamon</p>
+            <div class="progress-track"><div id="history-progress" class="progress-fill history"></div></div>
+          </div>
+        </section>
+
+        <section class="panel hidden" id="preview-panel">
+          <h2>3) Corrección guiada</h2>
+          <p class="meta" id="preview-meta"></p>
+          <div class="live-grid">
+            <label>Vista de traducción (origen)
+              <textarea id="originalTextPreview" rows="8" readonly></textarea>
+            </label>
+            <label>Texto traducido editable
+              <textarea id="translatedText" rows="8"></textarea>
+            </label>
+          </div>
+          <button id="finalize-btn" class="btn-secondary">Finalizar y descargar DOCX</button>
+        </section>
       </section>
 
-      <section class="panel" id="status-panel">
-        <h2>2) Flujo hiperautomatizado</h2>
-        <ol class="flow-steps">
-          <li id="step-upload">Entrada de documento</li>
-          <li id="step-preview">Traducción y vista previa</li>
-          <li id="step-correction">Corrección guiada</li>
-          <li id="step-download">Descarga + memoria aplicada</li>
-        </ol>
-        <p id="assistant-status">Asistente listo para iniciar.</p>
-      </section>
-
-      <section class="panel hidden" id="preview-panel">
-        <h2>3) Corrección guiada</h2>
-        <p class="meta" id="preview-meta"></p>
-        <label>Texto traducido editable
-          <textarea id="translatedText" rows="10"></textarea>
-        </label>
-        <button id="finalize-btn" class="btn-secondary">Finalizar y descargar DOCX</button>
+      <section id="comments-view" class="hidden">
+        <section class="panel">
+          <h2>Comentarios de usuario para enriquecer diccionario</h2>
+          <p class="meta">Estas sugerencias ayudan a Tamon a mejorar continuamente, incluso cuando el admin no está disponible.</p>
+          <form id="comments-form" class="grid-form">
+            <label>Proyecto
+              <input type="text" id="commentProject" value="default" required />
+            </label>
+            <label>Idioma origen
+              <select id="commentSourceLanguage" required></select>
+            </label>
+            <label>Idioma destino
+              <select id="commentTargetLanguage" required></select>
+            </label>
+            <label>Traducción original detectada
+              <textarea id="originalTranslation" rows="3" required></textarea>
+            </label>
+            <label>Traducción sugerida por usuario
+              <textarea id="suggestedTranslation" rows="3" required></textarea>
+            </label>
+            <button type="submit" class="btn-primary">Enviar comentario para memoria IA</button>
+          </form>
+          <p class="meta" id="comments-status">Sin comentarios enviados todavía.</p>
+        </section>
       </section>
     </main>
 

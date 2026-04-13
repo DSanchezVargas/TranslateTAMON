@@ -9,6 +9,8 @@ const {
   HYPERAUTOMATION_FLOW,
   ASSISTANT_TAGLINE
 } = require('./config/appInfo');
+const { isDbReady } = require('./config/db');
+const TranslationHistory = require('./models/TranslationHistory');
 
 const app = express();
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '25mb';
@@ -32,11 +34,25 @@ app.get('/health', (_, res) => {
   });
 });
 
-app.get('/api/assistant/status', (_, res) => {
-  res.json({
-    status: 'ready',
-    system: APP_NAME,
-    assistantTagline: ASSISTANT_TAGLINE,
+app.get('/api/assistant/status', async (_, res, next) => {
+  try {
+    let totalTranslations = 0;
+    let successfulTranslations = 0;
+    if (isDbReady()) {
+      [totalTranslations, successfulTranslations] = await Promise.all([
+        TranslationHistory.countDocuments({}),
+        TranslationHistory.countDocuments({ status: 'success' })
+      ]);
+    }
+
+    const learningProgressPercent = totalTranslations > 0
+      ? Math.min(Math.round((successfulTranslations / totalTranslations) * 100), 100)
+      : 0;
+
+    return res.json({
+      status: 'ready',
+      system: APP_NAME,
+      assistantTagline: ASSISTANT_TAGLINE,
     hyperautomationFlow: HYPERAUTOMATION_FLOW,
     branding: {
       iconPath: SYSTEM_ICON_PATH,
@@ -45,9 +61,19 @@ app.get('/api/assistant/status', (_, res) => {
     learning: {
       mode: 'progressive',
       automaticReuse: true,
-      adminContributes: true
+      adminContributes: true,
+      autonomousWhenAdminOffline: true,
+      totalTranslations,
+      successfulTranslations,
+      learningProgressPercent
+    },
+    serviceCommitment: {
+      maxEstimatedTurnaround: 'menos de 1 día'
     }
-  });
+    });
+  } catch (error) {
+    return next(error);
+  }
 });
 
 app.use('/api', translationRoutes);

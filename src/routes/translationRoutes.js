@@ -25,6 +25,7 @@ const upload = multer({
 });
 const previewStore = new Map();
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
+const MAX_ESTIMATED_SECONDS = 23 * 60 * 60;
 
 async function saveHistory(record) {
   if (!isDbReady()) return;
@@ -52,6 +53,11 @@ function setExperienceHeaders(res, { traceId, status, processingMs }) {
   res.setHeader('X-Tamon-Status', status);
   res.setHeader('X-Tamon-Processing-Ms', String(processingMs));
   res.setHeader('X-Tamon-Assistant-Message', buildAssistantMessage(status));
+}
+
+function estimateTranslationSecondsByText(text = '') {
+  const estimated = Math.ceil(text.length / 900);
+  return Math.min(Math.max(estimated, 10), MAX_ESTIMATED_SECONDS);
 }
 
 async function findCachedTranslation({ sourceHash, sourceLanguage, targetLanguage, project, domain }) {
@@ -165,7 +171,12 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
         experience: {
           status: 'preview_ready',
           processingMs,
+          estimatedCompletionSeconds: estimateTranslationSecondsByText(originalText),
           fromCache,
+          progress: {
+            completionPercent: 100,
+            stage: 'preview_ready'
+          },
           assistantMessage: buildAssistantMessage('preview_ready')
         }
       });

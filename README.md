@@ -1,11 +1,13 @@
 # Tamon's Translator (TranslateTAMON) - MVP Opción 2
 
-MVP para traducir documentos de entrada **PDF / DOCX / JPG / PNG** con:
+MVP para traducir documentos de entrada **PDF / DOCX / JPG / PNG / TXT** con:
 
 - **Vista previa de traducción** para revisión/corrección.
 - Salida final en **DOCX** ordenado.
 - **Aprendizaje controlado por admin** (no por usuarios finales) sobre correcciones.
 - **Frontend web Tamon** para flujo completo: carga → preview → corrección → descarga.
+- **ETA, barra de progreso y barra de historial de aprendizaje** para visibilidad de proceso.
+- **Pestaña de comentarios de usuario** para mejorar la memoria continuamente.
 
 ## Stack
 
@@ -62,7 +64,7 @@ Interfaz web: `GET /`
 
 `multipart/form-data`:
 
-- `document` (archivo: pdf/docx/jpg/jpeg/png)
+- `document` (archivo: pdf/docx/jpg/jpeg/png/txt)
 - `sourceLanguage` (ej: `en`)
 - `targetLanguage` (ej: `es`)
 - `project` (opcional, default: `default`)
@@ -76,7 +78,7 @@ Respuesta:
 
 `multipart/form-data`:
 
-- `document` (archivo: pdf/docx/jpg/jpeg/png)
+- `document` (archivo: pdf/docx/jpg/jpeg/png/txt)
 - `sourceLanguage`
 - `targetLanguage`
 - `project` (opcional)
@@ -84,7 +86,7 @@ Respuesta:
 
 Respuesta:
 
-- JSON con `previewId`, `traceId`, `originalText`, `translatedText` y bloque `experience`.
+- JSON con `previewId`, `traceId`, `originalText`, `translatedText` y bloque `experience` (incluye ETA estimada y progreso).
 
 ### `POST /api/translate/finalize`
 
@@ -101,7 +103,7 @@ Respuesta:
 
 ### `GET /api/assistant/status`
 
-- Estado de producto para frontend/app: branding, flujo hiperautomatizado y estado de aprendizaje.
+- Estado de producto para frontend/app: branding, flujo hiperautomatizado y estado de aprendizaje (incluye `learningProgressPercent` y operación autónoma sin admin 24/7).
 
 ## Memoria controlada (MongoDB)
 

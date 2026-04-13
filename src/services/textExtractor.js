@@ -4,7 +4,7 @@ const Tesseract = require('tesseract.js');
 const path = require('path');
 const { getTesseractLang } = require('../config/languages');
 
-const SUPPORTED_EXTENSIONS = new Set(['.pdf', '.docx', '.jpg', '.jpeg', '.png']);
+const SUPPORTED_EXTENSIONS = new Set(['.pdf', '.docx', '.jpg', '.jpeg', '.png', '.txt']);
 
 function getExtension(fileName = '') {
   return path.extname(fileName).toLowerCase();
@@ -13,7 +13,7 @@ function getExtension(fileName = '') {
 function assertSupportedFile(fileName) {
   const extension = getExtension(fileName);
   if (!SUPPORTED_EXTENSIONS.has(extension)) {
-    throw new Error('Formato no soportado. Usa PDF, DOCX, JPG, JPEG o PNG.');
+    throw new Error('Formato no soportado. Usa PDF, DOCX, JPG, JPEG, PNG o TXT.');
   }
   return extension;
 }
@@ -50,6 +50,14 @@ async function extractTextFromImage(buffer, sourceLanguage) {
   return text;
 }
 
+function extractTextFromTxt(buffer) {
+  const text = buffer.toString('utf8').trim();
+  if (!text) {
+    throw new Error('El archivo TXT no contiene texto legible.');
+  }
+  return text;
+}
+
 async function extractTextByFile(file, sourceLanguage) {
   if (!file || !file.buffer) {
     throw new Error('Archivo inválido o vacío.');
@@ -62,6 +70,7 @@ async function extractTextByFile(file, sourceLanguage) {
   if (extension === '.jpg' || extension === '.jpeg' || extension === '.png') {
     return extractTextFromImage(file.buffer, sourceLanguage);
   }
+  if (extension === '.txt') return extractTextFromTxt(file.buffer);
 
   throw new Error('Formato no soportado.');
 }

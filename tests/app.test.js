@@ -57,6 +57,9 @@ describe('app routes', () => {
       expect.stringContaining('Entrada'),
       expect.stringContaining('Traducción')
     ]));
+    expect(response.body.learning).toEqual(expect.objectContaining({
+      autonomousWhenAdminOffline: true
+    }));
   });
 
   test('POST /api/translate requires file', async () => {
