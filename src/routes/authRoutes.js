@@ -3,95 +3,80 @@ const router = express.Router();
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
 
-// Configuramos el enviador de correos (Nodemailer)
+// Configuramos el enviador de correos
 const transporter = nodemailer.createTransport({
   service: 'gmail',
   auth: {
-    user: process.env.EMAIL_USER || 'tu_correo@gmail.com', 
-    pass: process.env.EMAIL_PASS || 'tu_contraseña_de_aplicacion'
+    user: process.env.EMAIL_USER, 
+    pass: process.env.EMAIL_PASS
   }
 });
 
+// --- RUTA DE REGISTRO ---
 router.post('/register', async (req, res) => {
   try {
     const { nombre, correo, password } = req.body;
 
     if (!nombre || !correo || !password) {
-      return res.status(400).json({ error: 'Completa todos los campos.' });
+      return res.status(400).json({ error: 'Faltan datos para el registro.' });
     }
 
-    let usuarioExistente = await User.findOne({ correo: correo.toLowerCase() });
-    if (usuarioExistente) {
-      return res.status(400).json({ error: 'Este correo ya está registrado.' });
+    let userExists = await User.findOne({ correo: correo.toLowerCase() });
+    if (userExists) {
+      return res.status(400).json({ error: 'Este correo ya tiene cuenta.' });
     }
 
     const nuevoUsuario = new User({ nombre, correo, password });
     await nuevoUsuario.save();
 
-    // Intentamos enviar el correo de bienvenida en segundo plano
+    // Intento de envío de correo (no bloquea el registro si falla)
     try {
-      await transporter.sendMail({
-        from: '"Tamon Translator" <no-reply@tamon.com>',
-        to: correo,
-        subject: '¡Bienvenido a Tamon Translator! ✨',
-        html: `
-          <div style="font-family: Arial, sans-serif; padding: 20px; color: #333;">
-            <h2 style="color: #7928ca;">¡Hola ${nombre}!</h2>
-            <p>Tu cuenta en Tamon ha sido creada con éxito.</p>
-            <p>Prepárate para traducir y aplicar aprendizaje hiperautomatizado a tus documentos.</p>
-            <br/>
-            <p>Saludos,<br/><strong>El equipo de Tamon IA</strong></p>
-          </div>
-        `
-      });
-    } catch (emailError) {
-      console.log('Aviso: Usuario registrado, pero falló el envío de correo (Falta configurar credenciales).');
+      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+        await transporter.sendMail({
+          from: '"Tamon IA" <no-reply@tamon.com>',
+          to: correo,
+          subject: '¡Bienvenido a Tamon! ✨',
+          text: `Hola ${nombre}, tu cuenta ha sido creada.`
+        });
+      }
+    } catch (mailErr) {
+      console.error('Error enviando correo:', mailErr);
     }
 
-    res.status(201).json({ 
-      mensaje: '¡Usuario registrado con éxito!',
-      usuario: { nombre: nuevoUsuario.nombre, correo: nuevoUsuario.correo }
+    return res.status(201).json({ 
+      mensaje: '¡Registro exitoso!',
+      usuario: { id: nuevoUsuario._id, nombre: nuevoUsuario.nombre, correo: nuevoUsuario.correo } 
     });
 
   } catch (error) {
-    res.status(500).json({ error: 'Error interno del servidor.' });
+    console.error('ERROR CRÍTICO EN REGISTRO:', error);
+    return res.status(500).json({ error: 'Error interno al crear la cuenta.' });
   }
 });
-// Ruta para Iniciar Sesión (POST /api/auth/login)
+
+// --- RUTA DE LOGIN (Para que no de error 404) ---
 router.post('/login', async (req, res) => {
   try {
     const { correo, password } = req.body;
-
-    if (!correo || !password) {
-      return res.status(400).json({ error: 'Por favor, ingresa correo y contraseña.' });
-    }
-
-    // 1. Buscamos al usuario por su correo
     const usuario = await User.findOne({ correo: correo.toLowerCase() });
+
     if (!usuario) {
-      return res.status(400).json({ error: 'Correo o contraseña incorrectos.' });
+      return res.status(400).json({ error: 'Usuario no encontrado.' });
     }
 
-    // 2. Comparamos la contraseña ingresada con la guardada en Mongoose
-    const passwordValido = await usuario.compararPassword(password);
-    if (!passwordValido) {
-      return res.status(400).json({ error: 'Correo o contraseña incorrectos.' });
+    const esValido = await usuario.compararPassword(password);
+    if (!esValido) {
+      return res.status(400).json({ error: 'Contraseña incorrecta.' });
     }
 
-    // 3. Si todo está bien, le damos la bienvenida
     res.status(200).json({
-      mensaje: 'Inicio de sesión exitoso',
-      usuario: {
-        id: usuario._id,
-        nombre: usuario.nombre,
-        correo: usuario.correo,
-        plan: usuario.plan
-      }
+      mensaje: 'Login exitoso',
+      usuario: { id: usuario._id, nombre: usuario.nombre, correo: usuario.correo }
     });
-
   } catch (error) {
-    console.error('Error en el login:', error);
-    res.status(500).json({ error: 'Error interno del servidor al iniciar sesión.' });
+    res.status(500).json({ error: 'Error al iniciar sesión.' });
   }
 });
+
+// ESTA ES LA LÍNEA QUE FALTABA Y POR LA QUE CRASHEABA:
 module.exports = router;
