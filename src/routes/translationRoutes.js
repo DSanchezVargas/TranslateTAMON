@@ -15,6 +15,7 @@ const {
 const { isDbReady } = require('../config/db');
 const TranslationHistory = require('../models/TranslationHistory');
 const CorrectionSuggestion = require('../models/CorrectionSuggestion');
+const ClientQuota = require('../models/ClientQuota'); // <-- AGREGA ESTA LÍNEA
 const { sanitizeString, isInvalidTranslatedText } = require('../utils/validation');
 const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
@@ -360,9 +361,40 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
   let project;
   let domain;
 
+  // --- NUEVA LÓGICA DEL CONTADOR (COPIA ESTE BLOQUE) ---
+  if (isDbReady()) {
+    const clientIp = req.ip || req.connection.remoteAddress;
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    let quota = await ClientQuota.findOne({ ip: clientIp });
+    
+    if (!quota) {
+      // Primera vez que usa el sistema
+      quota = new ClientQuota({ ip: clientIp, count: 0 });
+    } else if (quota.lastUsed < today) {
+      // Es un nuevo día, reiniciamos su contador a 0
+      quota.count = 0;
+    }
+
+    // Si ya llegó a 10, lo bloqueamos
+    if (quota.count >= 10) {
+      return res.status(403).json({ 
+        error: 'Tamon: Has alcanzado el límite de 10 documentos gratuitos por hoy. Regresa mañana.' 
+      });
+    }
+
+    // Si pasa, sumamos 1 al contador y guardamos la fecha
+    quota.count += 1;
+    quota.lastUsed = new Date();
+    await quota.save();
+  }
+  // --- FIN DE LA LÓGICA DEL CONTADOR ---
+
   if (!req.file) {
     return res.status(400).json({ error: 'Debes enviar un archivo en el campo document.' });
   }
+
 
   try {
     sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });

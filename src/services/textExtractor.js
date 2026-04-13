@@ -25,11 +25,18 @@ async function enhancePdfTextWithOcr(parser, pages, sourceLanguage) {
   return;
 }
 
-// AÑADE ESTA FUNCIÓN PARA UNIR LAS PÁGINAS DEL PDF:
+// REEMPLAZA TU FUNCIÓN ACTUAL POR ESTA VERSIÓN:
 function joinPdfPages(pages) {
   if (!Array.isArray(pages)) return '';
-  // Une todas las páginas con un salto de línea doble entre cada una
-  return pages.join('\n\n'); 
+  
+  return pages.map(page => {
+    // Si la página ya es un texto simple, lo usamos.
+    if (typeof page === 'string') return page;
+    // Si es un objeto, extraemos la propiedad que contiene el texto.
+    if (page && typeof page.text === 'string') return page.text;
+    if (page && typeof page.content === 'string') return page.content;
+    return '';
+  }).filter(Boolean).join('\n\n'); 
 }
 
 async function extractTextFromPdf(buffer, sourceLanguage) {

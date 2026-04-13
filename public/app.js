@@ -59,18 +59,19 @@ function setStep(stepId) {
 }
 
 function setStatus(message) {
-  assistantStatus.textContent = message;
+  if (assistantStatus) assistantStatus.textContent = message;
 }
 
 function setProcessProgress(percent) {
-  processProgress.style.width = `${Math.max(Math.min(percent, 100), 0)}%`;
+  if (processProgress) processProgress.style.width = `${Math.max(Math.min(percent, 100), 0)}%`;
 }
 
 function setHistoryProgress(percent) {
-  historyProgress.style.width = `${Math.max(Math.min(percent, 100), 0)}%`;
+  if (historyProgress) historyProgress.style.width = `${Math.max(Math.min(percent, 100), 0)}%`;
 }
 
 function populateSelect(select) {
+  if (!select) return;
   LANGUAGES.forEach(({ value, label }) => {
     const option = document.createElement('option');
     option.value = value;
@@ -88,26 +89,26 @@ function populateLanguages() {
     quickSourceLanguage,
     quickTargetLanguage
   ].forEach(populateSelect);
-  sourceLanguageSelect.value = 'en';
-  targetLanguageSelect.value = 'es';
-  commentSourceLanguage.value = 'en';
-  commentTargetLanguage.value = 'es';
-  quickSourceLanguage.value = 'en';
-  quickTargetLanguage.value = 'es';
+  if (sourceLanguageSelect) sourceLanguageSelect.value = 'en';
+  if (targetLanguageSelect) targetLanguageSelect.value = 'es';
+  if (commentSourceLanguage) commentSourceLanguage.value = 'en';
+  if (commentTargetLanguage) commentTargetLanguage.value = 'es';
+  if (quickSourceLanguage) quickSourceLanguage.value = 'en';
+  if (quickTargetLanguage) quickTargetLanguage.value = 'es';
 }
 
 function showTranslationTab() {
-  tabTranslation.classList.add('is-active');
-  tabComments.classList.remove('is-active');
-  translationView.classList.remove('hidden');
-  commentsView.classList.add('hidden');
+  if (tabTranslation) tabTranslation.classList.add('is-active');
+  if (tabComments) tabComments.classList.remove('is-active');
+  if (translationView) translationView.classList.remove('hidden');
+  if (commentsView) commentsView.classList.add('hidden');
 }
 
 function showCommentsTab() {
-  tabComments.classList.add('is-active');
-  tabTranslation.classList.remove('is-active');
-  commentsView.classList.remove('hidden');
-  translationView.classList.add('hidden');
+  if (tabComments) tabComments.classList.add('is-active');
+  if (tabTranslation) tabTranslation.classList.remove('is-active');
+  if (commentsView) commentsView.classList.remove('hidden');
+  if (translationView) translationView.classList.add('hidden');
 }
 
 function startProcessTicker(estimatedSeconds) {
@@ -115,7 +116,7 @@ function startProcessTicker(estimatedSeconds) {
   const maxSeconds = Math.max(Math.min(estimatedSeconds || DEFAULT_ESTIMATED_SECONDS, MAX_ESTIMATED_SECONDS), 10);
   let elapsed = 0;
   setProcessProgress(3);
-  etaText.textContent = `Tiempo estimado de traducción: ${Math.ceil(maxSeconds / 60)} min (menos de 1 día).`;
+  if (etaText) etaText.textContent = `Tiempo estimado de traducción: ${Math.ceil(maxSeconds / 60)} min (menos de 1 día).`;
   processTicker = setInterval(() => {
     elapsed += 1;
     const ratio = Math.min(elapsed / maxSeconds, 0.9);
@@ -138,7 +139,24 @@ async function loadAssistantStatus() {
     const response = await fetch('/api/assistant/status');
     if (!response.ok) return;
     const data = await response.json();
+    
     setHistoryProgress(data.learning?.learningProgressPercent || 0);
+    
+    const limitElement = document.querySelector('#tamon-daily-limit');
+    if (limitElement && data.serviceCommitment?.dailyLimits) {
+      limitElement.textContent = data.serviceCommitment.dailyLimits;
+    }
+
+    const counterElement = document.querySelector('#usage-counter');
+    if (counterElement && data.serviceCommitment?.remainingDocs !== undefined) {
+      const remaining = data.serviceCommitment.remainingDocs;
+      counterElement.textContent = `Gratis hoy: ${remaining}/10`;
+      
+      if (remaining === 0) {
+        counterElement.style.color = '#ff4d4d';
+        counterElement.style.background = 'rgba(255, 77, 77, 0.15)';
+      }
+    }
   } catch (error) {
     console.warn('No se pudo cargar estado del asistente:', error);
   }
@@ -170,16 +188,16 @@ async function requestPreview(event) {
   }
 
   previewState = data;
-  previewPanel.classList.remove('hidden');
-  translatedTextInput.value = data.translatedText;
-  originalTextPreview.value = data.originalText;
-  previewMeta.textContent = `Trace: ${data.traceId} · ${
+  if (previewPanel) previewPanel.classList.remove('hidden');
+  if (translatedTextInput) translatedTextInput.value = data.translatedText;
+  if (originalTextPreview) originalTextPreview.value = data.originalText;
+  if (previewMeta) previewMeta.textContent = `Trace: ${data.traceId} · ${
     data.experience?.fromCache ? UI_TEXT.fromMemory : UI_TEXT.fromModel
   } · ${data.experience?.processingMs || '-'}ms`;
 
   stopProcessTicker();
   setProcessProgress(data.experience?.progress?.completionPercent || 100);
-  etaText.textContent = `Tiempo estimado de traducción: ${
+  if (etaText) etaText.textContent = `Tiempo estimado de traducción: ${
     Math.ceil((data.experience?.estimatedCompletionSeconds || 60) / 60)
   } min (menos de 1 día).`;
   setStep('step-preview');
@@ -229,7 +247,7 @@ async function finalizeTranslation() {
   triggerDownload(blob, filename);
 
   setProcessProgress(100);
-  setHistoryProgress(Math.min((parseInt(historyProgress.style.width, 10) || 0) + 5, 100));
+  if (historyProgress) setHistoryProgress(Math.min((parseInt(historyProgress.style.width, 10) || 0) + 5, 100));
   setStep('step-download');
   setStatus(response.headers.get('x-tamon-assistant-message') || UI_TEXT.downloaded);
 }
@@ -255,18 +273,19 @@ async function sendComment(event) {
     throw new Error(data.error || UI_TEXT.suggestionError);
   }
 
-  commentsStatus.textContent = UI_TEXT.suggestionSent;
-  commentsForm.reset();
-  document.querySelector('#commentProject').value = 'default';
-  commentSourceLanguage.value = 'en';
-  commentTargetLanguage.value = 'es';
+  if (commentsStatus) commentsStatus.textContent = UI_TEXT.suggestionSent;
+  if (commentsForm) commentsForm.reset();
+  const cp = document.querySelector('#commentProject');
+  if (cp) cp.value = 'default';
+  if (commentSourceLanguage) commentSourceLanguage.value = 'en';
+  if (commentTargetLanguage) commentTargetLanguage.value = 'es';
   loadAssistantStatus().catch(() => {});
 }
 
 async function translateQuickText(event) {
   event.preventDefault();
-  quickTranslateStatus.textContent = UI_TEXT.processing;
-  quickTranslateOutput.value = '';
+  if (quickTranslateStatus) quickTranslateStatus.textContent = UI_TEXT.processing;
+  if (quickTranslateOutput) quickTranslateOutput.value = '';
 
   const payload = {
     userName: document.querySelector('#quickUserName').value.trim() || 'usuario',
@@ -286,38 +305,239 @@ async function translateQuickText(event) {
     throw new Error(data.error || UI_TEXT.quickTranslateError);
   }
 
-  quickTranslateOutput.value = data.assistantResponse;
-  quickTranslateStatus.textContent = `${data.learningState} (trace: ${data.traceId})`;
+  if (quickTranslateOutput) quickTranslateOutput.value = data.assistantResponse;
+  if (quickTranslateStatus) quickTranslateStatus.textContent = `${data.learningState} (trace: ${data.traceId})`;
   setStatus('Asistente IA: traducción de texto rápida completada.');
 }
 
-tabTranslation.addEventListener('click', showTranslationTab);
-tabComments.addEventListener('click', showCommentsTab);
+if (tabTranslation) tabTranslation.addEventListener('click', showTranslationTab);
+if (tabComments) tabComments.addEventListener('click', showCommentsTab);
 
-form.addEventListener('submit', (event) => {
-  requestPreview(event).catch((error) => {
-    stopProcessTicker();
-    setStatus(error.message);
+if (form) {
+  form.addEventListener('submit', (event) => {
+    requestPreview(event).catch((error) => {
+      stopProcessTicker();
+      setStatus(error.message);
+    });
   });
-});
+}
 
-finalizeBtn.addEventListener('click', () => {
-  finalizeTranslation().catch((error) => {
-    setStatus(error.message);
+if (finalizeBtn) {
+  finalizeBtn.addEventListener('click', () => {
+    finalizeTranslation().catch((error) => {
+      setStatus(error.message);
+    });
   });
-});
+}
 
-commentsForm.addEventListener('submit', (event) => {
-  sendComment(event).catch((error) => {
-    commentsStatus.textContent = error.message;
+if (commentsForm) {
+  commentsForm.addEventListener('submit', (event) => {
+    sendComment(event).catch((error) => {
+      if (commentsStatus) commentsStatus.textContent = error.message;
+    });
   });
-});
+}
 
-quickTranslateForm.addEventListener('submit', (event) => {
-  translateQuickText(event).catch((error) => {
-    quickTranslateStatus.textContent = error.message;
+if (quickTranslateForm) {
+  quickTranslateForm.addEventListener('submit', (event) => {
+    translateQuickText(event).catch((error) => {
+      if (quickTranslateStatus) quickTranslateStatus.textContent = error.message;
+    });
   });
-});
+}
 
 populateLanguages();
 loadAssistantStatus().catch(() => {});
+
+// Lógica para el Modal de Tamon Pro+
+const btnProPlus = document.querySelector('#btn-pro-plus');
+const proModal = document.querySelector('#pro-modal');
+const closeModalBtn = document.querySelector('#close-modal-btn');
+const btnUpgradeNow = document.querySelector('#btn-upgrade-now');
+
+if (btnProPlus && proModal) {
+  btnProPlus.addEventListener('click', () => {
+    proModal.style.display = 'flex';
+  });
+}
+
+if (closeModalBtn && proModal) {
+  closeModalBtn.addEventListener('click', () => {
+    proModal.style.display = 'none';
+  });
+}
+
+if (btnUpgradeNow && proModal) {
+  btnUpgradeNow.addEventListener('click', () => {
+    proModal.innerHTML = `
+      <div style="background: #2d2a32; padding: 40px; border-radius: 15px; max-width: 450px; text-align: center; border: 1px solid #7928ca; color: #f8f9fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h2 style="color: #7928ca; font-size: 1.8rem; margin-top: 0;">¡Estás en la lista VIP! 🚀</h2>
+        <p style="color: #cbd5e1; margin-top: 15px; line-height: 1.6;">La pasarela de pagos oficial está siendo configurada para soportar a nuestros primeros usuarios fundadores.</p>
+        <p style="color: #cbd5e1; line-height: 1.6;">Tu espacio ha sido reservado. Te avisaremos en cuanto Tamon Pro+ esté habilitado.</p>
+        <button id="close-success-btn" style="margin-top: 25px; background: #cbd5e1; color: #2d2a32; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Entendido</button>
+      </div>
+    `;
+    document.querySelector('#close-success-btn').addEventListener('click', () => {
+      proModal.style.display = 'none';
+      location.reload(); 
+    });
+  });
+}
+
+window.addEventListener('click', (event) => {
+  if (event.target === proModal) {
+    proModal.style.display = 'none';
+  }
+});
+
+// =====================================================================
+// --- LÓGICA DE AUTENTICACIÓN (LOGIN, REGISTRO Y PERFIL) ---
+// =====================================================================
+
+const btnLoginModal = document.querySelector('#btn-login-modal');
+const authModal = document.querySelector('#auth-modal');
+const authToggleBtn = document.querySelector('#auth-toggle-btn');
+const authTitle = document.querySelector('#auth-title');
+const authNombreInput = document.querySelector('#auth-nombre');
+const authSubmitBtn = document.querySelector('#auth-submit-btn');
+const authToggleText = document.querySelector('#auth-toggle-text');
+const authForm = document.querySelector('#auth-form');
+const userProfileMenu = document.querySelector('#user-profile-menu');
+const displayUserName = document.querySelector('#display-user-name');
+const btnProfileDropdown = document.querySelector('#btn-profile-dropdown');
+const profileDropdownContent = document.querySelector('#profile-dropdown-content');
+const btnLogout = document.querySelector('#btn-logout');
+
+let isLoginMode = true;
+
+function checkAuth() {
+  const usuarioGuardado = localStorage.getItem('tamon_user');
+  if (usuarioGuardado) {
+    const user = JSON.parse(usuarioGuardado);
+    if (btnLoginModal) btnLoginModal.style.display = 'none';
+    if (userProfileMenu) userProfileMenu.style.display = 'block';
+    if (displayUserName) displayUserName.textContent = user.nombre;
+  } else {
+    if (btnLoginModal) btnLoginModal.style.display = 'block';
+    if (userProfileMenu) userProfileMenu.style.display = 'none';
+  }
+}
+
+if (btnLoginModal && authModal) {
+  btnLoginModal.addEventListener('click', () => {
+    authModal.style.display = 'flex';
+  });
+
+  authToggleBtn.addEventListener('click', () => {
+    isLoginMode = !isLoginMode;
+    if (isLoginMode) {
+      authTitle.textContent = 'Iniciar Sesión';
+      authNombreInput.style.display = 'none';
+      authNombreInput.removeAttribute('required');
+      authSubmitBtn.textContent = 'Entrar a Tamon';
+      authToggleText.textContent = '¿No tienes cuenta?';
+      authToggleBtn.textContent = 'Regístrate aquí';
+    } else {
+      authTitle.textContent = 'Crear Cuenta';
+      authNombreInput.style.display = 'block';
+      authNombreInput.setAttribute('required', 'true');
+      authSubmitBtn.textContent = 'Registrarse';
+      authToggleText.textContent = '¿Ya tienes cuenta?';
+      authToggleBtn.textContent = 'Inicia sesión';
+    }
+  });
+
+  window.addEventListener('click', (event) => {
+    if (event.target === authModal) {
+      authModal.style.display = 'none';
+    }
+  });
+}
+
+if (authForm) {
+  authForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    
+    if (!isLoginMode) {
+      const payload = {
+        nombre: authNombreInput.value.trim(),
+        correo: document.querySelector('#auth-correo').value.trim(),
+        password: document.querySelector('#auth-pass').value
+      };
+
+      authSubmitBtn.textContent = 'Registrando...';
+      
+      try {
+        const response = await fetch('/api/auth/register', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payload)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
+          authModal.style.display = 'none';
+          checkAuth();
+          alert('¡Registro exitoso! Revisa tu correo (si configuraste las credenciales).');
+        } else {
+          alert(data.error);
+        }
+      } catch (err) {
+        alert('Error al conectar con el servidor.');
+      } finally {
+        authSubmitBtn.textContent = 'Registrarse';
+      }
+} else {
+      // --- LÓGICA DE INICIAR SESIÓN (LOGIN) ---
+      const payloadLogin = {
+        correo: document.querySelector('#auth-correo').value.trim(),
+        password: document.querySelector('#auth-pass').value
+      };
+
+      authSubmitBtn.textContent = 'Iniciando...';
+      
+      try {
+        const response = await fetch('/api/auth/login', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(payloadLogin)
+        });
+        
+        const data = await response.json();
+        
+        if (response.ok) {
+          // Guardamos al usuario y actualizamos la pantalla
+          localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
+          authModal.style.display = 'none';
+          checkAuth(); 
+        } else {
+          // Si pone mal la clave o el correo
+          alert(data.error);
+        }
+      } catch (err) {
+        alert('Error al conectar con el servidor.');
+      } finally {
+        authSubmitBtn.textContent = 'Entrar a Tamon';
+      }
+    }
+  });
+}
+
+if (btnProfileDropdown) {
+  btnProfileDropdown.addEventListener('click', () => {
+    profileDropdownContent.style.display = 
+      profileDropdownContent.style.display === 'none' ? 'flex' : 'none';
+  });
+}
+
+if (btnLogout) {
+  btnLogout.addEventListener('click', () => {
+    localStorage.removeItem('tamon_user');
+    profileDropdownContent.style.display = 'none';
+    checkAuth();
+  });
+}
+
+checkAuth();
