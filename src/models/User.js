@@ -31,19 +31,24 @@ const userSchema = new mongoose.Schema({
 
 // Este es un "middleware" de Mongoose. 
 // Justo antes de guardar el usuario en MongoDB, encripta la contraseña.
+// Asegúrate de que use function(next) y no una flecha =>
 userSchema.pre('save', async function(next) {
   const user = this;
-  
-  // Si la contraseña no ha sido modificada, avanzamos
-  if (!user.isModified('password')) return next();
+
+  // Si la contraseña no ha cambiado, saltamos al siguiente paso
+  if (!user.isModified('password')) {
+    return next();
+  }
 
   try {
-    // Generamos un "salt" (texto aleatorio) y hasheamos la contraseña
     const salt = await bcrypt.genSalt(10);
-    user.password = await bcrypt.hash(user.password, salt);
+    const hash = await bcrypt.hash(user.password, salt);
+    user.password = hash;
+    
+    // AQUÍ ES DONDE FALLABA: Asegúrate de llamar a next()
     next();
   } catch (error) {
-    return next(error);
+    next(error);
   }
 });
 
