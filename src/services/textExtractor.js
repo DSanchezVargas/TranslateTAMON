@@ -1,0 +1,72 @@
+const mammoth = require('mammoth');
+const pdfParse = require('pdf-parse');
+const Tesseract = require('tesseract.js');
+const path = require('path');
+const { getTesseractLang } = require('../config/languages');
+
+const SUPPORTED_EXTENSIONS = new Set(['.pdf', '.docx', '.jpg', '.jpeg', '.png']);
+
+function getExtension(fileName = '') {
+  return path.extname(fileName).toLowerCase();
+}
+
+function assertSupportedFile(fileName) {
+  const extension = getExtension(fileName);
+  if (!SUPPORTED_EXTENSIONS.has(extension)) {
+    throw new Error('Formato no soportado. Usa PDF, DOCX, JPG, JPEG o PNG.');
+  }
+  return extension;
+}
+
+async function extractTextFromPdf(buffer) {
+  const result = await pdfParse(buffer);
+  const text = (result.text || '').trim();
+
+  if (!text) {
+    throw new Error('No se pudo extraer texto del PDF. Si es escaneado, configura OCR especializado para PDF.');
+  }
+
+  return text;
+}
+
+async function extractTextFromDocx(buffer) {
+  const result = await mammoth.extractRawText({ buffer });
+  const text = (result.value || '').trim();
+  if (!text) {
+    throw new Error('El archivo DOCX no contiene texto legible.');
+  }
+  return text;
+}
+
+async function extractTextFromImage(buffer, sourceLanguage) {
+  const tesseractLang = getTesseractLang(sourceLanguage);
+  const result = await Tesseract.recognize(buffer, tesseractLang);
+  const text = (result.data?.text || '').trim();
+
+  if (!text) {
+    throw new Error('No se detectó texto en la imagen.');
+  }
+
+  return text;
+}
+
+async function extractTextByFile(file, sourceLanguage) {
+  if (!file || !file.buffer) {
+    throw new Error('Archivo inválido o vacío.');
+  }
+
+  const extension = assertSupportedFile(file.originalname);
+
+  if (extension === '.pdf') return extractTextFromPdf(file.buffer);
+  if (extension === '.docx') return extractTextFromDocx(file.buffer);
+  if (extension === '.jpg' || extension === '.jpeg' || extension === '.png') {
+    return extractTextFromImage(file.buffer, sourceLanguage);
+  }
+
+  throw new Error('Formato no soportado.');
+}
+
+module.exports = {
+  extractTextByFile,
+  assertSupportedFile
+};
