@@ -90,7 +90,10 @@ Se implementan colecciones para evolucionar a hiperautomatización:
 - `TranslationHistory`: historial de traducciones
 - `GlossaryEntry`: glosario por proyecto e idiomas
 - `UserCorrection`: correcciones del usuario
+- `CorrectionSuggestion`: sugerencias de usuarios para revisión admin
 - `DomainRule`: reglas por dominio (pre/post traducción)
+
+Además, la app reutiliza traducciones previas automáticamente (cache por hash de texto + proyecto + idiomas + dominio), incluso cuando el admin no interviene.
 
 ### Endpoints de memoria
 

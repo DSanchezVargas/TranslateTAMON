@@ -14,6 +14,7 @@ const {
 } = require('../services/memoryService');
 const { isDbReady } = require('../config/db');
 const TranslationHistory = require('../models/TranslationHistory');
+const { sanitizeString } = require('../utils/validation');
 
 const router = express.Router();
 const upload = multer({
@@ -34,9 +35,43 @@ function clearExpiredPreviews() {
     if (preview.expiresAt <= now) previewStore.delete(id);
   });
 }
+setInterval(clearExpiredPreviews, 5 * 60 * 1000).unref();
+
+function computeSourceHash(text) {
+  return crypto.createHash('sha256').update(text).digest('hex');
+}
+
+async function findCachedTranslation({ sourceHash, sourceLanguage, targetLanguage, project, domain }) {
+  if (!isDbReady()) return null;
+
+  return TranslationHistory.findOne({
+    sourceTextHash: sourceHash,
+    sourceLanguage,
+    targetLanguage,
+    project,
+    domain,
+    status: 'success',
+    translatedTextCache: { $exists: true, $ne: '' }
+  })
+    .sort({ updatedAt: -1 })
+    .lean();
+}
 
 async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, project, domain }) {
   const originalText = await extractTextByFile(file, sourceLanguage);
+  const sourceTextHash = computeSourceHash(originalText);
+  const cached = await findCachedTranslation({
+    sourceHash: sourceTextHash,
+    sourceLanguage,
+    targetLanguage,
+    project,
+    domain
+  });
+
+  if (cached?.translatedTextCache) {
+    return { originalText, translatedText: cached.translatedTextCache, sourceTextHash, fromCache: true };
+  }
+
   const memory = await getMemoryContext({ project, domain, sourceLanguage, targetLanguage });
 
   const preRuledText = applyRules(originalText, memory.preRules);
@@ -47,22 +82,26 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
   translatedText = applyRules(translatedText, memory.postRules);
   translatedText = applyCorrections(translatedText, memory.corrections);
 
-  return { originalText, translatedText };
+  return { originalText, translatedText, sourceTextHash, fromCache: false };
 }
 
-async function processTranslationRequest(req, res, next, returnPreviewOnly = false) {
-  const { sourceLanguage, targetLanguage, project = 'default', domain = 'general' } = req.body;
+async function processTranslationRequest(req, res, next, shouldReturnPreview = false) {
+  let sourceLanguage;
+  let targetLanguage;
+  let project;
+  let domain;
 
   if (!req.file) {
     return res.status(400).json({ error: 'Debes enviar un archivo en el campo document.' });
   }
 
-  if (!sourceLanguage || !targetLanguage) {
-    return res.status(400).json({ error: 'sourceLanguage y targetLanguage son obligatorios.' });
-  }
-
   try {
-    const { originalText, translatedText } = await createPreviewFromFile({
+    sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });
+    targetLanguage = sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 });
+    project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
+    domain = sanitizeString(req.body.domain || 'general', { required: true, maxLength: 120 });
+
+    const { originalText, translatedText, sourceTextHash } = await createPreviewFromFile({
       file: req.file,
       sourceLanguage,
       targetLanguage,
@@ -78,11 +117,13 @@ async function processTranslationRequest(req, res, next, returnPreviewOnly = fal
       targetLanguage,
       project,
       domain,
+      originalText,
+      sourceTextHash,
       translatedText,
       expiresAt: Date.now() + PREVIEW_TTL_MS
     });
 
-    if (returnPreviewOnly) {
+    if (shouldReturnPreview) {
       await saveHistory({
         originalFileName: req.file.originalname,
         fileType: path.extname(req.file.originalname).replace('.', ''),
@@ -90,6 +131,8 @@ async function processTranslationRequest(req, res, next, returnPreviewOnly = fal
         targetLanguage,
         project,
         domain,
+        sourceTextHash,
+        translatedTextCache: translatedText,
         sourceTextLength: originalText.length,
         translatedTextLength: translatedText.length,
         status: 'success'
@@ -118,6 +161,8 @@ async function processTranslationRequest(req, res, next, returnPreviewOnly = fal
       targetLanguage,
       project,
       domain,
+      sourceTextHash,
+      translatedTextCache: translatedText,
       sourceTextLength: originalText.length,
       translatedTextLength: translatedText.length,
       status: 'success'
@@ -157,7 +202,19 @@ router.post('/translate/preview', upload.single('document'), async (req, res, ne
 
 router.post('/translate/finalize', async (req, res, next) => {
   try {
-    const { previewId, translatedText, sourceLanguage, targetLanguage, originalFileName } = req.body;
+    const previewId = req.body.previewId ? sanitizeString(req.body.previewId, { maxLength: 120 }) : undefined;
+    const translatedText = req.body.translatedText
+      ? sanitizeString(req.body.translatedText, { maxLength: 300000 })
+      : undefined;
+    const sourceLanguage = req.body.sourceLanguage
+      ? sanitizeString(req.body.sourceLanguage, { maxLength: 20 })
+      : undefined;
+    const targetLanguage = req.body.targetLanguage
+      ? sanitizeString(req.body.targetLanguage, { maxLength: 20 })
+      : undefined;
+    const originalFileName = req.body.originalFileName
+      ? sanitizeString(req.body.originalFileName, { maxLength: 260 })
+      : undefined;
 
     const preview = previewId ? previewStore.get(previewId) : null;
     if (previewId && !preview) {
@@ -184,6 +241,20 @@ router.post('/translate/finalize', async (req, res, next) => {
 
     const baseName = path.parse(finalFileName).name;
     const outputName = `${baseName}-${finalTargetLanguage}.docx`;
+
+    await saveHistory({
+      originalFileName: finalFileName,
+      fileType: path.extname(finalFileName).replace('.', ''),
+      sourceLanguage: finalSourceLanguage,
+      targetLanguage: finalTargetLanguage,
+      project: preview?.project || 'default',
+      domain: preview?.domain || 'general',
+      sourceTextHash: preview?.sourceTextHash,
+      translatedTextCache: finalText,
+      sourceTextLength: preview?.originalText?.length || 0,
+      translatedTextLength: finalText.length,
+      status: 'success'
+    });
 
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);

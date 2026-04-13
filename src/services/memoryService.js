@@ -2,6 +2,7 @@ const GlossaryEntry = require('../models/GlossaryEntry');
 const UserCorrection = require('../models/UserCorrection');
 const DomainRule = require('../models/DomainRule');
 const { isDbReady } = require('../config/db');
+const { sanitizeString } = require('../utils/validation');
 
 function escapeRegExp(value) {
   return value.replace(/[.*+?^${}()|[\]\\]/g, '\\$&');
@@ -12,10 +13,23 @@ async function getMemoryContext({ project, domain, sourceLanguage, targetLanguag
     return { glossary: [], corrections: [], preRules: [], postRules: [] };
   }
 
+  const safeProject = sanitizeString(project, { required: true, maxLength: 120 });
+  const safeDomain = sanitizeString(domain, { required: true, maxLength: 120 });
+  const safeSourceLanguage = sanitizeString(sourceLanguage, { required: true, maxLength: 20 });
+  const safeTargetLanguage = sanitizeString(targetLanguage, { required: true, maxLength: 20 });
+
   const [glossary, corrections, rules] = await Promise.all([
-    GlossaryEntry.find({ project, sourceLanguage, targetLanguage }).lean(),
-    UserCorrection.find({ project, sourceLanguage, targetLanguage }).lean(),
-    DomainRule.find({ project, domain }).lean()
+    GlossaryEntry.find({
+      project: safeProject,
+      sourceLanguage: safeSourceLanguage,
+      targetLanguage: safeTargetLanguage
+    }).lean(),
+    UserCorrection.find({
+      project: safeProject,
+      sourceLanguage: safeSourceLanguage,
+      targetLanguage: safeTargetLanguage
+    }).lean(),
+    DomainRule.find({ project: safeProject, domain: safeDomain }).lean()
   ]);
 
   return {

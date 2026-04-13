@@ -1,13 +1,23 @@
 const express = require('express');
+const rateLimit = require('express-rate-limit');
 const { isDbReady } = require('../config/db');
 const GlossaryEntry = require('../models/GlossaryEntry');
 const UserCorrection = require('../models/UserCorrection');
 const DomainRule = require('../models/DomainRule');
 const CorrectionSuggestion = require('../models/CorrectionSuggestion');
+const { sanitizeString } = require('../utils/validation');
 
 const router = express.Router();
+const memoryRateLimiter = rateLimit({
+  windowMs: 60 * 1000,
+  limit: 40,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Demasiadas solicitudes. Intenta en un minuto.' }
+});
 
-function requireDb(_, res, next) {
+function requireDb(req, res, next) {
+  void req;
   if (!isDbReady()) {
     return res.status(503).json({ error: 'MongoDB no está conectado. Configura MONGO_URI.' });
   }
@@ -27,39 +37,57 @@ function requireAdmin(req, res, next) {
   return next();
 }
 
-router.get('/glossary', requireDb, async (req, res, next) => {
+router.get('/glossary', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
     const { project, sourceLanguage, targetLanguage } = req.query;
-    const entries = await GlossaryEntry.find({ project, sourceLanguage, targetLanguage }).lean();
+    const entries = await GlossaryEntry.find({
+      project: sanitizeString(project, { required: true, maxLength: 120 }),
+      sourceLanguage: sanitizeString(sourceLanguage, { required: true, maxLength: 20 }),
+      targetLanguage: sanitizeString(targetLanguage, { required: true, maxLength: 20 })
+    }).lean();
     return res.json(entries);
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/glossary', requireDb, async (req, res, next) => {
+router.post('/glossary', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
-    const created = await GlossaryEntry.create(req.body);
+    const created = await GlossaryEntry.create({
+      project: sanitizeString(req.body.project, { required: true, maxLength: 120 }),
+      sourceLanguage: sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 }),
+      targetLanguage: sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 }),
+      sourceTerm: sanitizeString(req.body.sourceTerm, { required: true, maxLength: 300 }),
+      targetTerm: sanitizeString(req.body.targetTerm, { required: true, maxLength: 300 })
+    });
     return res.status(201).json(created);
   } catch (error) {
     return next(error);
   }
 });
 
-router.get('/corrections', requireDb, async (req, res, next) => {
+router.get('/corrections', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
     const { project, sourceLanguage, targetLanguage } = req.query;
-    const entries = await UserCorrection.find({ project, sourceLanguage, targetLanguage }).lean();
+    const entries = await UserCorrection.find({
+      project: sanitizeString(project, { required: true, maxLength: 120 }),
+      sourceLanguage: sanitizeString(sourceLanguage, { required: true, maxLength: 20 }),
+      targetLanguage: sanitizeString(targetLanguage, { required: true, maxLength: 20 })
+    }).lean();
     return res.json(entries);
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/corrections', requireAdmin, requireDb, async (req, res, next) => {
+router.post('/corrections', memoryRateLimiter, requireAdmin, requireDb, async (req, res, next) => {
   try {
     const created = await UserCorrection.create({
-      ...req.body,
+      project: sanitizeString(req.body.project, { required: true, maxLength: 120 }),
+      sourceLanguage: sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 }),
+      targetLanguage: sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 }),
+      originalTranslation: sanitizeString(req.body.originalTranslation, { required: true, maxLength: 2000 }),
+      correctedTranslation: sanitizeString(req.body.correctedTranslation, { required: true, maxLength: 2000 }),
       createdByRole: 'admin'
     });
     return res.status(201).json(created);
@@ -68,16 +96,22 @@ router.post('/corrections', requireAdmin, requireDb, async (req, res, next) => {
   }
 });
 
-router.post('/corrections/suggestions', requireDb, async (req, res, next) => {
+router.post('/corrections/suggestions', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
-    const created = await CorrectionSuggestion.create(req.body);
+    const created = await CorrectionSuggestion.create({
+      project: sanitizeString(req.body.project, { required: true, maxLength: 120 }),
+      sourceLanguage: sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 }),
+      targetLanguage: sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 }),
+      originalTranslation: sanitizeString(req.body.originalTranslation, { required: true, maxLength: 2000 }),
+      suggestedTranslation: sanitizeString(req.body.suggestedTranslation, { required: true, maxLength: 2000 })
+    });
     return res.status(201).json(created);
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/corrections/suggestions/:id/approve', requireAdmin, requireDb, async (req, res, next) => {
+router.post('/corrections/suggestions/:id/approve', memoryRateLimiter, requireAdmin, requireDb, async (req, res, next) => {
   try {
     const suggestion = await CorrectionSuggestion.findById(req.params.id);
     if (!suggestion) {
@@ -103,19 +137,28 @@ router.post('/corrections/suggestions/:id/approve', requireAdmin, requireDb, asy
   }
 });
 
-router.get('/rules', requireDb, async (req, res, next) => {
+router.get('/rules', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
     const { project, domain } = req.query;
-    const entries = await DomainRule.find({ project, domain }).lean();
+    const entries = await DomainRule.find({
+      project: sanitizeString(project, { required: true, maxLength: 120 }),
+      domain: sanitizeString(domain, { required: true, maxLength: 120 })
+    }).lean();
     return res.json(entries);
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/rules', requireDb, async (req, res, next) => {
+router.post('/rules', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
-    const created = await DomainRule.create(req.body);
+    const created = await DomainRule.create({
+      project: sanitizeString(req.body.project, { required: true, maxLength: 120 }),
+      domain: sanitizeString(req.body.domain, { required: true, maxLength: 120 }),
+      findText: sanitizeString(req.body.findText, { required: true, maxLength: 2000 }),
+      replaceText: sanitizeString(req.body.replaceText, { required: true, maxLength: 2000 }),
+      applyStage: sanitizeString(req.body.applyStage, { required: false, maxLength: 30 }) || 'pre_translation'
+    });
     return res.status(201).json(created);
   } catch (error) {
     return next(error);

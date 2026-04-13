@@ -8,6 +8,8 @@ const translationHistorySchema = new mongoose.Schema(
     targetLanguage: { type: String, required: true },
     project: { type: String },
     domain: { type: String },
+    sourceTextHash: { type: String },
+    translatedTextCache: { type: String },
     sourceTextLength: { type: Number, required: true },
     translatedTextLength: { type: Number, required: true },
     status: { type: String, enum: ['success', 'failed'], required: true },
