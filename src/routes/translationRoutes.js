@@ -18,7 +18,11 @@ const { sanitizeString } = require('../utils/validation');
 const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
 const router = express.Router();
-const uploadLimitMb = Math.max(Number(process.env.MAX_UPLOAD_MB) || 100, 1);
+const DEFAULT_UPLOAD_LIMIT_MB = 100;
+const uploadLimitMb = Math.max(Number(process.env.MAX_UPLOAD_MB) || DEFAULT_UPLOAD_LIMIT_MB, 1);
+if (!process.env.MAX_UPLOAD_MB && process.env.NODE_ENV !== 'test') {
+  console.warn(`MAX_UPLOAD_MB no configurado. Se usa valor por defecto: ${DEFAULT_UPLOAD_LIMIT_MB}MB`);
+}
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: uploadLimitMb * 1024 * 1024 }

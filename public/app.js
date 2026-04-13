@@ -7,6 +7,7 @@ const LANGUAGES = [
   { value: 'it', label: 'Italiano' }
 ];
 const DEFAULT_ESTIMATED_SECONDS = 1800;
+const MAX_ESTIMATED_SECONDS = 23 * 60 * 60;
 
 const UI_TEXT = {
   processing: 'Asistente IA: procesando entrada, memoria y traducción...',
@@ -96,7 +97,7 @@ function showCommentsTab() {
 
 function startProcessTicker(estimatedSeconds) {
   if (processTicker) clearInterval(processTicker);
-  const maxSeconds = Math.max(Math.min(estimatedSeconds || DEFAULT_ESTIMATED_SECONDS, 23 * 60 * 60), 10);
+  const maxSeconds = Math.max(Math.min(estimatedSeconds || DEFAULT_ESTIMATED_SECONDS, MAX_ESTIMATED_SECONDS), 10);
   let elapsed = 0;
   setProcessProgress(3);
   etaText.textContent = `Tiempo estimado de traducción: ${Math.ceil(maxSeconds / 60)} min (menos de 1 día).`;
@@ -124,7 +125,7 @@ async function loadAssistantStatus() {
     const data = await response.json();
     setHistoryProgress(data.learning?.learningProgressPercent || 0);
   } catch (error) {
-    void error;
+    console.warn('No se pudo cargar estado del asistente:', error);
   }
 }
 
