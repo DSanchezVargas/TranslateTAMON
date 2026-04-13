@@ -18,9 +18,13 @@ const { sanitizeString } = require('../utils/validation');
 const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
 const router = express.Router();
+const configuredUploadLimitMb = Number(process.env.MAX_UPLOAD_MB || 100);
+const uploadLimitMb = Number.isFinite(configuredUploadLimitMb) && configuredUploadLimitMb > 0
+  ? configuredUploadLimitMb
+  : 100;
 const upload = multer({
   storage: multer.memoryStorage(),
-  limits: { fileSize: 20 * 1024 * 1024 }
+  limits: { fileSize: uploadLimitMb * 1024 * 1024 }
 });
 const previewStore = new Map();
 const PREVIEW_TTL_MS = 30 * 60 * 1000;
@@ -231,7 +235,7 @@ router.post('/translate/finalize', async (req, res, next) => {
   try {
     const previewId = req.body.previewId ? sanitizeString(req.body.previewId, { maxLength: 120 }) : undefined;
     const translatedText = req.body.translatedText
-      ? sanitizeString(req.body.translatedText, { maxLength: 300000 })
+      ? sanitizeString(req.body.translatedText, { maxLength: null })
       : undefined;
     const sourceLanguage = req.body.sourceLanguage
       ? sanitizeString(req.body.sourceLanguage, { maxLength: 20 })

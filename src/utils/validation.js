@@ -13,7 +13,7 @@ function sanitizeString(value, { required = false, maxLength = 2000 } = {}) {
     throw new Error('Campo requerido vacío.');
   }
 
-  if (normalized.length > maxLength) {
+  if (Number.isFinite(maxLength) && normalized.length > maxLength) {
     throw new Error('Campo supera el tamaño permitido.');
   }
 

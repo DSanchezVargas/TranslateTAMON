@@ -5,6 +5,7 @@ MVP para traducir documentos de entrada **PDF / DOCX / JPG / PNG** con:
 - **Vista previa de traducción** para revisión/corrección.
 - Salida final en **DOCX** ordenado.
 - **Aprendizaje controlado por admin** (no por usuarios finales) sobre correcciones.
+- **Frontend web Tamon** para flujo completo: carga → preview → corrección → descarga.
 
 ## Stack
 
@@ -31,6 +32,12 @@ cp .env.example .env
 2. Configura `MONGO_URI` para usar Compass.
 3. (Opcional) configura `LIBRETRANSLATE_API_KEY` si tu proveedor lo requiere.
 4. Configura `ADMIN_TOKEN` para acciones de administración.
+5. Ajusta `MAX_UPLOAD_MB` y `REQUEST_BODY_LIMIT` para manejar documentos grandes.
+
+### Documentos largos (20+ páginas)
+
+- El flujo de traducción no impone límite por cantidad de palabras o caracteres del texto traducido.
+- Para archivos grandes, ajusta `MAX_UPLOAD_MB` (subida multipart) y `REQUEST_BODY_LIMIT` (JSON de finalize) según tu infraestructura.
 
 ## Ejecutar
 
@@ -40,6 +47,7 @@ npm run dev
 ```
 
 Servidor por defecto: `http://localhost:3000`
+Interfaz web: `GET /`
 
 ## Ícono del sistema
 
@@ -75,7 +83,7 @@ Respuesta:
 
 Respuesta:
 
-- JSON con `previewId`, `originalText`, `translatedText`.
+- JSON con `previewId`, `traceId`, `originalText`, `translatedText` y bloque `experience`.
 
 ### `POST /api/translate/finalize`
 
@@ -88,6 +96,11 @@ Respuesta:
 Respuesta:
 
 - Archivo `*.docx` final con traducción/corrección aprobada.
+- Incluye headers de trazabilidad: `X-Tamon-Trace-Id`, `X-Tamon-Status`, `X-Tamon-Processing-Ms`.
+
+### `GET /api/assistant/status`
+
+- Estado de producto para frontend/app: branding, flujo hiperautomatizado y estado de aprendizaje.
 
 ## Memoria controlada (MongoDB)
 

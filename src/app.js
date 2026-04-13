@@ -11,8 +11,9 @@ const {
 } = require('./config/appInfo');
 
 const app = express();
+const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '25mb';
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: requestBodyLimit }));
 app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/health', (_, res) => {
