@@ -156,16 +156,17 @@ async function requestPreview(event) {
     method: 'POST',
     body: formData
   });
-  let data = {};
+  const rawBody = await response.text();
+  let data;
   try {
-    data = await response.json();
+    data = rawBody ? JSON.parse(rawBody) : {};
   } catch (error) {
-    void error;
+    data = { rawError: rawBody || error.message };
   }
 
   if (!response.ok) {
     stopProcessTicker();
-    throw new Error(data.error || UI_TEXT.previewError);
+    throw new Error(data.error || data.rawError || UI_TEXT.previewError);
   }
 
   previewState = data;
