@@ -1,0 +1,132 @@
+:root {
+  --tamon-primary: #0ea5e9;
+  --tamon-secondary: #6366f1;
+  --tamon-accent: #4f46e5;
+  --tamon-neutral: #1f2937;
+  --tamon-surface: #ffffff;
+  --tamon-soft: #eef6ff;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  font-family: Arial, sans-serif;
+  color: var(--tamon-neutral);
+  background: linear-gradient(135deg, var(--tamon-soft), #f8fafc);
+}
+
+.app-shell {
+  max-width: 960px;
+  margin: 0 auto;
+  padding: 1.5rem;
+}
+
+.hero {
+  display: flex;
+  gap: 1rem;
+  align-items: center;
+  background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary));
+  color: var(--tamon-surface);
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.hero-icon {
+  width: 84px;
+  height: 84px;
+  border-radius: 1rem;
+  background: var(--tamon-surface);
+}
+
+.eyebrow {
+  margin: 0 0 0.25rem;
+  font-weight: 700;
+}
+
+.subtitle {
+  margin: 0.25rem 0 0;
+}
+
+.panel {
+  margin-top: 1rem;
+  background: var(--tamon-surface);
+  border: 1px solid #dbeafe;
+  border-radius: 1rem;
+  padding: 1rem;
+}
+
+.grid-form {
+  display: grid;
+  gap: 0.75rem;
+  grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+}
+
+label {
+  display: flex;
+  flex-direction: column;
+  gap: 0.35rem;
+  font-size: 0.95rem;
+}
+
+input,
+select,
+textarea,
+button {
+  font: inherit;
+}
+
+input,
+select,
+textarea {
+  border: 1px solid #cbd5e1;
+  border-radius: 0.5rem;
+  padding: 0.55rem 0.65rem;
+}
+
+textarea {
+  width: 100%;
+  resize: vertical;
+}
+
+.btn-primary,
+.btn-secondary {
+  border: 0;
+  border-radius: 0.75rem;
+  padding: 0.7rem 0.95rem;
+  color: var(--tamon-surface);
+  cursor: pointer;
+}
+
+.btn-primary {
+  background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary));
+}
+
+.btn-secondary {
+  background: linear-gradient(135deg, var(--tamon-accent), var(--tamon-secondary));
+}
+
+.flow-steps {
+  margin: 0 0 0.75rem;
+  padding-left: 1.25rem;
+}
+
+.flow-steps li {
+  margin-bottom: 0.35rem;
+}
+
+.flow-steps li.active {
+  color: var(--tamon-accent);
+  font-weight: 700;
+}
+
+.meta {
+  margin-top: 0;
+  color: #334155;
+}
+
+.hidden {
+  display: none;
+}

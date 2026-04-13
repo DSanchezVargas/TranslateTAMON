@@ -15,6 +15,7 @@ const {
 const { isDbReady } = require('../config/db');
 const TranslationHistory = require('../models/TranslationHistory');
 const { sanitizeString } = require('../utils/validation');
+const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
 const router = express.Router();
 const upload = multer({
@@ -39,6 +40,17 @@ setInterval(clearExpiredPreviews, 5 * 60 * 1000).unref();
 
 function computeSourceHash(text) {
   return crypto.createHash('sha256').update(text).digest('hex');
+}
+
+function buildAssistantMessage(status) {
+  return `${ASSISTANT_TAGLINE} · estado: ${status}`;
+}
+
+function setExperienceHeaders(res, { traceId, status, processingMs }) {
+  res.setHeader('X-Tamon-Trace-Id', traceId);
+  res.setHeader('X-Tamon-Status', status);
+  res.setHeader('X-Tamon-Processing-Ms', String(processingMs));
+  res.setHeader('X-Tamon-Assistant-Message', buildAssistantMessage(status));
 }
 
 async function findCachedTranslation({ sourceHash, sourceLanguage, targetLanguage, project, domain }) {
@@ -86,6 +98,8 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
 }
 
 async function processTranslationRequest(req, res, next, shouldReturnPreview = false) {
+  const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
   let sourceLanguage;
   let targetLanguage;
   let project;
@@ -101,7 +115,7 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
     project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
     domain = sanitizeString(req.body.domain || 'general', { required: true, maxLength: 120 });
 
-    const { originalText, translatedText, sourceTextHash } = await createPreviewFromFile({
+    const { originalText, translatedText, sourceTextHash, fromCache } = await createPreviewFromFile({
       file: req.file,
       sourceLanguage,
       targetLanguage,
@@ -124,6 +138,8 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
     });
 
     if (shouldReturnPreview) {
+      const processingMs = Date.now() - startedAt;
+      setExperienceHeaders(res, { traceId, status: 'preview_ready', processingMs });
       await saveHistory({
         originalFileName: req.file.originalname,
         fileType: path.extname(req.file.originalname).replace('.', ''),
@@ -139,11 +155,18 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
       });
       return res.status(200).json({
         previewId,
+        traceId,
         originalFileName: req.file.originalname,
         sourceLanguage,
         targetLanguage,
         originalText,
-        translatedText
+        translatedText,
+        experience: {
+          status: 'preview_ready',
+          processingMs,
+          fromCache,
+          assistantMessage: buildAssistantMessage('preview_ready')
+        }
       });
     }
 
@@ -170,7 +193,9 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
 
     const baseName = path.parse(req.file.originalname).name;
     const outputName = `${baseName}-${targetLanguage}.docx`;
+    const processingMs = Date.now() - startedAt;
 
+    setExperienceHeaders(res, { traceId, status: 'document_ready', processingMs });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
     return res.status(200).send(translatedDocxBuffer);
@@ -201,6 +226,8 @@ router.post('/translate/preview', upload.single('document'), async (req, res, ne
 });
 
 router.post('/translate/finalize', async (req, res, next) => {
+  const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
   try {
     const previewId = req.body.previewId ? sanitizeString(req.body.previewId, { maxLength: 120 }) : undefined;
     const translatedText = req.body.translatedText
@@ -241,6 +268,7 @@ router.post('/translate/finalize', async (req, res, next) => {
 
     const baseName = path.parse(finalFileName).name;
     const outputName = `${baseName}-${finalTargetLanguage}.docx`;
+    const processingMs = Date.now() - startedAt;
 
     await saveHistory({
       originalFileName: finalFileName,
@@ -256,6 +284,7 @@ router.post('/translate/finalize', async (req, res, next) => {
       status: 'success'
     });
 
+    setExperienceHeaders(res, { traceId, status: 'finalized', processingMs });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
     return res.status(200).send(translatedDocxBuffer);

@@ -2,7 +2,13 @@ const express = require('express');
 const path = require('path');
 const translationRoutes = require('./routes/translationRoutes');
 const memoryRoutes = require('./routes/memoryRoutes');
-const { APP_NAME, SYSTEM_ICON_PATH } = require('./config/appInfo');
+const {
+  APP_NAME,
+  SYSTEM_ICON_PATH,
+  BRAND_COLORS,
+  HYPERAUTOMATION_FLOW,
+  ASSISTANT_TAGLINE
+} = require('./config/appInfo');
 
 const app = express();
 
@@ -14,9 +20,31 @@ app.get('/health', (_, res) => {
     status: 'ok',
     system: APP_NAME,
     systemIconPath: SYSTEM_ICON_PATH,
+    assistantTagline: ASSISTANT_TAGLINE,
+    branding: {
+      colors: BRAND_COLORS
+    },
     learning: {
       adminContributes: true,
       automaticReuse: true
+    }
+  });
+});
+
+app.get('/api/assistant/status', (_, res) => {
+  res.json({
+    status: 'ready',
+    system: APP_NAME,
+    assistantTagline: ASSISTANT_TAGLINE,
+    hyperautomationFlow: HYPERAUTOMATION_FLOW,
+    branding: {
+      iconPath: SYSTEM_ICON_PATH,
+      colors: BRAND_COLORS
+    },
+    learning: {
+      mode: 'progressive',
+      automaticReuse: true,
+      adminContributes: true
     }
   });
 });

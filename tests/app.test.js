@@ -15,21 +15,48 @@ describe('app routes', () => {
   test('GET /health responds ok', async () => {
     const response = await request(app).get('/health');
     expect(response.status).toBe(200);
-    expect(response.body).toEqual({
+    expect(response.body).toEqual(expect.objectContaining({
       status: 'ok',
       system: "Tamon's Translator",
-      systemIconPath: '/icons/tamon.svg',
-      learning: {
-        adminContributes: true,
-        automaticReuse: true
-      }
+      systemIconPath: '/icons/tamon.svg'
+    }));
+    expect(response.body.learning).toEqual({
+      adminContributes: true,
+      automaticReuse: true
     });
+    expect(response.body.branding).toEqual({
+      colors: expect.objectContaining({
+        primary: '#0ea5e9',
+        secondary: '#6366f1'
+      })
+    });
+  });
+
+  test('GET / serves frontend shell', async () => {
+    const response = await request(app).get('/');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('text/html');
+    expect(response.text).toContain('Tamon Translator');
   });
 
   test('GET /icons/tamon.svg serves icon file', async () => {
     const response = await request(app).get('/icons/tamon.svg');
     expect(response.status).toBe(200);
     expect(response.headers['content-type']).toContain('image/svg+xml');
+  });
+
+  test('GET /api/assistant/status responds with product metadata', async () => {
+    const response = await request(app).get('/api/assistant/status');
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({
+      status: 'ready',
+      system: "Tamon's Translator",
+      assistantTagline: expect.any(String)
+    }));
+    expect(response.body.hyperautomationFlow).toEqual(expect.arrayContaining([
+      expect.stringContaining('Entrada'),
+      expect.stringContaining('Traducción')
+    ]));
   });
 
   test('POST /api/translate requires file', async () => {

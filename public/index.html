@@ -1,0 +1,65 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Tamon IA · Traducción hiperautomatizada</title>
+    <link rel="stylesheet" href="/styles.css" />
+  </head>
+  <body>
+    <main class="app-shell">
+      <header class="hero">
+        <img src="/icons/tamon.svg" alt="Tamon" class="hero-icon" />
+        <div>
+          <p class="eyebrow">IA aplicada + App usable</p>
+          <h1>Tamon Translator</h1>
+          <p class="subtitle">Traducción hiperautomatizada con corrección guiada y aprendizaje progresivo.</p>
+        </div>
+      </header>
+
+      <section class="panel">
+        <h2>1) Entrada inteligente</h2>
+        <form id="translate-form" class="grid-form">
+          <label>Documento
+            <input type="file" id="document" name="document" accept=".pdf,.docx,.jpg,.jpeg,.png" required />
+          </label>
+          <label>Idioma origen
+            <select id="sourceLanguage" name="sourceLanguage" required></select>
+          </label>
+          <label>Idioma destino
+            <select id="targetLanguage" name="targetLanguage" required></select>
+          </label>
+          <label>Proyecto
+            <input type="text" id="project" name="project" value="default" />
+          </label>
+          <label>Dominio
+            <input type="text" id="domain" name="domain" value="general" />
+          </label>
+          <button type="submit" class="btn-primary">Generar vista previa IA</button>
+        </form>
+      </section>
+
+      <section class="panel" id="status-panel">
+        <h2>2) Flujo hiperautomatizado</h2>
+        <ol class="flow-steps">
+          <li id="step-upload">Entrada de documento</li>
+          <li id="step-preview">Traducción y vista previa</li>
+          <li id="step-correction">Corrección guiada</li>
+          <li id="step-download">Descarga + memoria aplicada</li>
+        </ol>
+        <p id="assistant-status">Asistente listo para iniciar.</p>
+      </section>
+
+      <section class="panel hidden" id="preview-panel">
+        <h2>3) Corrección guiada</h2>
+        <p class="meta" id="preview-meta"></p>
+        <label>Texto traducido editable
+          <textarea id="translatedText" rows="10"></textarea>
+        </label>
+        <button id="finalize-btn" class="btn-secondary">Finalizar y descargar DOCX</button>
+      </section>
+    </main>
+
+    <script src="/app.js"></script>
+  </body>
+</html>

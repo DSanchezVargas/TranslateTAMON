@@ -15,6 +15,15 @@ module.exports = [
     rules: {
       'no-console': 'off'
     }
+  },
+  {
+    files: ['public/**/*.js'],
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: {
+        ...globals.browser
+      }
+    }
   }
 ];
-
