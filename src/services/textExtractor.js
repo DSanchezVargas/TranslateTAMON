@@ -18,8 +18,28 @@ function assertSupportedFile(fileName) {
   return extension;
 }
 
-async function extractTextFromPdf(buffer) {
-  const result = await pdfParse(buffer);
+async function extractTextFromPdf(buffer, sourceLanguage) {
+  let result;
+
+  // pdf-parse v1 exports a function; v2 exports a PDFParse class.
+  if (typeof pdfParse === 'function') {
+    result = await pdfParse(buffer);
+  } else if (pdfParse && typeof pdfParse.PDFParse === 'function') {
+    const parser = new pdfParse.PDFParse({ data: buffer });
+    try {
+      result = await parser.getText({ lineEnforce: true });
+
+      if (Array.isArray(result?.pages) && result.pages.length) {
+        await enhancePdfTextWithOcr(parser, result.pages, sourceLanguage);
+        result.text = joinPdfPages(result.pages);
+      }
+    } finally {
+      await parser.destroy();
+    }
+  } else {
+    throw new Error('Integracion de PDF no compatible con la version instalada de pdf-parse.');
+  }
+
   const text = (result.text || '').trim();
 
   if (!text) {
@@ -65,7 +85,7 @@ async function extractTextByFile(file, sourceLanguage) {
 
   const extension = assertSupportedFile(file.originalname);
 
-  if (extension === '.pdf') return extractTextFromPdf(file.buffer);
+  if (extension === '.pdf') return extractTextFromPdf(file.buffer, sourceLanguage);
   if (extension === '.docx') return extractTextFromDocx(file.buffer);
   if (extension === '.jpg' || extension === '.jpeg' || extension === '.png') {
     return extractTextFromImage(file.buffer, sourceLanguage);
