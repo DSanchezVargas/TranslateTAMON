@@ -43,7 +43,11 @@ async function getMemoryContext({ project, domain, sourceLanguage, targetLanguag
 function applyRules(text, rules) {
   return rules.reduce((acc, rule) => {
     if (!rule.findText) return acc;
-    return acc.replace(new RegExp(escapeRegExp(rule.findText), 'gi'), rule.replaceText || '');
+
+    // Evita borrados masivos no intencionales por reemplazos vacios.
+    if (typeof rule.replaceText !== 'string' || !rule.replaceText.trim()) return acc;
+
+    return acc.replace(new RegExp(escapeRegExp(rule.findText), 'gi'), rule.replaceText);
   }, text);
 }
 
@@ -73,8 +77,10 @@ function restoreGlossaryPlaceholders(text, placeholders) {
 function applyCorrections(text, corrections) {
   return corrections.reduce((acc, correction) => {
     if (!correction.originalTranslation) return acc;
+    if (typeof correction.correctedTranslation !== 'string' || !correction.correctedTranslation.trim()) return acc;
+
     const regex = new RegExp(escapeRegExp(correction.originalTranslation), 'gi');
-    return acc.replace(regex, correction.correctedTranslation || '');
+    return acc.replace(regex, correction.correctedTranslation);
   }, text);
 }
 

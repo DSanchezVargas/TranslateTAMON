@@ -409,7 +409,13 @@
             clearInterval(activeJobPoll);
             activeJobPoll = null;
             lastPreviewId = data.previewId || null;
-            setStatus('Vista previa lista. Puedes editar y descargar DOCX final.');
+            const hasWarnings = (data.message || '').toLowerCase().includes('advertencias')
+              || (data.message || '').toLowerCase().includes('sin traducir');
+            if (hasWarnings) {
+              setStatus((data.message || 'Vista previa lista con advertencias.') + ' Puedes continuar y corregir manualmente.', true);
+            } else {
+              setStatus('Vista previa lista. Puedes editar y descargar DOCX final.');
+            }
             refreshHistory();
           }
 

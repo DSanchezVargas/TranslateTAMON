@@ -199,6 +199,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
   addJobHistory(job, 'Extraccion iniciada.');
 
   try {
+    const chunkWarnings = [];
     const originalText = await extractTextByFile(file, sourceLanguage);
     const sourceTextHash = computeSourceHash(originalText);
 
@@ -274,6 +275,12 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         job.message = `Traduciendo bloque ${processedChunks} de ${totalChunks}...`;
         job.translatedTextPartial = translatedSoFar;
         touchJob(job);
+      },
+      fallbackToOriginalOnError: true,
+      onChunkError: ({ chunkIndex, totalChunks, message }) => {
+        chunkWarnings.push({ chunkIndex, totalChunks, message });
+        job.message = `Bloque ${chunkIndex + 1}/${totalChunks} con error, continuando...`;
+        touchJob(job);
       }
     });
 
@@ -320,10 +327,14 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
     job.status = 'completed';
     job.progressPercent = 100;
     job.etaSeconds = 0;
-    job.message = 'Vista previa lista.';
+    job.message = chunkWarnings.length
+      ? `Vista previa lista con ${chunkWarnings.length} bloque(s) sin traducir por limite externo.`
+      : 'Vista previa lista.';
     job.previewId = previewId;
     job.translatedTextPartial = translatedText;
-    addJobHistory(job, 'Traduccion finalizada correctamente.');
+    addJobHistory(job, chunkWarnings.length
+      ? `Traduccion finalizada con advertencias (${chunkWarnings.length} bloque(s)).`
+      : 'Traduccion finalizada correctamente.');
   } catch (error) {
     job.status = 'failed';
     job.progressPercent = 100;

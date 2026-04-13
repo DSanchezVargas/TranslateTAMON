@@ -4,6 +4,8 @@ const CHUNK_SIZE = 1800;
 const MYMEMORY_MAX_CHARS = 450;
 const MYMEMORY_MAX_RETRIES = 4;
 const INTER_CHUNK_DELAY_MS = 150;
+const MIN_TRANSLATION_COVERAGE_RATIO = 0.22;
+const MAX_RECHUNK_DEPTH = 2;
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -17,6 +19,67 @@ function splitIntoChunks(text, size = CHUNK_SIZE) {
     pointer += size;
   }
   return chunks;
+}
+
+function splitChunkInHalf(chunk) {
+  if (!chunk || chunk.length < 2) return [chunk];
+  const middle = Math.floor(chunk.length / 2);
+  const rightSpace = chunk.indexOf(' ', middle);
+  const leftSpace = chunk.lastIndexOf(' ', middle);
+  let splitIndex = middle;
+
+  if (rightSpace !== -1 && leftSpace !== -1) {
+    splitIndex = (rightSpace - middle) < (middle - leftSpace) ? rightSpace : leftSpace;
+  } else if (rightSpace !== -1) {
+    splitIndex = rightSpace;
+  } else if (leftSpace !== -1) {
+    splitIndex = leftSpace;
+  }
+
+  const first = chunk.slice(0, splitIndex).trim();
+  const second = chunk.slice(splitIndex).trim();
+  return [first, second].filter(Boolean);
+}
+
+function isSuspiciousTranslation(source, translated) {
+  const src = (source || '').trim();
+  const trg = (translated || '').trim();
+  if (!src) return false;
+  if (!trg) return true;
+
+  const upper = trg.toUpperCase();
+  if (upper.includes('QUERY LENGTH LIMIT EXCEEDED') || upper.includes('MAX ALLOWED QUERY')) {
+    return true;
+  }
+
+  if (src.length < 250) return false;
+  const coverage = trg.length / src.length;
+  return coverage < MIN_TRANSLATION_COVERAGE_RATIO;
+}
+
+async function translateChunkConservative(chunk, sourceLanguage, targetLanguage, depth = 0) {
+  const translated = await translateChunk(chunk, sourceLanguage, targetLanguage);
+  if (!isSuspiciousTranslation(chunk, translated)) {
+    return translated;
+  }
+
+  const canRechunk = depth < MAX_RECHUNK_DEPTH && chunk.length > 260;
+  if (!canRechunk) {
+    return translated;
+  }
+
+  const parts = splitChunkInHalf(chunk);
+  if (parts.length < 2) {
+    return translated;
+  }
+
+  const translatedParts = [];
+  for (const part of parts) {
+    const partTranslated = await translateChunkConservative(part, sourceLanguage, targetLanguage, depth + 1);
+    translatedParts.push(partTranslated);
+  }
+
+  return translatedParts.join(' ');
 }
 
 async function requestMyMemoryTranslation(chunk, sourceLanguage, targetLanguage) {
@@ -135,11 +198,27 @@ async function translateTextWithProgress(text, sourceLanguage, targetLanguage, o
   const chunks = splitIntoChunks(text, chunkSize);
   const translatedChunks = [];
   const totalChunks = chunks.length;
+  const fallbackToOriginalOnError = options.fallbackToOriginalOnError === true;
 
   for (let index = 0; index < chunks.length; index += 1) {
     const chunk = chunks[index];
-    const translated = await translateChunk(chunk, sourceLanguage, targetLanguage);
-    translatedChunks.push(translated);
+    try {
+      const translated = await translateChunkConservative(chunk, sourceLanguage, targetLanguage);
+      translatedChunks.push(translated);
+    } catch (error) {
+      if (!fallbackToOriginalOnError) {
+        throw error;
+      }
+
+      translatedChunks.push(chunk);
+      if (typeof options.onChunkError === 'function') {
+        options.onChunkError({
+          chunkIndex: index,
+          totalChunks,
+          message: error.message
+        });
+      }
+    }
 
     if (typeof options.onProgress === 'function') {
       options.onProgress({
