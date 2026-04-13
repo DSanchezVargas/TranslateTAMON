@@ -1,16 +1,19 @@
 const express = require('express');
+const path = require('path');
 const translationRoutes = require('./routes/translationRoutes');
 const memoryRoutes = require('./routes/memoryRoutes');
-const { APP_NAME } = require('./config/appInfo');
+const { APP_NAME, SYSTEM_ICON_PATH } = require('./config/appInfo');
 
 const app = express();
 
 app.use(express.json({ limit: '2mb' }));
+app.use(express.static(path.join(__dirname, '..', 'public')));
 
 app.get('/health', (_, res) => {
   res.json({
     status: 'ok',
     system: APP_NAME,
+    systemIconPath: SYSTEM_ICON_PATH,
     learning: {
       adminContributes: true,
       automaticReuse: true

@@ -41,6 +41,12 @@ npm run dev
 
 Servidor por defecto: `http://localhost:3000`
 
+## Ícono del sistema
+
+- Ubicación del archivo: `public/icons/tamon.svg`
+- URL pública: `GET /icons/tamon.svg`
+- Ruta expuesta en API: `GET /health` campo `systemIconPath`
+
 ## Endpoint principal
 
 ### `POST /api/translate`

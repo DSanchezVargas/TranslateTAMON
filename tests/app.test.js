@@ -18,11 +18,18 @@ describe('app routes', () => {
     expect(response.body).toEqual({
       status: 'ok',
       system: "Tamon's Translator",
+      systemIconPath: '/icons/tamon.svg',
       learning: {
         adminContributes: true,
         automaticReuse: true
       }
     });
+  });
+
+  test('GET /icons/tamon.svg serves icon file', async () => {
+    const response = await request(app).get('/icons/tamon.svg');
+    expect(response.status).toBe(200);
+    expect(response.headers['content-type']).toContain('image/svg+xml');
   });
 
   test('POST /api/translate requires file', async () => {
