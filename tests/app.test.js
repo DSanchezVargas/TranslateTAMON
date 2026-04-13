@@ -26,8 +26,8 @@ describe('app routes', () => {
     });
     expect(response.body.branding).toEqual({
       colors: expect.objectContaining({
-        primary: '#f2a6c6',
-        secondary: '#d97fa8'
+        primary: '#eaa8c1',
+        secondary: '#d983ab'
       })
     });
   });

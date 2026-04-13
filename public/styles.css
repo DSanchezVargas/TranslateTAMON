@@ -1,10 +1,10 @@
 :root {
-  --tamon-primary: #f2a6c6;
-  --tamon-secondary: #d97fa8;
-  --tamon-accent: #f6d9c5;
-  --tamon-neutral: #fff1f8;
-  --tamon-surface: #4b2c3f;
-  --tamon-soft: #1f1220;
+  --tamon-primary: #eaa8c1;
+  --tamon-secondary: #d983ab;
+  --tamon-accent: #f2e4d2;
+  --tamon-neutral: #fff5fa;
+  --tamon-surface: #4a2d3e;
+  --tamon-soft: #1b1119;
 }
 
 * {
@@ -15,7 +15,7 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   color: var(--tamon-neutral);
-  background: radial-gradient(circle at top, #f9bfd8, var(--tamon-soft) 58%);
+  background: radial-gradient(circle at top, #f4bfd6, var(--tamon-soft) 58%);
 }
 
 .app-shell {
@@ -32,7 +32,7 @@ body {
   color: #2d1221;
   border-radius: 1rem;
   padding: 1rem;
-  box-shadow: 0 14px 36px rgba(242, 166, 198, 0.45);
+  box-shadow: 0 14px 36px rgba(234, 168, 193, 0.45);
 }
 
 .hero-icon {
@@ -54,15 +54,15 @@ body {
 .panel {
   margin-top: 1rem;
   background: var(--tamon-surface);
-  border: 1px solid #74465f;
+  border: 1px solid #7a4f66;
   border-radius: 1rem;
   padding: 1rem;
   box-shadow: 0 10px 24px rgba(2, 6, 23, 0.4);
 }
 
 .neural-banner {
-  background: linear-gradient(135deg, rgba(242, 166, 198, 0.22), rgba(246, 217, 197, 0.2));
-  border-color: rgba(242, 166, 198, 0.55);
+  background: linear-gradient(135deg, rgba(234, 168, 193, 0.22), rgba(242, 228, 210, 0.2));
+  border-color: rgba(234, 168, 193, 0.55);
 }
 
 .neural-banner p {
@@ -76,8 +76,8 @@ body {
 }
 
 .tab-btn {
-  border: 1px solid #855574;
-  background: #301b2b;
+  border: 1px solid #8a5f77;
+  background: #2f1b29;
   color: var(--tamon-neutral);
   border-radius: 0.7rem;
   padding: 0.6rem 0.9rem;
@@ -113,9 +113,9 @@ button {
 input,
 select,
 textarea {
-  background: #2b1728;
+  background: #2a1726;
   color: var(--tamon-neutral);
-  border: 1px solid #855574;
+  border: 1px solid #8a5f77;
   border-radius: 0.5rem;
   padding: 0.55rem 0.65rem;
 }
@@ -164,7 +164,7 @@ textarea {
   width: 100%;
   height: 12px;
   border-radius: 999px;
-  background: #f4d4e3;
+  background: #f0d3df;
   overflow: hidden;
 }
 
@@ -187,12 +187,12 @@ textarea {
 
 .meta {
   margin-top: 0;
-  color: #f5dbe8;
+  color: #f6ddeb;
 }
 
 .quick-output {
   margin-top: 0.5rem;
-  background: #301b2b;
+  background: #2f1b29;
 }
 
 .hidden {
