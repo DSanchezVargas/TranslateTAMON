@@ -11,11 +11,18 @@
       <header class="hero">
         <img src="/icons/tamon.svg" alt="Tamon" class="hero-icon" />
         <div>
-          <p class="eyebrow">IA aplicada + App usable</p>
+          <p class="eyebrow">Tamon IA en aprendizaje continuo</p>
           <h1>Tamon Translator</h1>
-          <p class="subtitle">Traducción hiperautomatizada con corrección guiada y aprendizaje progresivo.</p>
+          <p class="subtitle">Traducción hiperautomatizada para archivos y mensajes directos, con memoria progresiva para crecer como IA poderosa.</p>
         </div>
       </header>
+
+      <section class="panel neural-banner">
+        <p>
+          Tamon es una IA en desarrollo: aprende en cada traducción, aplica memoria útil y mantiene soporte para
+          PDF, DOCX, JPG, PNG y TXT en inglés, español, francés, italiano, portugués y alemán.
+        </p>
+      </section>
 
       <nav class="panel tabs">
         <button id="tab-translation" class="tab-btn is-active" type="button">Menú principal · Traducción</button>
@@ -77,6 +84,28 @@
             </label>
           </div>
           <button id="finalize-btn" class="btn-secondary">Finalizar y descargar DOCX</button>
+        </section>
+
+        <section class="panel" id="quick-translate-panel">
+          <h2>4) Habla con Tamon</h2>
+          <p class="meta">Traduce texto rápido sin archivo. Tamon te responde como asistente y sigue aprendiendo.</p>
+          <form id="quick-translate-form" class="grid-form">
+            <label>Tu nombre
+              <input type="text" id="quickUserName" value="usuario" required />
+            </label>
+            <label>Idioma origen
+              <select id="quickSourceLanguage" required></select>
+            </label>
+            <label>Idioma destino
+              <select id="quickTargetLanguage" required></select>
+            </label>
+            <label>Texto a traducir
+              <textarea id="quickText" rows="4" maxlength="12000" placeholder='Ejemplo: hello you are the most amazing thing in the world' required></textarea>
+            </label>
+            <button type="submit" class="btn-primary">Traducir con Tamon</button>
+          </form>
+          <p class="meta" id="quick-translate-status">Tamon listo para traducir mensajes rápidos.</p>
+          <textarea id="quick-translate-output" class="quick-output" rows="4" readonly></textarea>
         </section>
       </section>
 

@@ -80,6 +80,39 @@ describe('app routes', () => {
     expect(response.status).toBe(400);
   });
 
+  test('POST /api/assistant/translate-text requires text', async () => {
+    const response = await request(app)
+      .post('/api/assistant/translate-text')
+      .send({
+        userName: 'usuario',
+        sourceLanguage: 'en',
+        targetLanguage: 'es'
+      });
+
+    expect(response.status).toBe(400);
+    expect(response.body.error).toContain('Campo requerido');
+  });
+
+  test('POST /api/assistant/translate-text returns assistant response', async () => {
+    const response = await request(app)
+      .post('/api/assistant/translate-text')
+      .send({
+        userName: 'Daniela',
+        text: 'hello you are the most amazing thing in the world',
+        sourceLanguage: 'en',
+        targetLanguage: 'en'
+      });
+
+    expect(response.status).toBe(200);
+    expect(response.body).toEqual(expect.objectContaining({
+      userName: 'Daniela',
+      sourceLanguage: 'en',
+      targetLanguage: 'en',
+      translatedText: 'hello you are the most amazing thing in the world'
+    }));
+    expect(response.body.assistantResponse).toContain('Bueno Daniela');
+  });
+
   test('POST /api/memory/corrections rejects non-admin', async () => {
     const response = await request(app)
       .post('/api/memory/corrections')

@@ -1,10 +1,10 @@
 :root {
-  --tamon-primary: #0ea5e9;
-  --tamon-secondary: #6366f1;
-  --tamon-accent: #4f46e5;
-  --tamon-neutral: #1f2937;
-  --tamon-surface: #ffffff;
-  --tamon-soft: #eef6ff;
+  --tamon-primary: #12b9ff;
+  --tamon-secondary: #6c63ff;
+  --tamon-accent: #8b5cf6;
+  --tamon-neutral: #e2e8f0;
+  --tamon-surface: #0f172a;
+  --tamon-soft: #020617;
 }
 
 * {
@@ -15,7 +15,7 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   color: var(--tamon-neutral);
-  background: linear-gradient(135deg, var(--tamon-soft), #f8fafc);
+  background: radial-gradient(circle at top, #1e1b4b, var(--tamon-soft) 55%);
 }
 
 .app-shell {
@@ -29,16 +29,17 @@ body {
   gap: 1rem;
   align-items: center;
   background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary));
-  color: var(--tamon-surface);
+  color: #fff;
   border-radius: 1rem;
   padding: 1rem;
+  box-shadow: 0 14px 36px rgba(18, 185, 255, 0.28);
 }
 
 .hero-icon {
   width: 84px;
   height: 84px;
   border-radius: 1rem;
-  background: var(--tamon-surface);
+  background: #fff;
 }
 
 .eyebrow {
@@ -53,9 +54,20 @@ body {
 .panel {
   margin-top: 1rem;
   background: var(--tamon-surface);
-  border: 1px solid #dbeafe;
+  border: 1px solid #1e293b;
   border-radius: 1rem;
   padding: 1rem;
+  box-shadow: 0 10px 24px rgba(2, 6, 23, 0.4);
+}
+
+.neural-banner {
+  background: linear-gradient(135deg, rgba(18, 185, 255, 0.15), rgba(139, 92, 246, 0.2));
+  border-color: rgba(18, 185, 255, 0.4);
+}
+
+.neural-banner p {
+  margin: 0;
+  line-height: 1.45;
 }
 
 .tabs {
@@ -64,8 +76,8 @@ body {
 }
 
 .tab-btn {
-  border: 1px solid #cbd5e1;
-  background: #f8fafc;
+  border: 1px solid #334155;
+  background: #111827;
   color: var(--tamon-neutral);
   border-radius: 0.7rem;
   padding: 0.6rem 0.9rem;
@@ -101,7 +113,9 @@ button {
 input,
 select,
 textarea {
-  border: 1px solid #cbd5e1;
+  background: #0b1220;
+  color: var(--tamon-neutral);
+  border: 1px solid #334155;
   border-radius: 0.5rem;
   padding: 0.55rem 0.65rem;
 }
@@ -173,7 +187,12 @@ textarea {
 
 .meta {
   margin-top: 0;
-  color: #334155;
+  color: #cbd5e1;
+}
+
+.quick-output {
+  margin-top: 0.5rem;
+  background: #111827;
 }
 
 .hidden {

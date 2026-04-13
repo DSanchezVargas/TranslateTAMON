@@ -19,11 +19,13 @@ const UI_TEXT = {
   finalizeError: 'No se pudo finalizar la traducción.',
   downloaded: 'Documento final listo y descargado.',
   suggestionSent: 'Comentario enviado. Tamon lo usará para mejorar continuamente.',
-  suggestionError: 'No se pudo registrar el comentario de usuario.'
+  suggestionError: 'No se pudo registrar el comentario de usuario.',
+  quickTranslateError: 'No se pudo traducir el texto rápido.'
 };
 
 const form = document.querySelector('#translate-form');
 const commentsForm = document.querySelector('#comments-form');
+const quickTranslateForm = document.querySelector('#quick-translate-form');
 const previewPanel = document.querySelector('#preview-panel');
 const previewMeta = document.querySelector('#preview-meta');
 const etaText = document.querySelector('#eta-text');
@@ -31,11 +33,15 @@ const translatedTextInput = document.querySelector('#translatedText');
 const originalTextPreview = document.querySelector('#originalTextPreview');
 const assistantStatus = document.querySelector('#assistant-status');
 const commentsStatus = document.querySelector('#comments-status');
+const quickTranslateStatus = document.querySelector('#quick-translate-status');
+const quickTranslateOutput = document.querySelector('#quick-translate-output');
 const finalizeBtn = document.querySelector('#finalize-btn');
 const sourceLanguageSelect = document.querySelector('#sourceLanguage');
 const targetLanguageSelect = document.querySelector('#targetLanguage');
 const commentSourceLanguage = document.querySelector('#commentSourceLanguage');
 const commentTargetLanguage = document.querySelector('#commentTargetLanguage');
+const quickSourceLanguage = document.querySelector('#quickSourceLanguage');
+const quickTargetLanguage = document.querySelector('#quickTargetLanguage');
 const processProgress = document.querySelector('#process-progress');
 const historyProgress = document.querySelector('#history-progress');
 const tabTranslation = document.querySelector('#tab-translation');
@@ -74,11 +80,20 @@ function populateSelect(select) {
 }
 
 function populateLanguages() {
-  [sourceLanguageSelect, targetLanguageSelect, commentSourceLanguage, commentTargetLanguage].forEach(populateSelect);
+  [
+    sourceLanguageSelect,
+    targetLanguageSelect,
+    commentSourceLanguage,
+    commentTargetLanguage,
+    quickSourceLanguage,
+    quickTargetLanguage
+  ].forEach(populateSelect);
   sourceLanguageSelect.value = 'en';
   targetLanguageSelect.value = 'es';
   commentSourceLanguage.value = 'en';
   commentTargetLanguage.value = 'es';
+  quickSourceLanguage.value = 'en';
+  quickTargetLanguage.value = 'es';
 }
 
 function showTranslationTab() {
@@ -242,6 +257,34 @@ async function sendComment(event) {
   loadAssistantStatus().catch(() => {});
 }
 
+async function translateQuickText(event) {
+  event.preventDefault();
+  quickTranslateStatus.textContent = UI_TEXT.processing;
+  quickTranslateOutput.value = '';
+
+  const payload = {
+    userName: document.querySelector('#quickUserName').value.trim() || 'usuario',
+    text: document.querySelector('#quickText').value.trim(),
+    sourceLanguage: quickSourceLanguage.value,
+    targetLanguage: quickTargetLanguage.value
+  };
+
+  const response = await fetch('/api/assistant/translate-text', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify(payload)
+  });
+  const data = await response.json();
+
+  if (!response.ok) {
+    throw new Error(data.error || UI_TEXT.quickTranslateError);
+  }
+
+  quickTranslateOutput.value = data.assistantResponse;
+  quickTranslateStatus.textContent = `${data.learningState} (trace: ${data.traceId})`;
+  setStatus('Asistente IA: traducción de texto rápida completada.');
+}
+
 tabTranslation.addEventListener('click', showTranslationTab);
 tabComments.addEventListener('click', showCommentsTab);
 
@@ -261,6 +304,12 @@ finalizeBtn.addEventListener('click', () => {
 commentsForm.addEventListener('submit', (event) => {
   sendComment(event).catch((error) => {
     commentsStatus.textContent = error.message;
+  });
+});
+
+quickTranslateForm.addEventListener('submit', (event) => {
+  translateQuickText(event).catch((error) => {
+    quickTranslateStatus.textContent = error.message;
   });
 });
 

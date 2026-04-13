@@ -52,6 +52,15 @@ function buildAssistantMessage(status) {
   return `${ASSISTANT_TAGLINE} · status: ${status}`;
 }
 
+function escapeAssistantText(value) {
+  return String(value)
+    .replaceAll('&', '&amp;')
+    .replaceAll('<', '&lt;')
+    .replaceAll('>', '&gt;')
+    .replaceAll('"', '&quot;')
+    .replaceAll("'", '&#39;');
+}
+
 function setExperienceHeaders(res, { traceId, status, processingMs }) {
   res.setHeader('X-Tamon-Trace-Id', traceId);
   res.setHeader('X-Tamon-Status', status);
@@ -305,6 +314,61 @@ router.post('/translate/finalize', async (req, res, next) => {
     res.setHeader('Content-Disposition', `attachment; filename="${outputName}"`);
     return res.status(200).send(translatedDocxBuffer);
   } catch (error) {
+    if (
+      error.message.includes('Campo ')
+      || error.message.includes('Formato de campo inválido')
+    ) {
+      error.status = 400;
+    }
+    return next(error);
+  }
+});
+
+router.post('/assistant/translate-text', async (req, res, next) => {
+  const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
+  try {
+    const text = sanitizeString(req.body.text, { required: true, maxLength: 12000 });
+    const sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });
+    const targetLanguage = sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 });
+    const userName = sanitizeString(req.body.userName || 'usuario', { required: true, maxLength: 80 });
+
+    const translatedText = await translateText(text, sourceLanguage, targetLanguage);
+    const assistantSafeUserName = escapeAssistantText(userName);
+    const assistantSafeTranslatedText = escapeAssistantText(translatedText);
+    const processingMs = Date.now() - startedAt;
+
+    await saveHistory({
+      originalFileName: 'quick-text-input.txt',
+      fileType: 'txt',
+      sourceLanguage,
+      targetLanguage,
+      project: 'assistant-chat',
+      domain: 'general',
+      sourceTextHash: computeSourceHash(text),
+      translatedTextCache: translatedText,
+      sourceTextLength: text.length,
+      translatedTextLength: translatedText.length,
+      status: 'success'
+    });
+
+    setExperienceHeaders(res, { traceId, status: 'text_translation_ready', processingMs });
+    return res.status(200).json({
+      traceId,
+      userName,
+      sourceLanguage,
+      targetLanguage,
+      translatedText,
+      assistantResponse: `Bueno ${assistantSafeUserName}, tu traducción a ${targetLanguage} es: ${assistantSafeTranslatedText}`,
+      learningState: 'Tamon está aprendiendo y mejora en cada interacción.'
+    });
+  } catch (error) {
+    if (
+      error.message.includes('Campo ')
+      || error.message.includes('Formato de campo inválido')
+    ) {
+      error.status = 400;
+    }
     return next(error);
   }
 });
