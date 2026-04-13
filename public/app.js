@@ -6,6 +6,7 @@ const LANGUAGES = [
   { value: 'de', label: 'Deutsch' },
   { value: 'it', label: 'Italiano' }
 ];
+const DEFAULT_ESTIMATED_SECONDS = 1800;
 
 const UI_TEXT = {
   processing: 'Asistente IA: procesando entrada, memoria y traducción...',
@@ -95,7 +96,7 @@ function showCommentsTab() {
 
 function startProcessTicker(estimatedSeconds) {
   if (processTicker) clearInterval(processTicker);
-  const maxSeconds = Math.max(Math.min(estimatedSeconds || 1800, 23 * 60 * 60), 10);
+  const maxSeconds = Math.max(Math.min(estimatedSeconds || DEFAULT_ESTIMATED_SECONDS, 23 * 60 * 60), 10);
   let elapsed = 0;
   setProcessProgress(3);
   etaText.textContent = `Tiempo estimado de traducción: ${Math.ceil(maxSeconds / 60)} min (menos de 1 día).`;
