@@ -76,8 +76,8 @@ app.get('/api/assistant/status', async (req, res, next) => {
       }
     });
   } catch (error) {
-    return console.log(error);//Error : return next(error);
-    //return next=error;
+    //return console.log(error);//Error : return next(error);
+    return next=error;
   }
 });
 
