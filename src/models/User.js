@@ -32,13 +32,9 @@ const userSchema = new mongoose.Schema({
 // Middleware limpio y moderno para encriptar la contraseña sin usar "next"
 userSchema.pre('save', async function() {
   const user = this;
-
-  // Si la contraseña no ha cambiado, no hacemos nada y dejamos que guarde
   if (!user.isModified('password')) {
     return;
   }
-
-  // Generamos el hash y lo aplicamos
   const salt = await bcrypt.genSalt(10);
   user.password = await bcrypt.hash(user.password, salt);
 });
