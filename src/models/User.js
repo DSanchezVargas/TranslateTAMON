@@ -10,7 +10,7 @@ const userSchema = new mongoose.Schema({
   correo: { 
     type: String, 
     required: true, 
-    unique: true, // Esto evita que dos personas se registren con el mismo email
+    unique: true, 
     lowercase: true,
     trim: true
   },
@@ -29,27 +29,18 @@ const userSchema = new mongoose.Schema({
   }
 });
 
-// Este es un "middleware" de Mongoose. 
-// Justo antes de guardar el usuario en MongoDB, encripta la contraseña.
-// Asegúrate de que use function(next) y no una flecha =>
-userSchema.pre('save', async function(next) {
+// Middleware limpio y moderno para encriptar la contraseña sin usar "next"
+userSchema.pre('save', async function() {
   const user = this;
 
-  // Si la contraseña no ha cambiado, saltamos al siguiente paso
+  // Si la contraseña no ha cambiado, no hacemos nada y dejamos que guarde
   if (!user.isModified('password')) {
-    return next();
+    return;
   }
 
-  try {
-    const salt = await bcrypt.genSalt(10);
-    const hash = await bcrypt.hash(user.password, salt);
-    user.password = hash;
-    
-    // AQUÍ ES DONDE FALLABA: Asegúrate de llamar a next()
-    next();
-  } catch (error) {
-    next(error);
-  }
+  // Generamos el hash y lo aplicamos
+  const salt = await bcrypt.genSalt(10);
+  user.password = await bcrypt.hash(user.password, salt);
 });
 
 // Método para comparar la contraseña cuando el usuario intente hacer login
