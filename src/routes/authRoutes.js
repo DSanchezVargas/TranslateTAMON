@@ -3,7 +3,7 @@ const router = express.Router();
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
 
-// Configuramos el enviador de correos
+// Configuramos el enviador de correos con tus credenciales directas
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
@@ -13,6 +13,7 @@ const transporter = nodemailer.createTransport({
     pass: 'orpxqlpvffgjossz' 
   }
 });
+
 // --- RUTA DE REGISTRO ---
 router.post('/register', async (req, res) => {
   try {
@@ -22,28 +23,24 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos para el registro.' });
     }
 
-    // Verificar si ya existe antes de intentar guardar
     let userExists = await User.findOne({ correo: correo.toLowerCase() });
     if (userExists) {
-      // Es vital retornar aquí para que el código no siga ejecutándose
       return res.status(400).json({ error: 'Este correo ya tiene una cuenta activa.' });
     }
 
     const nuevoUsuario = new User({ nombre, correo, password });
     await nuevoUsuario.save();
 
-    // Intento de envío de correo (no bloquea el registro si falla)
+    // Envío de correo de bienvenida directo (sin el if fantasma)
     try {
-      if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-        await transporter.sendMail({
-          from: '"Tamon IA" <no-reply@tamon.com>',
-          to: correo,
-          subject: '¡Bienvenido a Tamon! ✨',
-          text: `Hola ${nombre}, tu cuenta ha sido creada.`
-        });
-      }
+      await transporter.sendMail({
+        from: '"Tamon IA" <noblesserai20@gmail.com>',
+        to: correo,
+        subject: '¡Bienvenido a Tamon! ✨',
+        text: `Hola ${nombre}, tu cuenta ha sido creada con éxito.`
+      });
     } catch (mailErr) {
-      console.error('Error enviando correo:', mailErr);
+      console.error('Error enviando correo de registro:', mailErr);
     }
 
     return res.status(201).json({ 
@@ -57,7 +54,7 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// --- RUTA DE LOGIN MODERNO (JWT y QR opcional) ---
+// --- RUTA DE LOGIN MODERNO ---
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
@@ -67,7 +64,6 @@ router.post('/login', async (req, res) => {
     const { correo, username, password, qr } = req.body;
     let usuario;
     if (qr) {
-      // Login por QR: el QR contiene el correo y un token temporal
       let decoded;
       try {
         decoded = jwt.verify(qr, JWT_SECRET);
@@ -85,14 +81,14 @@ router.post('/login', async (req, res) => {
         usuario = await User.findOne({ username: username.trim().toLowerCase() });
       }
       if (!usuario) {
-        return res.status(400).json({ error: 'Usuario no encontrado.' });
+        return res.status(400).json({ error: 'Usuario no encontrado. Asegúrate de registrarte primero.' });
       }
       const esValido = await usuario.compararPassword(password);
       if (!esValido) {
         return res.status(400).json({ error: 'Contraseña incorrecta.' });
       }
     }
-    // Generar JWT para sesión
+    
     const token = jwt.sign({ id: usuario._id, role: usuario.role, nombre: usuario.nombre, username: usuario.username }, JWT_SECRET, { expiresIn: '2h' });
     res.status(200).json({
       mensaje: 'Login exitoso',
@@ -104,7 +100,6 @@ router.post('/login', async (req, res) => {
   }
 });
 
-// Endpoint para generar QR de login (solo admin)
 router.post('/admin/generate-login-qr', async (req, res) => {
   try {
     const { correo } = req.body;
@@ -129,32 +124,28 @@ router.post('/join-vip', async (req, res) => {
       return res.status(400).json({ error: 'No se encontró un correo válido.' });
     }
 
-    // Usamos el "transporter" que ya tienes configurado arriba en este archivo
-    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
-      await transporter.sendMail({
-        from: '"Tamon IA" <no-reply@tamon.com>',
-        to: correo,
-        subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
-        html: `
-          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #7928ca; border-radius: 10px; background-color: #f8e6f3;">
-              <h2 style="color: #7928ca;">¡Hola ${nombre || 'Usuario'}! 🚀</h2>
-              <p style="color: #2d1221; font-size: 16px;">Confirmamos que tu espacio ha sido reservado con éxito en nuestra fila VIP.</p>
-              <p style="color: #2d1221; font-size: 16px;">La pasarela de pagos oficial está en configuración. Te avisaremos a este correo en cuanto Tamon Pro+ esté habilitado para que seas de los primeros en experimentar el poder total.</p>
-              <br>
-              <p style="color: #2d1221; font-weight: bold;">Saludos,<br>El equipo de Tamon IA</p>
-          </div>
-        `
-      });
-      return res.status(200).json({ message: 'Correo VIP enviado con éxito' });
-    } else {
-      console.error('Faltan credenciales de correo en el archivo .env');
-      return res.status(500).json({ error: 'El servidor no tiene configurado el envío de correos.' });
-    }
+    // Usamos el transporter sin validaciones .env que interrumpan el proceso
+    await transporter.sendMail({
+      from: '"Tamon IA VIP" <noblesserai20@gmail.com>',
+      to: correo,
+      subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
+      html: `
+        <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #7928ca; border-radius: 10px; background-color: #f8e6f3;">
+            <h2 style="color: #7928ca;">¡Hola ${nombre || 'Usuario'}! 🚀</h2>
+            <p style="color: #2d1221; font-size: 16px;">Confirmamos que tu espacio ha sido reservado con éxito en nuestra fila VIP.</p>
+            <p style="color: #2d1221; font-size: 16px;">La pasarela de pagos oficial está en configuración. Te avisaremos a este correo en cuanto Tamon Pro+ esté habilitado para que seas de los primeros en experimentar el poder total.</p>
+            <br>
+            <p style="color: #2d1221; font-weight: bold;">Saludos,<br>El equipo de Tamon IA</p>
+        </div>
+      `
+    });
+    
+    return res.status(200).json({ message: 'Correo VIP enviado con éxito' });
 
   } catch (error) {
     console.error('Error enviando correo VIP:', error);
-    return res.status(500).json({ error: 'Hubo un error al intentar enviar el correo.' });
+    return res.status(500).json({ error: 'Hubo un error al intentar enviar el correo. Verifica tu contraseña de aplicación de Gmail.' });
   }
 });
-// ESTA ES LA LÍNEA QUE FALTABA Y POR LA QUE CRASHEABA:
+
 module.exports = router;
