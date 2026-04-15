@@ -461,3 +461,48 @@ document.addEventListener('DOMContentLoaded', () => {
     renderFaqs();
   }
 });
+// =====================================================================
+// 9. LÓGICA DEL CHAT DE TAMON (Restaurada)
+// =====================================================================
+const chatMessages = getEl('#chat-messages');
+const chatForm = getEl('#chat-form');
+const chatInput = getEl('#chat-input');
+
+function renderChatMessage(msg, from) {
+  const div = document.createElement('div');
+  if (from === 'user') {
+    div.className = 'chat-bubble user-bubble';
+    div.innerHTML = `<span>${msg}</span>`;
+  } else {
+    div.className = 'chat-bubble tamon-bubble';
+    div.innerHTML = `<span><b>Tamon:</b> ${msg}</span>`;
+  }
+  if (chatMessages) {
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight; // Hace scroll automático hacia abajo
+  }
+}
+
+function getTamonReply(msg) {
+  if (msg.toLowerCase().includes('hola')) return '¡Hola! ¿En qué idioma necesitas ayuda o explicación?';
+  if (msg.toLowerCase().includes('traduce')) return 'Por favor, dime el texto y el idioma de destino.';
+  return '¡Estoy aquí para ayudarte con traducciones y explicaciones de idiomas!';
+}
+
+if (chatForm) {
+  chatForm.addEventListener('submit', (e) => {
+    e.preventDefault(); // <-- ¡ESTA ES LA LÍNEA QUE EVITA QUE SE RECARGUE LA PÁGINA!
+    
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    
+    // 1. Mostrar mensaje del usuario
+    renderChatMessage(msg, 'user');
+    chatInput.value = '';
+    
+    // 2. Simular tiempo de respuesta de Tamon (700ms)
+    setTimeout(() => {
+      renderChatMessage(getTamonReply(msg), 'tamon');
+    }, 700);
+  });
+}
