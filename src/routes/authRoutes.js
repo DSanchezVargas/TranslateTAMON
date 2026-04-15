@@ -119,5 +119,41 @@ router.post('/admin/generate-login-qr', async (req, res) => {
   }
 });
 
+// --- RUTA PARA FILA VIP (TAMON PRO+) ---
+router.post('/join-vip', async (req, res) => {
+  try {
+    const { correo, nombre } = req.body;
+
+    if (!correo) {
+      return res.status(400).json({ error: 'No se encontró un correo válido.' });
+    }
+
+    // Usamos el "transporter" que ya tienes configurado arriba en este archivo
+    if (process.env.EMAIL_USER && process.env.EMAIL_PASS) {
+      await transporter.sendMail({
+        from: '"Tamon IA" <no-reply@tamon.com>',
+        to: correo,
+        subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
+        html: `
+          <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #7928ca; border-radius: 10px; background-color: #f8e6f3;">
+              <h2 style="color: #7928ca;">¡Hola ${nombre || 'Usuario'}! 🚀</h2>
+              <p style="color: #2d1221; font-size: 16px;">Confirmamos que tu espacio ha sido reservado con éxito en nuestra fila VIP.</p>
+              <p style="color: #2d1221; font-size: 16px;">La pasarela de pagos oficial está en configuración. Te avisaremos a este correo en cuanto Tamon Pro+ esté habilitado para que seas de los primeros en experimentar el poder total.</p>
+              <br>
+              <p style="color: #2d1221; font-weight: bold;">Saludos,<br>El equipo de Tamon IA</p>
+          </div>
+        `
+      });
+      return res.status(200).json({ message: 'Correo VIP enviado con éxito' });
+    } else {
+      console.error('Faltan credenciales de correo en el archivo .env');
+      return res.status(500).json({ error: 'El servidor no tiene configurado el envío de correos.' });
+    }
+
+  } catch (error) {
+    console.error('Error enviando correo VIP:', error);
+    return res.status(500).json({ error: 'Hubo un error al intentar enviar el correo.' });
+  }
+});
 // ESTA ES LA LÍNEA QUE FALTABA Y POR LA QUE CRASHEABA:
 module.exports = router;
