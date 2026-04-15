@@ -123,8 +123,9 @@ async function requestPreview(event) {
   startProcessTicker(file ? Math.max(Math.ceil(file.size / 8000), 60) : 60);
 
   try {
-    const response = await fetch('/api/translate/preview', { method: 'POST', body: formData });
-    const rawBody = await response.text();
+// Hacemos la petición a tu servidor. 
+        const response = await fetch('/api/translate/preview', { method: 'POST', body: formData });
+            const rawBody = await response.text();
     const data = rawBody ? JSON.parse(rawBody) : {};
 
     if (!response.ok) throw new Error(data.error || UI_TEXT.previewError);
@@ -517,15 +518,13 @@ if (chatForm) {
 
     try {
         // Hacemos la petición a tu servidor. 
-        // IMPORTANTE: Asegúrate de que esta URL sea la correcta según tu server.js (ej. /api/userChat/chat)
-        const response = await fetch('/api/userChat/chat', { 
+        const response = await fetch('/api/user/chat', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: msg, userName: nombreUsuario })
         });
 
         const data = await response.json();
-        
         // Quitar el "pensando..."
         const typingElement = document.getElementById(typingId);
         if (typingElement) typingElement.remove();

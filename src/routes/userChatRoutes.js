@@ -1,13 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const { OpenAI } = require('openai'); // Importamos OpenAI
+const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Inicializamos la conexión usando la llave de tu archivo .env
-const openai = new OpenAI({
-  apiKey: process.env.OPENAI_API_KEY,
-});
+// Inicializamos Gemini con tu llave del .env
+const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
 
-// Chat normal para usuario (user o pro_plus)
 const { extractTextFromFile } = require('../services/fileTextExtractor');
 
 router.post('/chat', async (req, res) => {
@@ -24,27 +21,22 @@ router.post('/chat', async (req, res) => {
       }
     }
 
-    // 1. Llamamos al "Cerebro" de Tamon (OpenAI)
-    const completion = await openai.chat.completions.create({
-        model: "gpt-3.5-turbo",
-        messages: [
-            { 
-                role: "system", 
-                content: `Eres Tamon, un asistente de Inteligencia Artificial amigable, traductor experto y tutor de idiomas hiperautomatizado. Estás hablando con ${userName || 'un Usuario'}. Tu objetivo es ayudar a traducir textos y enseñar idiomas (explicar gramática, contexto y vocabulario). No sigas un guion fijo. Sé natural, conversacional, empático y directo.` 
-            },
-            { 
-                role: "user", 
-                // Si el usuario adjuntó un archivo, le pasamos el texto a Tamon para que tenga contexto
-                content: extractedText ? `[Contexto del archivo adjunto]: ${extractedText}\n\nMi mensaje: ${message}` : message 
-            }
-        ],
-        max_tokens: 500,
-        temperature: 0.7
+    // 1. Configuramos el modelo de Gemini y le damos la "personalidad" de Tamon
+    const model = genAI.getGenerativeModel({ 
+        model: "gemini-1.5-flash",
+        systemInstruction: `Eres Tamon, un asistente de Inteligencia Artificial amigable, traductor experto y tutor de idiomas hiperautomatizado. Estás hablando con ${userName || 'un Usuario'}. Tu objetivo es ayudar a traducir textos y enseñar idiomas (explicar gramática, contexto y vocabulario). No sigas un guion fijo. Sé natural, conversacional, empático y directo.`
     });
 
-    const tamonResponse = completion.choices[0].message.content;
+    // 2. Preparamos el texto a enviar (juntando el archivo y el mensaje)
+    const prompt = extractedText 
+        ? `[Contexto del archivo adjunto]: ${extractedText}\n\nMi mensaje: ${message}` 
+        : message;
 
-    // 2. Guardamos en el historial (Tu lógica original intacta)
+    // 3. Llamamos a Gemini
+    const result = await model.generateContent(prompt);
+    const tamonResponse = result.response.text();
+
+    // 4. Guardamos en tu base de datos (Tu historial)
     const ChatMessage = require('../models/ChatMessage');
     await ChatMessage.create({
       sender: 'user',
@@ -55,11 +47,11 @@ router.post('/chat', async (req, res) => {
       chatType: 'user'
     });
     
-    // 3. Devolvemos la respuesta real de la IA
+    // 5. Respondemos a tu página web
     res.json({ response: tamonResponse, extractedText });
     
   } catch (err) {
-    console.error("Error en OpenAI:", err);
+    console.error("Error en Gemini:", err);
     res.status(500).json({ error: 'Mis circuitos están sobrecargados. Intenta en un momento.' });
   }
 });
