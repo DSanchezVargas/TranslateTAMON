@@ -21,9 +21,9 @@ router.post('/chat', async (req, res) => {
       }
     }
 
-// 2. Configuración del modelo (Usando el nombre que aparece en tu lista de AI Studio)
+// 2. Configuración del modelo (Usando el que SÍ tienes habilitado en AI Studio)
     const model = genAI.getGenerativeModel({ 
-        model: "gemini-flash-latest", // <--- CAMBIA ESTO
+        model: "gemini-3.1-flash-lite", // <-- Usa este nombre exacto
         systemInstruction: `Eres Tamon, un asistente de Inteligencia Artificial amigable, traductor experto y tutor de idiomas hiperautomatizado. Estás hablando con ${userName || 'un Usuario'}. Tu objetivo es ayudar a traducir textos y enseñar idiomas (explicar gramática, contexto y vocabulario). No sigas un guion fijo. Sé natural, conversacional, empático y directo.`
     });
 
