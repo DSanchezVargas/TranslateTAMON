@@ -5,13 +5,14 @@ const nodemailer = require('nodemailer');
 
 // Configuramos el enviador de correos
 const transporter = nodemailer.createTransport({
-  service: 'gmail',
+  host: 'smtp.gmail.com',
+  port: 465,
+  secure: true, // Usa SSL
   auth: {
-    user: process.env.EMAIL_USER, 
-    pass: process.env.EMAIL_PASS
+    user: 'noblesserai20@gmail.com', 
+    pass: 'orpxqlpvffgjossz' 
   }
 });
-
 // --- RUTA DE REGISTRO ---
 router.post('/register', async (req, res) => {
   try {
