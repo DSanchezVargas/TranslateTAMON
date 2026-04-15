@@ -406,14 +406,14 @@ window.addEventListener('click', (event) => {
 // --- LÓGICA DE AUTENTICACIÓN (LOGIN, REGISTRO Y PERFIL) ---
 // =====================================================================
 
-const btnLoginModal = document.querySelector('#sidebar-login-btn') || null;
-const authModal = document.querySelector('#auth-modal') || null;
-const authToggleBtn = document.querySelector('#auth-toggle-btn') || null;
-const authTitle = document.querySelector('#auth-title') || null;
-const authNombreInput = document.querySelector('#auth-nombre') || null;
-const authSubmitBtn = document.querySelector('#auth-submit-btn') || null;
-const authToggleText = document.querySelector('#auth-toggle-text') || null;
-const authForm = document.querySelector('#auth-form') || null;
+const sidebarUser = document.getElementById('sidebar-user');
+const authModal = document.getElementById('auth-modal');
+const authToggleBtn = document.getElementById('auth-toggle-btn');
+const authTitle = document.getElementById('auth-title');
+const authNombreInput = document.getElementById('auth-nombre');
+const authSubmitBtn = document.getElementById('auth-submit-btn');
+const authToggleText = document.getElementById('auth-toggle-text');
+const authForm = document.getElementById('auth-form');
 // Eliminadas referencias a userProfileMenu y displayUserName de la barra superior
 const btnProfileDropdown = null;
 const profileDropdownContent = document.querySelector('#profile-dropdown-content') || null;
@@ -421,13 +421,10 @@ const btnLogout = document.querySelector('#btn-logout') || null;
 
 let isLoginMode = true;
 
-// checkAuth ya no es necesario, la barra lateral gestiona todo
+// checkAuth eliminado, la barra lateral gestiona todo
 
-if (btnLoginModal && authModal) {
-  btnLoginModal.addEventListener('click', () => {
-    authModal.style.display = 'flex';
-  });
 
+if (authToggleBtn) {
   authToggleBtn.addEventListener('click', () => {
     isLoginMode = !isLoginMode;
     if (isLoginMode) {
@@ -446,7 +443,9 @@ if (btnLoginModal && authModal) {
       authToggleBtn.textContent = 'Inicia sesión';
     }
   });
+}
 
+if (authModal) {
   window.addEventListener('click', (event) => {
     if (event.target === authModal) {
       authModal.style.display = 'none';
@@ -479,7 +478,7 @@ if (authForm) {
         if (response.ok) {
           localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
           authModal.style.display = 'none';
-          checkAuth();
+          updateSidebarUser(data.usuario);
           alert('¡Registro exitoso! Revisa tu correo (si configuraste las credenciales).');
         } else {
           alert(data.error);
@@ -511,7 +510,7 @@ if (authForm) {
           // Guardamos al usuario y actualizamos la pantalla
           localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
           authModal.style.display = 'none';
-          checkAuth(); 
+          updateSidebarUser(data.usuario);
         } else {
           // Si pone mal la clave o el correo
           alert(data.error);
@@ -525,44 +524,32 @@ if (authForm) {
   });
 }
 
-if (btnProfileDropdown) {
-  btnProfileDropdown.addEventListener('click', () => {
-    profileDropdownContent.style.display = 
-      profileDropdownContent.style.display === 'none' ? 'flex' : 'none';
-  });
-}
-
-if (btnLogout) {
-  btnLogout.addEventListener('click', () => {
-    localStorage.removeItem('tamon_user');
-    profileDropdownContent.style.display = 'none';
-    checkAuth();
-  });
-}
-
-checkAuth();
+// Eliminado: btnProfileDropdown y btnLogout, ahora todo es gestionado por updateSidebarUser
 // Sidebar navigation
 
-const menuBtn = document.getElementById('menu-btn');
-const chatBtn = document.getElementById('chat-btn');
-const faqBtn = document.getElementById('faq-btn');
-const chatSection = document.getElementById('tamon-chat-section');
-const faqSection = document.getElementById('faq-section');
 
-function showSection(section) {
-  if (translationView) translationView.style.display = section === 'menu' ? '' : 'none';
-  if (commentsView) commentsView.style.display = 'none';
-  if (chatSection) chatSection.style.display = section === 'chat' ? '' : 'none';
-  if (faqSection) faqSection.style.display = section === 'faq' ? '' : 'none';
-  [menuBtn, chatBtn, faqBtn].forEach(btn => btn && btn.classList.remove('active'));
-  if (section === 'menu' && menuBtn) menuBtn.classList.add('active');
-  if (section === 'chat' && chatBtn) chatBtn.classList.add('active');
-  if (section === 'faq' && faqBtn) faqBtn.classList.add('active');
-}
-if (menuBtn) menuBtn.onclick = () => showSection('menu');
-if (chatBtn) chatBtn.onclick = () => showSection('chat');
-if (faqBtn) faqBtn.onclick = () => showSection('faq');
-showSection('menu');
+document.addEventListener('DOMContentLoaded', () => {
+  const menuBtn = document.getElementById('menu-btn');
+  const chatBtn = document.getElementById('chat-btn');
+  const faqBtn = document.getElementById('faq-btn');
+  const chatSection = document.getElementById('tamon-chat-section');
+  const faqSection = document.getElementById('faq-section');
+
+  function showSection(section) {
+    if (translationView) translationView.style.display = section === 'menu' ? '' : 'none';
+    if (commentsView) commentsView.style.display = 'none';
+    if (chatSection) chatSection.style.display = section === 'chat' ? '' : 'none';
+    if (faqSection) faqSection.style.display = section === 'faq' ? '' : 'none';
+    [menuBtn, chatBtn, faqBtn].forEach(btn => btn && btn.classList.remove('active'));
+    if (section === 'menu' && menuBtn) menuBtn.classList.add('active');
+    if (section === 'chat' && chatBtn) chatBtn.classList.add('active');
+    if (section === 'faq' && faqBtn) faqBtn.classList.add('active');
+  }
+  if (menuBtn) menuBtn.onclick = () => showSection('menu');
+  if (chatBtn) chatBtn.onclick = () => showSection('chat');
+  if (faqBtn) faqBtn.onclick = () => showSection('faq');
+  showSection('menu');
+});
 
 // Chat Tamon moderno
 const chatMessages = document.getElementById('chat-messages');
@@ -571,8 +558,12 @@ const chatInput = document.getElementById('chat-input');
 let chatUser = 'Usuario';
 const usuarioGuardado = localStorage.getItem('tamon_user');
 if (usuarioGuardado) {
-  const user = JSON.parse(usuarioGuardado);
-  chatUser = user.nombre || user.usuario || 'Usuario';
+  try {
+    const user = JSON.parse(usuarioGuardado);
+    chatUser = user?.nombre || user?.usuario || 'Usuario';
+  } catch (e) {
+    chatUser = 'Usuario';
+  }
 }
 function renderChatMessage(msg, from) {
   const div = document.createElement('div');
@@ -583,19 +574,23 @@ function renderChatMessage(msg, from) {
     div.className = 'chat-bubble tamon-bubble';
     div.innerHTML = `<span><b>Tamon:</b> ${msg}</span>`;
   }
-  chatMessages.appendChild(div);
-  chatMessages.scrollTop = chatMessages.scrollHeight;
+  if (chatMessages) {
+    chatMessages.appendChild(div);
+    chatMessages.scrollTop = chatMessages.scrollHeight;
+  }
 }
-chatForm.onsubmit = e => {
-  e.preventDefault();
-  const msg = chatInput.value.trim();
-  if (!msg) return;
-  renderChatMessage(msg, 'user');
-  chatInput.value = '';
-  setTimeout(() => {
-    renderChatMessage(getTamonReply(msg), 'tamon');
-  }, 700);
-};
+if (chatForm) {
+  chatForm.onsubmit = e => {
+    e.preventDefault();
+    const msg = chatInput.value.trim();
+    if (!msg) return;
+    renderChatMessage(msg, 'user');
+    chatInput.value = '';
+    setTimeout(() => {
+      renderChatMessage(getTamonReply(msg), 'tamon');
+    }, 700);
+  };
+}
 function getTamonReply(msg) {
   if (msg.toLowerCase().includes('hola')) return '¡Hola! ¿En qué idioma necesitas ayuda o explicación?';
   if (msg.toLowerCase().includes('traduce')) return 'Por favor, dime el texto y el idioma de destino.';
@@ -664,7 +659,6 @@ function updateSidebarUser(user) {
       }
       usertypeElem.style.display = '';
     }
-    
     if (sidebarUser) sidebarUser.onclick = null;
   } else {
     // No autenticado: muestra mensaje de login/registro y hace clickable toda el área
@@ -676,7 +670,8 @@ function updateSidebarUser(user) {
     }
     if (sidebarUser) {
       sidebarUser.onclick = () => {
-        document.getElementById('btn-login-modal').click();
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.style.display = 'flex';
       };
     }
   }
@@ -702,12 +697,15 @@ function updateSidebarUser(user) {
         <button id="sidebar-register-btn">Registrarse</button>
       `;
       document.getElementById('sidebar-login-btn').onclick = () => {
-        document.getElementById('btn-login-modal').click();
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.style.display = 'flex';
       };
       document.getElementById('sidebar-register-btn').onclick = () => {
-        document.getElementById('btn-login-modal').click();
+        const modal = document.getElementById('auth-modal');
+        if (modal) modal.style.display = 'flex';
         setTimeout(() => {
-          document.getElementById('auth-toggle-btn').click();
+          const toggle = document.getElementById('auth-toggle-btn');
+          if (toggle) toggle.click();
         }, 200);
       };
     }
@@ -740,8 +738,12 @@ function updateSidebarUser(user) {
     }
   }
 }
-// Llama a updateSidebarUser tras login/registro
-if (usuarioGuardado) updateSidebarUser(JSON.parse(usuarioGuardado));
+// Llama a updateSidebarUser tras login/registro o muestra login si no hay usuario
+if (usuarioGuardado) {
+  updateSidebarUser(JSON.parse(usuarioGuardado));
+} else {
+  updateSidebarUser(null);
+}
 // FAQ acordeón
 document.addEventListener('DOMContentLoaded', () => {
   document.querySelectorAll('.faq-question').forEach(btn => {
