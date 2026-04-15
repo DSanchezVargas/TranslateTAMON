@@ -2,9 +2,8 @@ const express = require('express');
 const router = express.Router();
 const { GoogleGenerativeAI } = require('@google/generative-ai');
 
-// Inicializamos Gemini con tu llave del .env
+// 1. Inicialización
 const genAI = new GoogleGenerativeAI(process.env.GEMINI_API_KEY);
-
 const { extractTextFromFile } = require('../services/fileTextExtractor');
 
 router.post('/chat', async (req, res) => {
@@ -12,47 +11,65 @@ router.post('/chat', async (req, res) => {
     const { message, fileUrl, userName } = req.body;
     let extractedText = '';
     
+    // Extracción de texto
     if (fileUrl) {
       const filePath = require('path').join(__dirname, '../../uploads', fileUrl.split('/').pop());
       try {
         extractedText = await extractTextFromFile(filePath);
       } catch (e) {
-        extractedText = '';
+        console.error("Error al extraer texto del archivo:", e);
       }
     }
 
-    // 1. Configuramos el modelo de Gemini y le damos la "personalidad" de Tamon
+// 2. Configuración del modelo (Usando el nombre que aparece en tu lista de AI Studio)
     const model = genAI.getGenerativeModel({ 
-        model: "gemini-1.5-flash",
+        model: "gemini-flash-latest", // <--- CAMBIA ESTO
         systemInstruction: `Eres Tamon, un asistente de Inteligencia Artificial amigable, traductor experto y tutor de idiomas hiperautomatizado. Estás hablando con ${userName || 'un Usuario'}. Tu objetivo es ayudar a traducir textos y enseñar idiomas (explicar gramática, contexto y vocabulario). No sigas un guion fijo. Sé natural, conversacional, empático y directo.`
     });
 
-    // 2. Preparamos el texto a enviar (juntando el archivo y el mensaje)
     const prompt = extractedText 
-        ? `[Contexto del archivo adjunto]: ${extractedText}\n\nMi mensaje: ${message}` 
+        ? `[Contexto del archivo adjunto]: ${extractedText}\n\nMensaje: ${message}` 
         : message;
 
-    // 3. Llamamos a Gemini
-    const result = await model.generateContent(prompt);
-    const tamonResponse = result.response.text();
+    // 3. STREAMING: Enviando datos en tiempo real
+    const result = await model.generateContentStream(prompt);
 
-    // 4. Guardamos en tu base de datos (Tu historial)
+    // IMPORTANTE: Headers para Streaming
+    res.setHeader('Content-Type', 'text/plain; charset=utf-8');
+    res.setHeader('Transfer-Encoding', 'chunked');
+
+    let fullResponse = "";
+
+    for await (const chunk of result.stream) {
+      const chunkText = chunk.text();
+      fullResponse += chunkText;
+      res.write(chunkText); // Enviamos el fragmento al navegador
+    }
+
+    res.end(); // Terminamos la conexión correctamente
+
+    // 4. GUARDADO POST-CHAT (En segundo plano para no demorar al usuario)
     const ChatMessage = require('../models/ChatMessage');
-    await ChatMessage.create({
-      sender: 'user',
-      userId: req.user ? req.user._id : null,
-      message,
-      fileUrl,
-      extractedText,
+    const userIdToSave = req.user ? req.user._id : "000000000000000000000000"; 
+
+    // Guardamos la respuesta de Tamon
+    ChatMessage.create({
+      sender: 'tamon',
+      userId: userIdToSave,
+      message: fullResponse,
+      fileUrl: fileUrl,
+      extractedText: extractedText,
       chatType: 'user'
-    });
-    
-    // 5. Respondemos a tu página web
-    res.json({ response: tamonResponse, extractedText });
+    }).catch(err => console.error("Error al guardar historial:", err));
     
   } catch (err) {
     console.error("Error en Gemini:", err);
-    res.status(500).json({ error: 'Mis circuitos están sobrecargados. Intenta en un momento.' });
+    // Solo intentamos enviar error si no hemos empezado a escribir (res.write)
+    if (!res.headersSent) {
+      res.status(500).json({ error: 'Error interno de Tamon.' });
+    } else {
+      res.end(); // Si ya falló a mitad de camino, cerramos la conexión
+    }
   }
 });
 

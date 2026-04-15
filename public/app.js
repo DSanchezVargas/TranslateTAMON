@@ -7,7 +7,13 @@ const LANGUAGES = [
   { value: 'pt', label: 'Português' },
   { value: 'fr', label: 'Français' },
   { value: 'de', label: 'Deutsch' },
-  { value: 'it', label: 'Italiano' }
+  { value: 'it', label: 'Italiano' },
+  { value: 'zh', label: '中文' },
+  { value: 'ja', label: '日本語' },
+  { value: 'ko', label: '한국어' },
+  { value: 'ru', label: 'Русский' },
+  { value: 'ar', label: 'العربية' },
+  { value: 'hi', label: 'हिन्दी' },
 ];
 
 const DEFAULT_ESTIMATED_SECONDS = 1800;
@@ -123,9 +129,8 @@ async function requestPreview(event) {
   startProcessTicker(file ? Math.max(Math.ceil(file.size / 8000), 60) : 60);
 
   try {
-// Hacemos la petición a tu servidor. 
-        const response = await fetch('/api/translate/preview', { method: 'POST', body: formData });
-            const rawBody = await response.text();
+    const response = await fetch('/api/translate/preview', { method: 'POST', body: formData });
+    const rawBody = await response.text();
     const data = rawBody ? JSON.parse(rawBody) : {};
 
     if (!response.ok) throw new Error(data.error || UI_TEXT.previewError);
@@ -464,81 +469,74 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =====================================================================
-// 9. LÓGICA DEL CHAT DE TAMON (Conectado a IA)
+// 9. LÓGICA DEL CHAT DE TAMON (ACTUALIZADO CON STREAMING)
 // =====================================================================
 const chatMessages = getEl('#chat-messages');
 const chatForm = getEl('#chat-form');
 const chatInput = getEl('#chat-input');
 
-function renderChatMessage(msg, from) {
+function renderChatMessage(msg, from, id = null) {
   const div = document.createElement('div');
-  if (from === 'user') {
-    div.className = 'chat-bubble user-bubble';
-    div.innerHTML = `<span>${msg}</span>`;
-  } else {
-    div.className = 'chat-bubble tamon-bubble';
-    // Usamos replace para que los saltos de línea de la IA se vean correctamente en HTML
-    div.innerHTML = `<span><b>Tamon:</b> ${msg.replace(/\n/g, '<br>')}</span>`;
-  }
+  div.className = from === 'user' ? 'chat-bubble user-bubble' : 'chat-bubble tamon-bubble';
+  if (id) div.id = id;
+  
+  const label = from === 'user' ? '' : '<b>Tamon:</b> ';
+  div.innerHTML = `<span>${label}${msg.replace(/\n/g, '<br>')}</span>`;
+  
   if (chatMessages) {
     chatMessages.appendChild(div);
     chatMessages.scrollTop = chatMessages.scrollHeight; 
   }
+  return div;
 }
 
 if (chatForm) {
   chatForm.addEventListener('submit', async (e) => {
     e.preventDefault(); 
-    
     const msg = chatInput.value.trim();
     if (!msg) return;
     
-    // Imprimir mensaje del usuario
+    // 1. Mostrar mensaje del usuario
     renderChatMessage(msg, 'user');
     chatInput.value = '';
     
-    // Obtener el nombre del usuario para que Tamon lo salude
-    const usuarioGuardado = localStorage.getItem('tamon_user');
-    let nombreUsuario = 'Usuario';
-    if (usuarioGuardado) {
-        const userObj = JSON.parse(usuarioGuardado);
-        nombreUsuario = userObj.nombre || userObj.usuario || 'Usuario';
-    }
-    
-    // Mostrar estado de "pensando..."
-    const typingId = 'typing-' + Date.now();
-    const typingDiv = document.createElement('div');
-    typingDiv.id = typingId;
-    typingDiv.className = 'chat-bubble tamon-bubble';
-    typingDiv.innerHTML = `<span><b>Tamon:</b> <i>pensando...</i></span>`;
-    if (chatMessages) {
-      chatMessages.appendChild(typingDiv);
-      chatMessages.scrollTop = chatMessages.scrollHeight;
-    }
+    const userJson = localStorage.getItem('tamon_user');
+    const nombreUsuario = userJson ? JSON.parse(userJson).nombre : 'Usuario';
+
+    // 2. Crear burbuja vacía para Tamon donde "caerá" el stream
+    const tamonMsgId = 'tamon-stream-' + Date.now();
+    const tamonDiv = renderChatMessage('<i>escribiendo...</i>', 'tamon', tamonMsgId);
+    const textSpan = tamonDiv.querySelector('span');
 
     try {
-        // Hacemos la petición a tu servidor. 
         const response = await fetch('/api/user/chat', { 
             method: 'POST',
             headers: { 'Content-Type': 'application/json' },
             body: JSON.stringify({ message: msg, userName: nombreUsuario })
         });
 
-        const data = await response.json();
-        // Quitar el "pensando..."
-        const typingElement = document.getElementById(typingId);
-        if (typingElement) typingElement.remove();
+        if (!response.ok) throw new Error('Error en la conexión');
 
-        if (response.ok) {
-            // Imprimir la respuesta real de Tamon
-            renderChatMessage(data.response, 'tamon');
-        } else {
-            renderChatMessage('Error: ' + (data.error || 'Cortocircuito interno'), 'tamon');
+        // 3. PROCESAR EL STREAM (Lectura por trozos)
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let fullText = "";
+        textSpan.innerHTML = `<b>Tamon:</b> `; // Limpiamos el "escribiendo..."
+
+        while (true) {
+            const { done, value } = await reader.read();
+            if (done) break;
+
+            const chunk = decoder.decode(value, { stream: true });
+            fullText += chunk;
+            
+            // Actualizamos la burbuja en tiempo real con cada palabra nueva
+            textSpan.innerHTML = `<b>Tamon:</b> ${fullText.replace(/\n/g, '<br>')}`;
+            chatMessages.scrollTop = chatMessages.scrollHeight; 
         }
+
     } catch (error) {
-        const typingElement = document.getElementById(typingId);
-        if (typingElement) typingElement.remove();
-        renderChatMessage('No pude conectar con mi cerebro en el servidor. Revisa tu consola.', 'tamon');
+        if (textSpan) textSpan.innerHTML = `<b>Tamon:</b> Error: Mis circuitos están sobrecargados.`;
     }
   });
 }
