@@ -3,6 +3,11 @@ const path = require('path');
 const translationRoutes = require('./routes/translationRoutes');
 const memoryRoutes = require('./routes/memoryRoutes');
 const authRoutes = require('./routes/authRoutes'); // <-- Aquí importamos la nueva ruta de registro
+const adminRoutes = require('./routes/adminRoutes'); // <-- Aquí importamos la nueva ruta de administración
+const uploadRoutes = require('./routes/uploadRoutes'); // <-- Aquí importamos la nueva ruta de subida de archivos
+const adminChatRoutes = require('./routes/adminChatRoutes'); // <-- Aquí importamos la nueva ruta de chat especial para admin
+const userChatRoutes = require('./routes/userChatRoutes'); // <-- Aquí importamos la nueva ruta de chat para usuarios normales
+const userProfileRoutes = require('./routes/userProfileRoutes'); // <-- Aquí importamos la nueva ruta de perfil de usuario
 
 const {
   APP_NAME,
@@ -14,6 +19,7 @@ const {
 const { isDbReady } = require('./config/db');
 const TranslationHistory = require('./models/TranslationHistory');
 const ClientQuota = require('./models/ClientQuota'); 
+const User = require('./models/User');
 
 const app = express();
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '25mb';
@@ -85,6 +91,33 @@ app.get('/api/assistant/status', async (req, res, next) => {
 app.use('/api', translationRoutes);
 app.use('/api/memory', memoryRoutes);
 app.use('/api/auth', authRoutes); // <-- Aquí activamos las rutas de registro y login
+app.use('/api/admin', adminChatRoutes); // <-- Aquí activamos las rutas de administración
+app.use('/api/upload', uploadRoutes); // <-- Aquí activamos las rutas de subida de archivos
+app.use('/api/user', userChatRoutes); // <-- Aquí activamos las rutas de chat para usuarios normales
+app.use('/api/user/profile', userProfileRoutes); // <-- Aquí activamos la ruta de perfil de usuario
+
+// Crear automáticamente el admin principal si no existe
+(async () => {
+  try {
+    const adminCorreo = 'tatsu@admin.com';
+    const adminNombre = 'Tatsu';
+    const adminPassword = '$2b$10$Nn802A3zkKrAsgCcdgWeMuNnw6LfpInPTmFuMPQykhm3uyCubgMeO'; // Zhenya_26
+    const existe = await User.findOne({ correo: adminCorreo });
+    if (!existe) {
+      await User.create({
+        nombre: adminNombre,
+        correo: adminCorreo,
+        password: adminPassword,
+        plan: 'pro_plus',
+        role: 'admin',
+        fechaRegistro: new Date()
+      });
+      console.log('Admin principal creado automáticamente.');
+    }
+  } catch (e) {
+    console.error('Error creando admin principal:', e);
+  }
+})();
 
 app.use((error, req, res, next) => {
   void req;

@@ -6,7 +6,16 @@ const glossaryEntrySchema = new mongoose.Schema(
     sourceLanguage: { type: String, required: true },
     targetLanguage: { type: String, required: true },
     sourceTerm: { type: String, required: true },
-    targetTerm: { type: String, required: true }
+    targetTerm: { type: String, required: true },
+    version: { type: Number, default: 1 },
+    history: [
+      {
+        version: Number,
+        updatedAt: Date,
+        updatedBy: String,
+        changes: Object
+      }
+    ]
   },
   { timestamps: true }
 );

@@ -56,27 +56,66 @@ router.post('/register', async (req, res) => {
   }
 });
 
-// --- RUTA DE LOGIN (Para que no de error 404) ---
+// --- RUTA DE LOGIN MODERNO (JWT y QR opcional) ---
+const jwt = require('jsonwebtoken');
+const QRCode = require('qrcode');
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+
 router.post('/login', async (req, res) => {
   try {
-    const { correo, password } = req.body;
-    const usuario = await User.findOne({ correo: correo.toLowerCase() });
-
-    if (!usuario) {
-      return res.status(400).json({ error: 'Usuario no encontrado.' });
+    const { correo, username, password, qr } = req.body;
+    let usuario;
+    if (qr) {
+      // Login por QR: el QR contiene el correo y un token temporal
+      let decoded;
+      try {
+        decoded = jwt.verify(qr, JWT_SECRET);
+      } catch (e) {
+        return res.status(400).json({ error: 'QR inválido o expirado.' });
+      }
+      usuario = await User.findOne({ correo: decoded.correo, role: 'admin' });
+      if (!usuario) {
+        return res.status(400).json({ error: 'Solo los administradores pueden iniciar sesión con QR.' });
+      }
+    } else {
+      if (correo) {
+        usuario = await User.findOne({ correo: correo.toLowerCase() });
+      } else if (username) {
+        usuario = await User.findOne({ username: username.trim().toLowerCase() });
+      }
+      if (!usuario) {
+        return res.status(400).json({ error: 'Usuario no encontrado.' });
+      }
+      const esValido = await usuario.compararPassword(password);
+      if (!esValido) {
+        return res.status(400).json({ error: 'Contraseña incorrecta.' });
+      }
     }
-
-    const esValido = await usuario.compararPassword(password);
-    if (!esValido) {
-      return res.status(400).json({ error: 'Contraseña incorrecta.' });
-    }
-
+    // Generar JWT para sesión
+    const token = jwt.sign({ id: usuario._id, role: usuario.role, nombre: usuario.nombre, username: usuario.username }, JWT_SECRET, { expiresIn: '2h' });
     res.status(200).json({
       mensaje: 'Login exitoso',
-      usuario: { id: usuario._id, nombre: usuario.nombre, correo: usuario.correo }
+      usuario: { id: usuario._id, nombre: usuario.nombre, username: usuario.username, correo: usuario.correo, role: usuario.role },
+      token
     });
   } catch (error) {
     res.status(500).json({ error: 'Error al iniciar sesión.' });
+  }
+});
+
+// Endpoint para generar QR de login (solo admin)
+router.post('/admin/generate-login-qr', async (req, res) => {
+  try {
+    const { correo } = req.body;
+    const usuario = await User.findOne({ correo: correo.toLowerCase(), role: 'admin' });
+    if (!usuario) {
+      return res.status(400).json({ error: 'Solo admins pueden usar QR.' });
+    }
+    const qrPayload = jwt.sign({ correo: usuario.correo }, JWT_SECRET, { expiresIn: '5m' });
+    const qrImage = await QRCode.toDataURL(qrPayload);
+    res.json({ qrImage });
+  } catch (error) {
+    res.status(500).json({ error: 'No se pudo generar el QR.' });
   }
 });
 

@@ -7,54 +7,86 @@
     <link rel="stylesheet" href="/styles.css" />
   </head>
   <body>
-    <main class="app-shell">
-      
-      <div style="display: flex; justify-content: flex-end; align-items: center; padding: 15px 20px; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
+    <button id="sidebar-toggle" aria-label="Mostrar/Ocultar menú" class="sidebar-toggle">
+      <span></span><span></span><span></span>
+    </button>
+    <div class="sidebar">
+  <div class="sidebar-menu">
+    <div class="sidebar-logo">
+      <img src="/icons/tamon.svg" alt="Tamon" style="width: 48px; height: 48px; border-radius: 50%;" />
+    </div>
+    <button class="sidebar-btn" id="menu-btn">Menú principal</button>
+    <button class="sidebar-btn" id="chat-btn">Conversación con Tamon</button>
+    <button class="sidebar-btn" id="faq-btn">FAQ</button>
+  </div>
+  <div class="sidebar-user" id="sidebar-user" style="cursor:pointer;">
+    <div class="user-icon" id="sidebar-user-icon">👤</div>
+    <div style="display:flex; flex-direction:column; justify-content:center;">
+      <div id="sidebar-username" style="font-weight:600; font-size:1.08rem;">Usuario</div>
+      <div id="sidebar-usertype" style="font-size:0.93rem; opacity:0.85;"></div>
+    </div>
+    <div id="sidebar-user-menu"></div>
+  </div>
+</div>
+  <div class="main-content">
+
+    <div style="display: flex; justify-content: flex-end; align-items: center; padding: 15px 20px; gap: 15px; border-bottom: 1px solid rgba(255,255,255,0.1); margin-bottom: 20px;">
         <span id="usage-counter" style="font-size: 0.9rem; font-weight: 600; color: #e2e8f0; background: rgba(255,255,255,0.1); padding: 6px 12px; border-radius: 12px;">
           Cargando cuota...
         </span>
         
-        <button id="btn-login-modal" style="background: transparent; border: 1px solid #7928ca; color: #e2e8f0; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: 0.2s;">
-          Ingresar
-        </button>
-
-        <div id="user-profile-menu" style="display: none; position: relative;">
-          <button id="btn-profile-dropdown" style="background: #1e1c22; border: 1px solid #7928ca; color: white; padding: 6px 15px; border-radius: 20px; font-weight: bold; cursor: pointer; display: flex; align-items: center; gap: 8px;">
-            <span style="background: #ff007f; border-radius: 50%; width: 24px; height: 24px; display: inline-flex; align-items: center; justify-content: center; font-size: 0.8rem;">👤</span>
-            <span id="display-user-name">Usuario</span>
-            <span style="font-size: 0.6rem;">▼</span>
-          </button>
-          
-          <div id="profile-dropdown-content" style="display: none; position: absolute; top: 120%; right: 0; background: #2d2a32; border: 1px solid #7928ca; border-radius: 10px; padding: 10px; min-width: 150px; flex-direction: column; gap: 8px; z-index: 1000; box-shadow: 0 10px 20px rgba(0,0,0,0.5);">
-            <button style="background: transparent; border: none; color: #e2e8f0; text-align: left; padding: 8px; cursor: pointer; border-radius: 5px; font-weight: bold;">⚙️ Ajustes</button>
-            <button id="btn-logout" style="background: transparent; border: none; color: #ff4d4d; text-align: left; padding: 8px; cursor: pointer; border-radius: 5px; font-weight: bold;">🚪 Cerrar sesión</button>
-          </div>
-        </div>
+        <!-- Menú de usuario eliminado de la barra superior. Ahora solo se gestiona desde la barra lateral. -->
 
         <button id="btn-pro-plus" style="background: linear-gradient(135deg, #ff007f, #7928ca); color: white; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
           ✨ Obtener Tamon Pro+
         </button>
       </div>
 
+
+    <main class="app-shell">
       <header class="hero">
         <img src="/icons/tamon.svg" alt="Tamon" class="hero-icon" />
         <div>
-          <p class="eyebrow">Tamon IA en aprendizaje continuo</p>
-          <h1>Tamon Translator</h1>
-          <p class="subtitle">Traducción hiperautomatizada para archivos y mensajes directos, con memoria progresiva para crecer como IA poderosa.</p>
+          <h1 style="margin-bottom: 0.2em;">Tamon's Hub</h1>
+          <p class="eyebrow" style="font-weight: 600; color: #7928ca; margin-bottom: 0.5em;">IA + programa en desarrollo para traducir documentos, imágenes y texto (no OCR).</p>
+          <p class="subtitle" style="color: #2d1221;">Centro de traducción inteligente y asistente experimental. Tamon aprende y mejora en cada uso.</p>
         </div>
       </header>
 
-      <section class="panel neural-banner">
-        <p>
-          Tamon es una IA en desarrollo: aprende en cada traducción, aplica memoria útil y mantiene soporte para
-          PDF, DOCX, JPG, PNG y TXT en inglés, español, francés, italiano, portugués y alemán.
-        </p>
+      <section id="tamon-chat-section" class="modern-chat-panel panel" style="display:none;">
+        <h2 style="margin-bottom: 1.2rem; font-size: 1.35rem; font-weight: 700; color: #7928ca; letter-spacing: 0.5px;">Conversación con Tamon</h2>
+        <div id="chat-messages" class="modern-chat-messages"></div>
+        <form id="chat-form" class="modern-chat-form">
+          <input type="text" id="chat-input" placeholder="Escribe tu mensaje..." required />
+          <button type="submit" class="modern-chat-btn">Enviar</button>
+        </form>
       </section>
+
+  <section id="faq-section" class="faq-accordion panel" style="display:none;">
+  <h2>Preguntas Frecuentes (FAQ)</h2>
+  <div class="faq-list">
+    <div class="faq-item">
+      <button class="faq-question">¿Qué es Tamon?</button>
+      <div class="faq-answer">Tamon es una IA y programa experimental para traducción automática de documentos, imágenes y texto (sin OCR), en varios idiomas.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-question">¿Qué tipos de archivos soporta?</button>
+      <div class="faq-answer">Puedes traducir archivos PDF, DOCX, JPG, PNG y TXT. No realiza OCR sobre imágenes.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-question">¿Qué idiomas están disponibles?</button>
+      <div class="faq-answer">Actualmente: inglés, español, francés, italiano, portugués y alemán.</div>
+    </div>
+    <div class="faq-item">
+      <button class="faq-question">¿Cómo funciona la cuota gratuita?</button>
+      <div class="faq-answer">Cada usuario tiene un límite diario de traducciones gratuitas. Puedes ver tu cuota en la barra superior.</div>
+    </div>
+  </div>
+</section>
+
 
       <nav class="panel tabs">
         <button id="tab-translation" class="tab-btn is-active" type="button">Menú principal · Traducción</button>
-        <button id="tab-comments" class="tab-btn" type="button">Comentarios de usuario</button>
       </nav>
 
       <section id="translation-view">
@@ -69,12 +101,6 @@
             </label>
             <label>Idioma destino
               <select id="targetLanguage" name="targetLanguage" required></select>
-            </label>
-            <label>Proyecto
-              <input type="text" id="project" name="project" value="default" />
-            </label>
-            <label>Dominio
-              <input type="text" id="domain" name="domain" value="general" />
             </label>
             <button type="submit" class="btn-primary">Generar vista previa IA</button>
             
@@ -139,31 +165,7 @@
         </section>
       </section>
 
-      <section id="comments-view" class="hidden">
-        <section class="panel">
-          <h2>Comentarios de usuario para enriquecer diccionario</h2>
-          <p class="meta">Estas sugerencias ayudan a Tamon a mejorar continuamente, incluso cuando el admin no está disponible.</p>
-          <form id="comments-form" class="grid-form">
-            <label>Proyecto
-              <input type="text" id="commentProject" value="default" required />
-            </label>
-            <label>Idioma origen
-              <select id="commentSourceLanguage" required></select>
-            </label>
-            <label>Idioma destino
-              <select id="commentTargetLanguage" required></select>
-            </label>
-            <label>Traducción original detectada
-              <textarea id="originalTranslation" rows="3" required></textarea>
-            </label>
-            <label>Traducción sugerida por usuario
-              <textarea id="suggestedTranslation" rows="3" required></textarea>
-            </label>
-            <button type="submit" class="btn-primary">Enviar comentario para memoria IA</button>
-          </form>
-          <p class="meta" id="comments-status">Sin comentarios enviados todavía.</p>
-        </section>
-      </section>
+
     </main>
 
     <div id="pro-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">

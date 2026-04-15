@@ -7,6 +7,12 @@ const userSchema = new mongoose.Schema({
     required: true,
     trim: true
   },
+  username: {
+    type: String,
+    unique: true,
+    sparse: true, // permite nulos
+    trim: true
+  },
   correo: { 
     type: String, 
     required: true, 
@@ -22,6 +28,11 @@ const userSchema = new mongoose.Schema({
     type: String,
     enum: ['free', 'pro_plus'],
     default: 'free'
+  },
+  role: {
+    type: String,
+    enum: ['user', 'admin'],
+    default: 'user'
   },
   fechaRegistro: { 
     type: Date, 

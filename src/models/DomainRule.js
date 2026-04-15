@@ -6,7 +6,16 @@ const domainRuleSchema = new mongoose.Schema(
     domain: { type: String, required: true },
     findText: { type: String, required: true },
     replaceText: { type: String, required: true },
-    applyStage: { type: String, enum: ['pre_translation', 'post_translation'], default: 'pre_translation' }
+    applyStage: { type: String, enum: ['pre_translation', 'post_translation'], default: 'pre_translation' },
+    version: { type: Number, default: 1 },
+    history: [
+      {
+        version: Number,
+        updatedAt: Date,
+        updatedBy: String,
+        changes: Object
+      }
+    ]
   },
   { timestamps: true }
 );

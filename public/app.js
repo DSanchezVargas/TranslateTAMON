@@ -1,3 +1,12 @@
+// --- Sidebar toggle (hamburguesa) ---
+const sidebar = document.querySelector('.sidebar');
+const sidebarToggle = document.getElementById('sidebar-toggle');
+if (sidebarToggle && sidebar) {
+  sidebarToggle.addEventListener('click', () => {
+    sidebar.classList.toggle('hide');
+    sidebarToggle.classList.toggle('active');
+  });
+}
 const LANGUAGES = [
   { value: 'es', label: 'Español' },
   { value: 'en', label: 'English' },
@@ -23,38 +32,40 @@ const UI_TEXT = {
   quickTranslateError: 'No se pudo traducir el texto rápido.'
 };
 
-const form = document.querySelector('#translate-form');
-const commentsForm = document.querySelector('#comments-form');
-const quickTranslateForm = document.querySelector('#quick-translate-form');
-const previewPanel = document.querySelector('#preview-panel');
-const previewMeta = document.querySelector('#preview-meta');
-const etaText = document.querySelector('#eta-text');
-const translatedTextInput = document.querySelector('#translatedText');
-const originalTextPreview = document.querySelector('#originalTextPreview');
-const assistantStatus = document.querySelector('#assistant-status');
-const commentsStatus = document.querySelector('#comments-status');
-const quickTranslateStatus = document.querySelector('#quick-translate-status');
-const quickTranslateOutput = document.querySelector('#quick-translate-output');
-const finalizeBtn = document.querySelector('#finalize-btn');
-const sourceLanguageSelect = document.querySelector('#sourceLanguage');
-const targetLanguageSelect = document.querySelector('#targetLanguage');
-const commentSourceLanguage = document.querySelector('#commentSourceLanguage');
-const commentTargetLanguage = document.querySelector('#commentTargetLanguage');
-const quickSourceLanguage = document.querySelector('#quickSourceLanguage');
-const quickTargetLanguage = document.querySelector('#quickTargetLanguage');
-const processProgress = document.querySelector('#process-progress');
-const historyProgress = document.querySelector('#history-progress');
-const tabTranslation = document.querySelector('#tab-translation');
-const tabComments = document.querySelector('#tab-comments');
-const translationView = document.querySelector('#translation-view');
-const commentsView = document.querySelector('#comments-view');
+// Selectores robustos (no fallan si no existe el elemento)
+const form = document.querySelector('#translate-form') || null;
+const commentsForm = document.querySelector('#comments-form') || null;
+const quickTranslateForm = document.querySelector('#quick-translate-form') || null;
+const previewPanel = document.querySelector('#preview-panel') || null;
+const previewMeta = document.querySelector('#preview-meta') || null;
+const etaText = document.querySelector('#eta-text') || null;
+const translatedTextInput = document.querySelector('#translatedText') || null;
+const originalTextPreview = document.querySelector('#originalTextPreview') || null;
+const assistantStatus = document.querySelector('#assistant-status') || null;
+const commentsStatus = document.querySelector('#comments-status') || null;
+const quickTranslateStatus = document.querySelector('#quick-translate-status') || null;
+const quickTranslateOutput = document.querySelector('#quick-translate-output') || null;
+const finalizeBtn = document.querySelector('#finalize-btn') || null;
+const sourceLanguageSelect = document.querySelector('#sourceLanguage') || null;
+const targetLanguageSelect = document.querySelector('#targetLanguage') || null;
+const commentSourceLanguage = document.querySelector('#commentSourceLanguage') || null;
+const commentTargetLanguage = document.querySelector('#commentTargetLanguage') || null;
+const quickSourceLanguage = document.querySelector('#quickSourceLanguage') || null;
+const quickTargetLanguage = document.querySelector('#quickTargetLanguage') || null;
+const processProgress = document.querySelector('#process-progress') || null;
+const historyProgress = document.querySelector('#history-progress') || null;
+const tabTranslation = document.querySelector('#tab-translation') || null;
+const tabComments = document.querySelector('#tab-comments') || null;
+const translationView = document.getElementById('translation-view') || null;
+const commentsView = document.getElementById('comments-view') || null;
 
 let previewState = null;
 let processTicker = null;
 
 function setStep(stepId) {
-  document.querySelectorAll('.flow-steps li').forEach((item) => item.classList.remove('active'));
-  const selected = document.querySelector(`#${stepId}`);
+  const steps = document.querySelectorAll('.flow-steps li');
+  steps.forEach((item) => item.classList.remove('active'));
+  const selected = document.getElementById(stepId);
   if (selected) selected.classList.add('active');
 }
 
@@ -88,7 +99,7 @@ function populateLanguages() {
     commentTargetLanguage,
     quickSourceLanguage,
     quickTargetLanguage
-  ].forEach(populateSelect);
+  ].forEach(sel => sel && populateSelect(sel));
   if (sourceLanguageSelect) sourceLanguageSelect.value = 'en';
   if (targetLanguageSelect) targetLanguageSelect.value = 'es';
   if (commentSourceLanguage) commentSourceLanguage.value = 'en';
@@ -96,6 +107,7 @@ function populateLanguages() {
   if (quickSourceLanguage) quickSourceLanguage.value = 'en';
   if (quickTargetLanguage) quickTargetLanguage.value = 'es';
 }
+
 
 function showTranslationTab() {
   if (tabTranslation) tabTranslation.classList.add('is-active');
@@ -394,34 +406,22 @@ window.addEventListener('click', (event) => {
 // --- LÓGICA DE AUTENTICACIÓN (LOGIN, REGISTRO Y PERFIL) ---
 // =====================================================================
 
-const btnLoginModal = document.querySelector('#btn-login-modal');
-const authModal = document.querySelector('#auth-modal');
-const authToggleBtn = document.querySelector('#auth-toggle-btn');
-const authTitle = document.querySelector('#auth-title');
-const authNombreInput = document.querySelector('#auth-nombre');
-const authSubmitBtn = document.querySelector('#auth-submit-btn');
-const authToggleText = document.querySelector('#auth-toggle-text');
-const authForm = document.querySelector('#auth-form');
-const userProfileMenu = document.querySelector('#user-profile-menu');
-const displayUserName = document.querySelector('#display-user-name');
-const btnProfileDropdown = document.querySelector('#btn-profile-dropdown');
-const profileDropdownContent = document.querySelector('#profile-dropdown-content');
-const btnLogout = document.querySelector('#btn-logout');
+const btnLoginModal = document.querySelector('#sidebar-login-btn') || null;
+const authModal = document.querySelector('#auth-modal') || null;
+const authToggleBtn = document.querySelector('#auth-toggle-btn') || null;
+const authTitle = document.querySelector('#auth-title') || null;
+const authNombreInput = document.querySelector('#auth-nombre') || null;
+const authSubmitBtn = document.querySelector('#auth-submit-btn') || null;
+const authToggleText = document.querySelector('#auth-toggle-text') || null;
+const authForm = document.querySelector('#auth-form') || null;
+// Eliminadas referencias a userProfileMenu y displayUserName de la barra superior
+const btnProfileDropdown = null;
+const profileDropdownContent = document.querySelector('#profile-dropdown-content') || null;
+const btnLogout = document.querySelector('#btn-logout') || null;
 
 let isLoginMode = true;
 
-function checkAuth() {
-  const usuarioGuardado = localStorage.getItem('tamon_user');
-  if (usuarioGuardado) {
-    const user = JSON.parse(usuarioGuardado);
-    if (btnLoginModal) btnLoginModal.style.display = 'none';
-    if (userProfileMenu) userProfileMenu.style.display = 'block';
-    if (displayUserName) displayUserName.textContent = user.nombre;
-  } else {
-    if (btnLoginModal) btnLoginModal.style.display = 'block';
-    if (userProfileMenu) userProfileMenu.style.display = 'none';
-  }
-}
+// checkAuth ya no es necesario, la barra lateral gestiona todo
 
 if (btnLoginModal && authModal) {
   btnLoginModal.addEventListener('click', () => {
@@ -541,3 +541,213 @@ if (btnLogout) {
 }
 
 checkAuth();
+// Sidebar navigation
+
+const menuBtn = document.getElementById('menu-btn');
+const chatBtn = document.getElementById('chat-btn');
+const faqBtn = document.getElementById('faq-btn');
+const chatSection = document.getElementById('tamon-chat-section');
+const faqSection = document.getElementById('faq-section');
+
+function showSection(section) {
+  if (translationView) translationView.style.display = section === 'menu' ? '' : 'none';
+  if (commentsView) commentsView.style.display = 'none';
+  if (chatSection) chatSection.style.display = section === 'chat' ? '' : 'none';
+  if (faqSection) faqSection.style.display = section === 'faq' ? '' : 'none';
+  [menuBtn, chatBtn, faqBtn].forEach(btn => btn && btn.classList.remove('active'));
+  if (section === 'menu' && menuBtn) menuBtn.classList.add('active');
+  if (section === 'chat' && chatBtn) chatBtn.classList.add('active');
+  if (section === 'faq' && faqBtn) faqBtn.classList.add('active');
+}
+if (menuBtn) menuBtn.onclick = () => showSection('menu');
+if (chatBtn) chatBtn.onclick = () => showSection('chat');
+if (faqBtn) faqBtn.onclick = () => showSection('faq');
+showSection('menu');
+
+// Chat Tamon moderno
+const chatMessages = document.getElementById('chat-messages');
+const chatForm = document.getElementById('chat-form');
+const chatInput = document.getElementById('chat-input');
+let chatUser = 'Usuario';
+const usuarioGuardado = localStorage.getItem('tamon_user');
+if (usuarioGuardado) {
+  const user = JSON.parse(usuarioGuardado);
+  chatUser = user.nombre || user.usuario || 'Usuario';
+}
+function renderChatMessage(msg, from) {
+  const div = document.createElement('div');
+  if (from === 'user') {
+    div.className = 'chat-bubble user-bubble';
+    div.innerHTML = `<span>${msg}</span>`;
+  } else {
+    div.className = 'chat-bubble tamon-bubble';
+    div.innerHTML = `<span><b>Tamon:</b> ${msg}</span>`;
+  }
+  chatMessages.appendChild(div);
+  chatMessages.scrollTop = chatMessages.scrollHeight;
+}
+chatForm.onsubmit = e => {
+  e.preventDefault();
+  const msg = chatInput.value.trim();
+  if (!msg) return;
+  renderChatMessage(msg, 'user');
+  chatInput.value = '';
+  setTimeout(() => {
+    renderChatMessage(getTamonReply(msg), 'tamon');
+  }, 700);
+};
+function getTamonReply(msg) {
+  if (msg.toLowerCase().includes('hola')) return '¡Hola! ¿En qué idioma necesitas ayuda o explicación?';
+  if (msg.toLowerCase().includes('traduce')) return 'Por favor, dime el texto y el idioma de destino.';
+  return '¡Estoy aquí para ayudarte con traducciones y explicaciones de idiomas!';
+}
+
+// FAQ acordeón
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.faq-question').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const item = this.parentElement;
+      item.classList.toggle('active');
+    });
+  });
+});
+
+// FAQ editable (en localStorage)
+const faqList = document.getElementById('faq-list');
+const faqForm = document.getElementById('faq-form');
+const faqQuestion = document.getElementById('faq-question');
+const faqAnswer = document.getElementById('faq-answer');
+let faqs = JSON.parse(localStorage.getItem('tamon_faqs') || '[]');
+function renderFaqs() {
+  faqList.innerHTML = '';
+  faqs.forEach((item, idx) => {
+    const li = document.createElement('li');
+    li.innerHTML = `<b>${item.q}</b>: ${item.a} <button onclick="removeFaq(${idx})" style="margin-left:8px;color:#ff007f;background:none;border:none;cursor:pointer;">Eliminar</button>`;
+    faqList.appendChild(li);
+  });
+}
+window.removeFaq = idx => {
+  faqs.splice(idx, 1);
+  localStorage.setItem('tamon_faqs', JSON.stringify(faqs));
+  renderFaqs();
+};
+faqForm.onsubmit = e => {
+  e.preventDefault();
+  faqs.push({ q: faqQuestion.value, a: faqAnswer.value });
+  localStorage.setItem('tamon_faqs', JSON.stringify(faqs));
+  faqQuestion.value = '';
+  faqAnswer.value = '';
+  renderFaqs();
+};
+renderFaqs();
+
+
+// Usuario en sidebar sincronizado y menú completo
+function updateSidebarUser(user) {
+  const usernameElem = document.getElementById('sidebar-username');
+  const usertypeElem = document.getElementById('sidebar-usertype');
+  const sidebarUser = document.getElementById('sidebar-user');
+  if (user) {
+    // Usuario autenticado: muestra nombre y tipo
+    const username = user?.nombre || user?.usuario || 'Usuario';
+    if (usernameElem) usernameElem.textContent = username;
+    if (usertypeElem) {
+      if (user?.role === 'admin') {
+        usertypeElem.textContent = 'Admin';
+        usertypeElem.className = 'user-badge admin';
+      } else if (user?.plan === 'pro_plus') {
+        usertypeElem.textContent = 'Pro+';
+        usertypeElem.className = 'user-badge pro_plus';
+      } else {
+        usertypeElem.textContent = 'Chill';
+        usertypeElem.className = 'user-badge chill';
+      }
+      usertypeElem.style.display = '';
+    }
+    
+    if (sidebarUser) sidebarUser.onclick = null;
+  } else {
+    // No autenticado: muestra mensaje de login/registro y hace clickable toda el área
+    if (usernameElem) usernameElem.textContent = 'Inicia Sesión / Regístrate';
+    if (usertypeElem) {
+      usertypeElem.textContent = '';
+      usertypeElem.className = '';
+      usertypeElem.style.display = 'none';
+    }
+    if (sidebarUser) {
+      sidebarUser.onclick = () => {
+        document.getElementById('btn-login-modal').click();
+      };
+    }
+  }
+  // Menú de usuario en sidebar
+  const sidebarUserMenu = document.getElementById('sidebar-user-menu');
+  if (sidebarUserMenu) {
+    sidebarUserMenu.innerHTML = '';
+    if (user) {
+      sidebarUserMenu.innerHTML = `
+        <button id="sidebar-settings-btn">⚙️ Ajustes</button>
+        <button id="sidebar-logout-btn">🚪 Cerrar sesión</button>
+      `;
+      document.getElementById('sidebar-settings-btn').onclick = () => {
+        alert('Ajustes de usuario próximamente.');
+      };
+      document.getElementById('sidebar-logout-btn').onclick = () => {
+        localStorage.removeItem('tamon_user');
+        location.reload();
+      };
+    } else {
+      sidebarUserMenu.innerHTML = `
+        <button id="sidebar-login-btn">Iniciar sesión</button>
+        <button id="sidebar-register-btn">Registrarse</button>
+      `;
+      document.getElementById('sidebar-login-btn').onclick = () => {
+        document.getElementById('btn-login-modal').click();
+      };
+      document.getElementById('sidebar-register-btn').onclick = () => {
+        document.getElementById('btn-login-modal').click();
+        setTimeout(() => {
+          document.getElementById('auth-toggle-btn').click();
+        }, 200);
+      };
+    }
+  }
+  // Panel admin diferenciado
+  const sidebarMenu = document.querySelector('.sidebar-menu');
+  if (sidebarMenu) {
+    let adminPanel = document.getElementById('admin-panel-btn');
+    let adminChat = document.getElementById('admin-chat-btn');
+    if (user?.role === 'admin') {
+      if (!adminPanel) {
+        adminPanel = document.createElement('button');
+        adminPanel.id = 'admin-panel-btn';
+        adminPanel.className = 'sidebar-btn';
+        adminPanel.textContent = 'Panel de Admin';
+        adminPanel.onclick = () => alert('Panel de administración (en desarrollo)');
+        sidebarMenu.appendChild(adminPanel);
+      }
+      if (!adminChat) {
+        adminChat = document.createElement('button');
+        adminChat.id = 'admin-chat-btn';
+        adminChat.className = 'sidebar-btn';
+        adminChat.textContent = 'Chat Enseñanza Tamon';
+        adminChat.onclick = () => alert('Chat especial de enseñanza para admin (en desarrollo)');
+        sidebarMenu.appendChild(adminChat);
+      }
+    } else {
+      if (adminPanel) adminPanel.remove();
+      if (adminChat) adminChat.remove();
+    }
+  }
+}
+// Llama a updateSidebarUser tras login/registro
+if (usuarioGuardado) updateSidebarUser(JSON.parse(usuarioGuardado));
+// FAQ acordeón
+document.addEventListener('DOMContentLoaded', () => {
+  document.querySelectorAll('.faq-question').forEach(btn => {
+    btn.addEventListener('click', function() {
+      const item = this.parentElement;
+      item.classList.toggle('active');
+    });
+  });
+});
