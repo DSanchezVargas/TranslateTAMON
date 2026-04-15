@@ -461,8 +461,9 @@ document.addEventListener('DOMContentLoaded', () => {
     renderFaqs();
   }
 });
+
 // =====================================================================
-// 9. LÓGICA DEL CHAT DE TAMON (Restaurada)
+// 9. LÓGICA DEL CHAT DE TAMON (Conectado a IA)
 // =====================================================================
 const chatMessages = getEl('#chat-messages');
 const chatForm = getEl('#chat-form');
@@ -475,34 +476,70 @@ function renderChatMessage(msg, from) {
     div.innerHTML = `<span>${msg}</span>`;
   } else {
     div.className = 'chat-bubble tamon-bubble';
-    div.innerHTML = `<span><b>Tamon:</b> ${msg}</span>`;
+    // Usamos replace para que los saltos de línea de la IA se vean correctamente en HTML
+    div.innerHTML = `<span><b>Tamon:</b> ${msg.replace(/\n/g, '<br>')}</span>`;
   }
   if (chatMessages) {
     chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight; // Hace scroll automático hacia abajo
+    chatMessages.scrollTop = chatMessages.scrollHeight; 
   }
 }
 
-function getTamonReply(msg) {
-  if (msg.toLowerCase().includes('hola')) return '¡Hola! ¿En qué idioma necesitas ayuda o explicación?';
-  if (msg.toLowerCase().includes('traduce')) return 'Por favor, dime el texto y el idioma de destino.';
-  return '¡Estoy aquí para ayudarte con traducciones y explicaciones de idiomas!';
-}
-
 if (chatForm) {
-  chatForm.addEventListener('submit', (e) => {
-    e.preventDefault(); // <-- ¡ESTA ES LA LÍNEA QUE EVITA QUE SE RECARGUE LA PÁGINA!
+  chatForm.addEventListener('submit', async (e) => {
+    e.preventDefault(); 
     
     const msg = chatInput.value.trim();
     if (!msg) return;
     
-    // 1. Mostrar mensaje del usuario
+    // Imprimir mensaje del usuario
     renderChatMessage(msg, 'user');
     chatInput.value = '';
     
-    // 2. Simular tiempo de respuesta de Tamon (700ms)
-    setTimeout(() => {
-      renderChatMessage(getTamonReply(msg), 'tamon');
-    }, 700);
+    // Obtener el nombre del usuario para que Tamon lo salude
+    const usuarioGuardado = localStorage.getItem('tamon_user');
+    let nombreUsuario = 'Usuario';
+    if (usuarioGuardado) {
+        const userObj = JSON.parse(usuarioGuardado);
+        nombreUsuario = userObj.nombre || userObj.usuario || 'Usuario';
+    }
+    
+    // Mostrar estado de "pensando..."
+    const typingId = 'typing-' + Date.now();
+    const typingDiv = document.createElement('div');
+    typingDiv.id = typingId;
+    typingDiv.className = 'chat-bubble tamon-bubble';
+    typingDiv.innerHTML = `<span><b>Tamon:</b> <i>pensando...</i></span>`;
+    if (chatMessages) {
+      chatMessages.appendChild(typingDiv);
+      chatMessages.scrollTop = chatMessages.scrollHeight;
+    }
+
+    try {
+        // Hacemos la petición a tu servidor. 
+        // IMPORTANTE: Asegúrate de que esta URL sea la correcta según tu server.js (ej. /api/userChat/chat)
+        const response = await fetch('/api/userChat/chat', { 
+            method: 'POST',
+            headers: { 'Content-Type': 'application/json' },
+            body: JSON.stringify({ message: msg, userName: nombreUsuario })
+        });
+
+        const data = await response.json();
+        
+        // Quitar el "pensando..."
+        const typingElement = document.getElementById(typingId);
+        if (typingElement) typingElement.remove();
+
+        if (response.ok) {
+            // Imprimir la respuesta real de Tamon
+            renderChatMessage(data.response, 'tamon');
+        } else {
+            renderChatMessage('Error: ' + (data.error || 'Cortocircuito interno'), 'tamon');
+        }
+    } catch (error) {
+        const typingElement = document.getElementById(typingId);
+        if (typingElement) typingElement.remove();
+        renderChatMessage('No pude conectar con mi cerebro en el servidor. Revisa tu consola.', 'tamon');
+    }
   });
 }
