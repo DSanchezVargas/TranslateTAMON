@@ -3,16 +3,23 @@ const router = express.Router();
 const User = require('../models/User');
 const nodemailer = require('nodemailer');
 
-// Configuramos el enviador de correos con tus credenciales directas
+// --- LA MAGIA PARA RENDER: Obligar al servidor a usar IPv4 ---
+const dns = require('dns');
+dns.setDefaultResultOrder('ipv4first');
+// -------------------------------------------------------------
+
+// Configuramos el enviador de correos con tus credenciales
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
   secure: true, // Usa SSL
   auth: {
     user: 'noblesserai20@gmail.com', 
-    pass: 'orpxqlpvffgjossz' 
+    pass: 'orpxqlpvffgjossz' // Si esta es tu contraseña de aplicación activa, déjala
   }
 });
+
+// ... (aquí sigue el resto de tu código de registro, login y vip igualito)
 
 // --- RUTA DE REGISTRO ---
 router.post('/register', async (req, res) => {
