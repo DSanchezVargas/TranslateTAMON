@@ -95,3 +95,4 @@ def insertar_textos_pdf():
 # --- MAIN: Ejecutar en puerto 5002 si es script principal ---
 if __name__ == "__main__":
     app.run(port=5002)
+    
