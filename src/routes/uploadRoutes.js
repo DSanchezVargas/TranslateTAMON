@@ -40,17 +40,18 @@ router.post('/upload', upload.single('file'), async (req, res) => {
   if (req.file.size > maxSizeMB * 1024 * 1024) {
     return res.status(400).json({ error: `El archivo supera el límite de ${maxSizeMB}MB para tu tipo de usuario (${userType}).` });
   }
-  let extractedText = '';
+  let extracted = { text: '', type: '' };
   try {
-    extractedText = await extractTextFromFile(req.file.path);
+    extracted = await extractTextFromFile(req.file.path);
   } catch (e) {
-    extractedText = '';
+    extracted = { text: '', type: '' };
   }
   res.status(201).json({
     message: 'Archivo subido correctamente.',
     fileUrl: `/uploads/${req.file.filename}`,
     originalName: req.file.originalname,
-    extractedText,
+    extractedText: extracted.text,
+    detectedType: extracted.type,
     userType,
     maxSizeMB
   });

@@ -41,15 +41,12 @@ function joinPdfPages(pages) {
 
 async function extractTextFromPdf(buffer, sourceLanguage) {
   let result;
-
-  // pdf-parse v1 exports a function; v2 exports a PDFParse class.
   if (typeof pdfParse === 'function') {
     result = await pdfParse(buffer);
   } else if (pdfParse && typeof pdfParse.PDFParse === 'function') {
     const parser = new pdfParse.PDFParse({ data: buffer });
     try {
       result = await parser.getText({ lineEnforce: true });
-
       if (Array.isArray(result?.pages) && result.pages.length) {
         await enhancePdfTextWithOcr(parser, result.pages, sourceLanguage);
         result.text = joinPdfPages(result.pages);
@@ -61,10 +58,17 @@ async function extractTextFromPdf(buffer, sourceLanguage) {
     throw new Error('Integracion de PDF no compatible con la version instalada de pdf-parse.');
   }
 
-  const text = (result.text || '').trim();
+  let text = (result.text || '').trim();
 
+  // Si no hay texto, intenta OCR con microservicio Python
   if (!text) {
-    throw new Error('No se pudo extraer texto del PDF. Si es escaneado, configura OCR especializado para PDF.');
+    try {
+      const { extractPdfTextWithOcrPython } = require('./pdfOcrClient');
+      text = await extractPdfTextWithOcrPython(buffer, 'input.pdf');
+      if (!text) throw new Error('OCR vacío');
+    } catch (err) {
+      throw new Error('No se pudo extraer texto del PDF. Si es escaneado, configura OCR especializado para PDF. Detalle: ' + err.message);
+    }
   }
 
   return text;

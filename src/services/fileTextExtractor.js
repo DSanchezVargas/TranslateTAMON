@@ -11,19 +11,22 @@ async function extractTextFromFile(filePath) {
     try {
       const data = await pdfParse(dataBuffer);
       if (data.text && data.text.trim().length > 0) {
-        return data.text;
+        return { text: data.text, type: 'pdf' };
       }
       // Si el PDF no tiene texto, intentar OCR
-      return await extractTextFromImage(filePath);
+      const ocrText = await extractTextFromImage(filePath);
+      return { text: ocrText, type: 'pdf-image' };
     } catch (e) {
       // Si falla pdf-parse, intentar OCR
-      return await extractTextFromImage(filePath);
+      const ocrText = await extractTextFromImage(filePath);
+      return { text: ocrText, type: 'pdf-image' };
     }
   } else if (ext === '.docx') {
     const data = await mammoth.extractRawText({ path: filePath });
-    return data.value;
+    return { text: data.value, type: 'docx' };
   } else if (['.jpg', '.jpeg', '.png', '.bmp', '.tiff'].includes(ext)) {
-    return await extractTextFromImage(filePath);
+    const text = await extractTextFromImage(filePath);
+    return { text, type: 'image' };
   } else {
     throw new Error('Tipo de archivo no soportado para extracción de texto.');
   }

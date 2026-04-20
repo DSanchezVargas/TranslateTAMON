@@ -58,6 +58,7 @@
   float: left;
   clear: both;
   text-align: left;
+  margin: 0;
 }
 .modern-chat-messages {
   min-height: 180px;
@@ -244,10 +245,18 @@
     height: 100vh;
     z-index: 150;
   }
-  .main-content {
-    margin-left: 0;
-  }
 }
+/* --- 1. REEMPLAZA TU CLASE MAIN-CONTENT ACTUAL POR ESTA --- */
+.main-content {
+  margin-left: 240px;
+  padding: 0 1.5rem;
+  transition: margin-left 0.3s ease; /* Le da fluidez al cerrarse */
+}
+/* Esta clase se activará por JS cuando cierres la barra */
+.main-content.expanded {
+  margin-left: 0;
+}
+
 :root {
   --tamon-primary: #eaa8c1;
   --tamon-secondary: #d983ab;
@@ -583,3 +592,142 @@ textarea {
 .faq-item.active .faq-answer {
   display: block;
 }
+/* --- NUEVAS CLASES PARA EL FORMATO Y LOS ICONOS --- */
+.tamon-message-wrapper {
+  float: left;
+  clear: both;
+  max-width: 85%;
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  margin: 8px 0 16px 0;
+}
+
+.tamon-content {
+  margin-top: 5px;
+}
+
+.tamon-content p {
+  margin: 0 0 10px 0;
+}
+
+.tamon-content p:last-child {
+  margin-bottom: 0;
+}
+
+/* La barra de iconos debajo del mensaje */
+.message-actions {
+  display: flex;
+  gap: 12px;
+  margin-top: 6px;
+  margin-left: 12px;
+}
+
+.action-btn {
+  background: none;
+  border: none;
+  font-size: 1.1rem;
+  color: #a894a3; /* Gris suave que combina con tu paleta */
+  cursor: pointer;
+  padding: 2px 4px;
+  border-radius: 4px;
+  transition: all 0.2s ease;
+}
+
+.action-btn:hover {
+  color: #7928ca;
+  transform: scale(1.15);
+  background: rgba(121, 40, 202, 0.05);
+}
+
+/* Toast flotante (Estilo Tamon Integrado) */
+.tamon-toast {
+  position: fixed;
+  bottom: 100px;
+  left: 50%;
+  transform: translateX(-50%);
+  /* Fondo degradado acorde a la identidad visual de Tamon */
+  background: linear-gradient(135deg, rgba(255, 0, 127, 0.95), rgba(121, 40, 202, 0.95));
+  color: #ffffff; /* Texto blanco puro */
+  padding: 12px 24px;
+  border-radius: 20px; /* Bordes más redondeados para que coincida con los botones */
+  font-size: 0.95rem;
+  font-weight: bold; /* Texto en negrita para mejor lectura */
+  box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4); /* Sombra fucsia suave */
+  border: 1px solid rgba(255, 255, 255, 0.2); /* Borde sutil */
+  opacity: 0;
+  visibility: hidden;
+  transition: opacity 0.3s ease, visibility 0.3s ease, transform 0.3s ease;
+  z-index: 1000;
+  text-align: center;
+}
+
+/* Pequeña animación al aparecer */
+.tamon-toast.show {
+  opacity: 1;
+  visibility: visible;
+  transform: translateX(-50%) translateY(-10px); /* Sube un poquito al aparecer */
+}
+
+/* --- 2. PEGA ESTO AL FINAL DE TU ARCHIVO CSS --- */
+/* Modal de Comentarios Negativos (Lo que arregla la Imagen 2) */
+.custom-modal {
+  display: none; /* ¡Esto hace que no aparezca siempre! */
+  position: fixed; 
+  top: 0; left: 0; width: 100%; height: 100%;
+  background: rgba(0,0,0,0.7); 
+  z-index: 2000; 
+  justify-content: center; 
+  align-items: center; 
+  backdrop-filter: blur(4px);
+}
+.custom-modal-content {
+  background: #2d2a32; 
+  padding: 25px; 
+  border-radius: 12px; 
+  width: 90%; 
+  max-width: 450px;
+  border: 1px solid #ff007f; 
+  box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+}
+/* ZONA DE DRAG & DROP Y COLA DE ARCHIVOS */
+.dropzone {
+    border: 2px dashed #7928ca;
+    border-radius: 12px;
+    padding: 35px 20px;
+    text-align: center;
+    background: #1e1c22;
+    color: #cbd5e1;
+    cursor: pointer;
+    transition: all 0.3s ease;
+    margin-top: 5px;
+}
+.dropzone:hover, .dropzone.dragover {
+    background: rgba(121, 40, 202, 0.2);
+    border-color: #ff007f;
+    transform: scale(1.02);
+}
+.file-list {
+    margin-top: 15px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+}
+.file-item {
+    background: #2d2a32;
+    padding: 10px 15px;
+    border-radius: 8px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    border-left: 4px solid #ff007f;
+    font-size: 0.9rem;
+    box-shadow: 0 4px 6px rgba(0,0,0,0.2);
+}
+.remove-file {
+    color: #ff007f;
+    cursor: pointer;
+    font-weight: bold;
+    padding: 5px;
+}
+.remove-file:hover { color: #fff; }

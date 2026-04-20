@@ -1,7 +1,12 @@
 const express = require('express');
 const router = express.Router();
-const User = require('../models/User');
+const bcrypt = require('bcrypt'); 
+const jwt = require('jsonwebtoken');
+const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
+const { pool } = require('../config/db'); 
+
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 // --- LA MAGIA PARA RENDER: Obligar al servidor a usar IPv4 ---
 const dns = require('dns');
@@ -12,14 +17,12 @@ dns.setDefaultResultOrder('ipv4first');
 const transporter = nodemailer.createTransport({
   host: 'smtp.gmail.com',
   port: 465,
-  secure: true, // Usa SSL
+  secure: true, 
   auth: {
     user: 'noblesserai20@gmail.com', 
-    pass: 'orpxqlpvffgjossz' // Si esta es tu contraseña de aplicación activa, déjala
+    pass: 'orpxqlpvffgjossz' 
   }
 });
-
-// ... (aquí sigue el resto de tu código de registro, login y vip igualito)
 
 // --- RUTA DE REGISTRO ---
 router.post('/register', async (req, res) => {
@@ -30,21 +33,27 @@ router.post('/register', async (req, res) => {
       return res.status(400).json({ error: 'Faltan datos para el registro.' });
     }
 
-    let userExists = await User.findOne({ correo: correo.toLowerCase() });
-    if (userExists) {
+    const userExists = await pool.query('SELECT * FROM users WHERE email = $1', [correo.toLowerCase()]);
+    if (userExists.rows.length > 0) {
       return res.status(400).json({ error: 'Este correo ya tiene una cuenta activa.' });
     }
 
-    const nuevoUsuario = new User({ nombre, correo, password });
-    await nuevoUsuario.save();
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
 
-    // Envío de correo de bienvenida directo (sin el if fantasma)
+    const result = await pool.query(
+      `INSERT INTO users (nombre, email, password, plan, role) 
+       VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, email, plan, role`,
+      [nombre, correo.toLowerCase(), hashedPassword, 'chill', 'user']
+    );
+    const nuevoUsuario = result.rows[0];
+
     try {
       await transporter.sendMail({
         from: '"Tamon IA" <noblesserai20@gmail.com>',
         to: correo,
         subject: '¡Bienvenido a Tamon! ✨',
-        text: `Hola ${nombre}, tu cuenta ha sido creada con éxito.`
+        text: `Hola ${nombre}, tu cuenta ha sido creada con éxito en Tamon.`
       });
     } catch (mailErr) {
       console.error('Error enviando correo de registro:', mailErr);
@@ -52,24 +61,21 @@ router.post('/register', async (req, res) => {
 
     return res.status(201).json({ 
       mensaje: '¡Registro exitoso!',
-      usuario: { id: nuevoUsuario._id, nombre: nuevoUsuario.nombre, correo: nuevoUsuario.correo } 
+      usuario: { id: nuevoUsuario.id, nombre: nuevoUsuario.nombre, correo: nuevoUsuario.email, role: nuevoUsuario.role, plan: nuevoUsuario.plan } 
     });
 
   } catch (error) {
-    console.error('ERROR CRÍTICO EN REGISTRO:', error);
+    console.error('ERROR CRÍTICO EN REGISTRO SQL:', error);
     return res.status(500).json({ error: 'Error interno al crear la cuenta.' });
   }
 });
 
 // --- RUTA DE LOGIN MODERNO ---
-const jwt = require('jsonwebtoken');
-const QRCode = require('qrcode');
-const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
-
 router.post('/login', async (req, res) => {
   try {
-    const { correo, username, password, qr } = req.body;
+    const { correo, password, qr } = req.body;
     let usuario;
+
     if (qr) {
       let decoded;
       try {
@@ -77,44 +83,54 @@ router.post('/login', async (req, res) => {
       } catch (e) {
         return res.status(400).json({ error: 'QR inválido o expirado.' });
       }
-      usuario = await User.findOne({ correo: decoded.correo, role: 'admin' });
+      
+      const resDB = await pool.query("SELECT * FROM users WHERE email = $1 AND role = 'admin'", [decoded.correo]);
+      usuario = resDB.rows[0];
+      
       if (!usuario) {
         return res.status(400).json({ error: 'Solo los administradores pueden iniciar sesión con QR.' });
       }
-    } else {
-      if (correo) {
-        usuario = await User.findOne({ correo: correo.toLowerCase() });
-      } else if (username) {
-        usuario = await User.findOne({ username: username.trim().toLowerCase() });
-      }
+    } 
+    else {
+      if (!correo) return res.status(400).json({ error: 'Falta el correo.' });
+      
+      const resDB = await pool.query("SELECT * FROM users WHERE email = $1", [correo.toLowerCase()]);
+      usuario = resDB.rows[0];
+      
       if (!usuario) {
         return res.status(400).json({ error: 'Usuario no encontrado. Asegúrate de registrarte primero.' });
       }
-      const esValido = await usuario.compararPassword(password);
+      
+      const esValido = await bcrypt.compare(password, usuario.password);
       if (!esValido) {
         return res.status(400).json({ error: 'Contraseña incorrecta.' });
       }
     }
     
-    const token = jwt.sign({ id: usuario._id, role: usuario.role, nombre: usuario.nombre, username: usuario.username }, JWT_SECRET, { expiresIn: '2h' });
+    const token = jwt.sign({ id: usuario.id, role: usuario.role, nombre: usuario.nombre }, JWT_SECRET, { expiresIn: '2h' });
+    
     res.status(200).json({
       mensaje: 'Login exitoso',
-      usuario: { id: usuario._id, nombre: usuario.nombre, username: usuario.username, correo: usuario.correo, role: usuario.role },
+      usuario: { id: usuario.id, nombre: usuario.nombre, correo: usuario.email, role: usuario.role, plan: usuario.plan },
       token
     });
   } catch (error) {
+    console.error("Error en login:", error);
     res.status(500).json({ error: 'Error al iniciar sesión.' });
   }
 });
 
+// --- RUTA QR PARA ADMINS ---
 router.post('/admin/generate-login-qr', async (req, res) => {
   try {
     const { correo } = req.body;
-    const usuario = await User.findOne({ correo: correo.toLowerCase(), role: 'admin' });
+    const resDB = await pool.query("SELECT * FROM users WHERE email = $1 AND role = 'admin'", [correo.toLowerCase()]);
+    const usuario = resDB.rows[0];
+    
     if (!usuario) {
       return res.status(400).json({ error: 'Solo admins pueden usar QR.' });
     }
-    const qrPayload = jwt.sign({ correo: usuario.correo }, JWT_SECRET, { expiresIn: '5m' });
+    const qrPayload = jwt.sign({ correo: usuario.email }, JWT_SECRET, { expiresIn: '5m' });
     const qrImage = await QRCode.toDataURL(qrPayload);
     res.json({ qrImage });
   } catch (error) {
@@ -131,7 +147,6 @@ router.post('/join-vip', async (req, res) => {
       return res.status(400).json({ error: 'No se encontró un correo válido.' });
     }
 
-    // Usamos el transporter sin validaciones .env que interrumpan el proceso
     await transporter.sendMail({
       from: '"Tamon IA VIP" <noblesserai20@gmail.com>',
       to: correo,

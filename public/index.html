@@ -5,20 +5,23 @@
     <meta name="viewport" content="width=device-width, initial-scale=1" />
     <title>Tamon IA · Traducción hiperautomatizada</title>
     <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
   <body>
     <button id="sidebar-toggle" aria-label="Mostrar/Ocultar menú" class="sidebar-toggle">
       <span></span><span></span><span></span>
     </button>
     <div class="sidebar">
-  <div class="sidebar-menu">
+ <div class="sidebar-menu">
     <div class="sidebar-logo">
       <img src="/icons/tamon.svg" alt="Tamon" style="width: 48px; height: 48px; border-radius: 50%;" />
     </div>
     <button class="sidebar-btn" id="menu-btn">Menú principal</button>
     <button class="sidebar-btn" id="chat-btn">Conversación con Tamon</button>
     <button class="sidebar-btn" id="faq-btn">FAQ</button>
+    <button class="sidebar-btn" id="admin-reports-btn" style="display: none; background: linear-gradient(90deg, #333, #000); border: 1px solid #ff007f;">🛠️ Reportes de IA</button>
   </div>
+  
   <div class="sidebar-user" id="sidebar-user" style="cursor:pointer;">
     <div class="user-icon" id="sidebar-user-icon">👤</div>
     <div style="display:flex; flex-direction:column; justify-content:center;">
@@ -84,18 +87,28 @@
   </div>
 </section>
 
-
-      <nav class="panel tabs">
-        <button id="tab-translation" class="tab-btn is-active" type="button">Menú principal · Traducción</button>
-      </nav>
-
       <section id="translation-view">
         <section class="panel">
+
+<section id="admin-reports-section" class="panel" style="display:none;">
+        <h2 style="color: #ff007f;">Panel de Control Tatsu: Reportes de IA</h2>
+        <p class="meta">Aquí se muestran los comentarios de los usuarios sobre las malas respuestas de Tamon.</p>
+        <button id="refresh-reports-btn" class="btn-primary" style="margin-bottom: 15px; padding: 5px 10px; font-size: 0.9rem;">🔄 Refrescar lista</button>
+        <div id="reports-container" style="display: flex; flex-direction: column; gap: 15px; max-height: 500px; overflow-y: auto;">
+            <p style="color: #cbd5e1;">Cargando reportes...</p>
+        </div>
+      </section>
+
           <h2>1) Entrada inteligente</h2>
           <form id="translate-form" class="grid-form">
-            <label>Documento
-              <input type="file" id="document" name="document" accept=".pdf,.docx,.jpg,.jpeg,.png,.txt" required />
-            </label>
+<div style="grid-column: 1 / -1;">
+              <label style="color: #cbd5e1; font-weight: bold; margin-bottom: 8px;">Documentos (Arrastra y suelta aquí)</label>
+              <div id="dropzone" class="dropzone">
+                <div style="pointer-events: none;">📂 Arrastra tus archivos aquí o haz clic para buscar</div>
+                <input type="file" id="document" name="document" accept=".pdf,.docx,.txt,.jpg,.png" multiple style="display: none;" />
+              </div>
+              <div id="file-list" class="file-list"></div>
+            </div>
             <label>Idioma origen
               <select id="sourceLanguage" name="sourceLanguage" required></select>
             </label>
@@ -140,29 +153,19 @@
             </label>
           </div>
           <button id="finalize-btn" class="btn-secondary">Finalizar y descargar DOCX</button>
+          <form id="feedback-form" style="margin-top: 18px; background: #f8e6f3; padding: 14px 18px; border-radius: 10px;">
+            <label for="feedback-input" style="font-weight: bold; color: #7928ca;">¿Algún comentario o corrección para Tamon?</label>
+            <input id="feedback-input" type="text" maxlength="400" placeholder="Tu comentario o sugerencia..." style="width: 90%; margin: 8px 0; padding: 7px; border-radius: 6px; border: 1px solid #ccc;" required />
+            <select id="feedback-type" style="margin-left: 8px;">
+              <option value="sugerencia">Sugerencia</option>
+              <option value="error">Error</option>
+              <option value="mejora">Mejora</option>
+            </select>
+            <button type="submit" style="margin-left: 8px; background: #7928ca; color: #fff; border: none; border-radius: 6px; padding: 7px 14px; font-weight: bold;">Enviar</button>
+            <span id="feedback-status" style="margin-left: 12px; color: #7928ca; font-size: 0.95em;"></span>
+          </form>
         </section>
 
-        <section class="panel" id="quick-translate-panel">
-          <h2>4) Habla con Tamon</h2>
-          <p class="meta">Traduce texto rápido sin archivo. Tamon te responde como asistente y sigue aprendiendo.</p>
-          <form id="quick-translate-form" class="grid-form">
-            <label>Tu nombre
-              <input type="text" id="quickUserName" value="usuario" required />
-            </label>
-            <label>Idioma origen
-              <select id="quickSourceLanguage" required></select>
-            </label>
-            <label>Idioma destino
-              <select id="quickTargetLanguage" required></select>
-            </label>
-            <label>Texto a traducir
-              <textarea id="quickText" rows="4" maxlength="12000" placeholder='Ejemplo: hello you are the most amazing thing in the world' required></textarea>
-            </label>
-            <button type="submit" class="btn-primary">Traducir con Tamon</button>
-          </form>
-          <p class="meta" id="quick-translate-status">Tamon listo para traducir mensajes rápidos.</p>
-          <textarea id="quick-translate-output" class="quick-output" rows="4" readonly></textarea>
-        </section>
       </section>
 
 
@@ -205,6 +208,21 @@
         </p>
       </div>
     </div>
+
+<div id="tamon-toast" class="tamon-toast">¡Gracias! Tus comentarios ayudan a mejorar a Tamon para todos los usuarios.</div>
+
+    <div id="feedback-modal" class="custom-modal">
+      <div class="custom-modal-content">
+        <h3 style="color: #ff007f; margin-top: 0;">Enviar comentarios a la IA</h3>
+        <p style="font-size: 0.9rem; color: #cbd5e1;">Dinos qué salió mal con esta respuesta para que el administrador pueda corregir los circuitos de Tamon.</p>
+        <textarea id="feedback-text" rows="4" placeholder="Escribe tu comentario detallado aquí..." style="width: 100%; margin-top: 10px; background: #1e1c22; color: #fff; border: 1px solid #8a5f77; border-radius: 8px; padding: 10px;"></textarea>
+        <div style="display: flex; justify-content: flex-end; gap: 10px; margin-top: 15px;">
+          <button id="close-feedback-btn" class="btn-secondary" style="padding: 8px 15px;">Cancelar</button>
+          <button id="send-feedback-btn" class="btn-primary" style="padding: 8px 15px;">Enviar a Admin</button>
+        </div>
+      </div>
+    </div>
+
     <script src="/app.js"></script>
   </body>
 </html>

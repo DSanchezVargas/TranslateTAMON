@@ -36,6 +36,42 @@ const UI_TEXT = {
 let previewState = null;
 let processTicker = null;
 
+// --- FEEDBACK ---
+const feedbackForm = document.getElementById('feedback-form');
+const feedbackInput = document.getElementById('feedback-input');
+const feedbackType = document.getElementById('feedback-type');
+const feedbackStatus = document.getElementById('feedback-status');
+
+if (feedbackForm) {
+  feedbackForm.onsubmit = async (e) => {
+    e.preventDefault();
+    if (!feedbackInput.value || !feedbackType.value) return;
+    feedbackStatus.textContent = 'Enviando...';
+    try {
+      const user = JSON.parse(localStorage.getItem('tamon_user') || '{}');
+      const res = await fetch('/api/translate/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: user.id,
+          comentario: feedbackInput.value,
+          tipo: feedbackType.value,
+          traceId: previewState?.traceId || null
+        })
+      });
+      const data = await res.json();
+      if (res.ok) {
+        feedbackStatus.textContent = '¡Gracias por tu comentario!';
+        feedbackInput.value = '';
+      } else {
+        feedbackStatus.textContent = data.error || 'Error al enviar feedback.';
+      }
+    } catch (err) {
+      feedbackStatus.textContent = 'Error de red.';
+    }
+  };
+}
+
 // =====================================================================
 // 2. SELECTORES DE DOM (Protegidos)
 // =====================================================================
@@ -43,7 +79,6 @@ const getEl = id => document.querySelector(id) || document.getElementById(id.rep
 
 const form = getEl('#translate-form');
 const commentsForm = getEl('#comments-form');
-const quickTranslateForm = getEl('#quick-translate-form');
 const previewPanel = getEl('#preview-panel');
 const previewMeta = getEl('#preview-meta');
 const etaText = getEl('#eta-text');
@@ -51,13 +86,9 @@ const translatedTextInput = getEl('#translatedText');
 const originalTextPreview = getEl('#originalTextPreview');
 const assistantStatus = getEl('#assistant-status');
 const commentsStatus = getEl('#comments-status');
-const quickTranslateStatus = getEl('#quick-translate-status');
-const quickTranslateOutput = getEl('#quick-translate-output');
 const finalizeBtn = getEl('#finalize-btn');
 const sourceLanguageSelect = getEl('#sourceLanguage');
 const targetLanguageSelect = getEl('#targetLanguage');
-const quickSourceLanguage = getEl('#quickSourceLanguage');
-const quickTargetLanguage = getEl('#quickTargetLanguage');
 const processProgress = getEl('#process-progress');
 const historyProgress = getEl('#history-progress');
 
@@ -83,7 +114,7 @@ function setHistoryProgress(percent) {
 }
 
 function populateLanguages() {
-  const selects = [sourceLanguageSelect, targetLanguageSelect, quickSourceLanguage, quickTargetLanguage];
+  const selects = [sourceLanguageSelect, targetLanguageSelect];
   selects.forEach(select => {
     if (!select) return;
     LANGUAGES.forEach(({ value, label }) => {
@@ -95,8 +126,8 @@ function populateLanguages() {
   });
   if (sourceLanguageSelect) sourceLanguageSelect.value = 'en';
   if (targetLanguageSelect) targetLanguageSelect.value = 'es';
-  if (quickSourceLanguage) quickSourceLanguage.value = 'en';
-  if (quickTargetLanguage) quickTargetLanguage.value = 'es';
+  // if (quickSourceLanguage) quickSourceLanguage.value = 'en';
+  // if (quickTargetLanguage) quickTargetLanguage.value = 'es';
 }
 
 function startProcessTicker(estimatedSeconds) {
@@ -118,15 +149,81 @@ function stopProcessTicker() {
 }
 
 // =====================================================================
-// 4. LÓGICA DE TRADUCCIÓN Y BACKEND
+// 4. LÓGICA DE TRADUCCIÓN, BACKEND Y DRAG & DROP (MÚLTIPLES ARCHIVOS)
 // =====================================================================
+const dropzone = document.getElementById('dropzone');
+const fileInput = document.getElementById('document');
+const fileListContainer = document.getElementById('file-list');
+let selectedFiles = []; 
+
+if (dropzone && fileInput) {
+  dropzone.addEventListener('click', () => fileInput.click());
+
+  dropzone.addEventListener('dragover', (e) => {
+    e.preventDefault();
+    dropzone.classList.add('dragover');
+  });
+
+  dropzone.addEventListener('dragleave', () => {
+    dropzone.classList.remove('dragover');
+  });
+
+  dropzone.addEventListener('drop', (e) => {
+    e.preventDefault();
+    dropzone.classList.remove('dragover');
+    if (e.dataTransfer.files.length > 0) handleFiles(e.dataTransfer.files);
+  });
+
+  fileInput.addEventListener('change', () => handleFiles(fileInput.files));
+}
+
+function handleFiles(files) {
+  for (let i = 0; i < files.length; i++) selectedFiles.push(files[i]);
+  renderFileList();
+}
+
+window.removeFile = function(index) {
+  selectedFiles.splice(index, 1);
+  renderFileList();
+}
+
+function renderFileList() {
+  if (!fileListContainer) return;
+  fileListContainer.innerHTML = '';
+  selectedFiles.forEach((file, index) => {
+    const div = document.createElement('div');
+    div.className = 'file-item';
+    div.innerHTML = `
+      <span>📄 ${file.name}</span>
+      <span class="remove-file" onclick="event.stopPropagation(); window.removeFile(${index})">✖</span>
+    `;
+    fileListContainer.appendChild(div);
+  });
+  
+  if (selectedFiles.length > 0) {
+      const dataTransfer = new DataTransfer();
+      dataTransfer.items.add(selectedFiles[0]); // El sistema toma el primero de la cola para mandarlo al servidor
+      fileInput.files = dataTransfer.files;
+  } else {
+      fileInput.value = '';
+  }
+}
+
 async function requestPreview(event) {
   event.preventDefault();
+  
+  if (selectedFiles.length === 0) {
+    alert("Por favor, arrastra o selecciona al menos un archivo.");
+    return;
+  }
+
+  const fileToProcess = selectedFiles[0]; 
   const formData = new FormData(form);
-  const file = getEl('#document').files[0];
+  formData.set('document', fileToProcess);
+
   setStep('step-upload');
-  setStatus(UI_TEXT.processing);
-  startProcessTicker(file ? Math.max(Math.ceil(file.size / 8000), 60) : 60);
+  setStatus(UI_TEXT.processing + ` (${fileToProcess.name})`);
+  startProcessTicker(Math.max(Math.ceil(fileToProcess.size / 8000), 60));
 
   try {
     const response = await fetch('/api/translate/preview', { method: 'POST', body: formData });
@@ -137,10 +234,49 @@ async function requestPreview(event) {
 
     previewState = data;
     if (previewPanel) previewPanel.classList.remove('hidden');
-    if (translatedTextInput) translatedTextInput.value = data.translatedText;
-    if (originalTextPreview) originalTextPreview.value = data.originalText;
+
+    // DOCX avanzado: mostrar runs para traducción
+    if (data.docxRuns) {
+      // Renderiza cada run editable
+      const docxRunsContainer = document.getElementById('docxRunsContainer') || (() => {
+        const c = document.createElement('div');
+        c.id = 'docxRunsContainer';
+        c.style.maxHeight = '350px';
+        c.style.overflowY = 'auto';
+        c.style.margin = '12px 0';
+        previewPanel.insertBefore(c, previewPanel.firstChild);
+        return c;
+      })();
+      docxRunsContainer.innerHTML = '';
+      data.docxRuns.forEach((run, idx) => {
+        const input = document.createElement('input');
+        input.type = 'text';
+        input.value = run.texto;
+        input.style.width = '98%';
+        input.dataset.idx = idx;
+        input.oninput = e => data.docxRuns[idx].texto = e.target.value;
+        const label = document.createElement('label');
+        label.textContent = `P${run.paragraph} R${run.run}`;
+        label.style.fontSize = '0.8em';
+        label.style.opacity = '0.7';
+        const div = document.createElement('div');
+        div.style.marginBottom = '6px';
+        div.appendChild(label);
+        div.appendChild(input);
+        docxRunsContainer.appendChild(div);
+      });
+      // Oculta los inputs de texto plano
+      if (translatedTextInput) translatedTextInput.style.display = 'none';
+      if (originalTextPreview) originalTextPreview.style.display = 'none';
+    } else {
+      if (translatedTextInput) translatedTextInput.value = data.translatedText;
+      if (originalTextPreview) originalTextPreview.value = data.originalText;
+      if (translatedTextInput) translatedTextInput.style.display = '';
+      if (originalTextPreview) originalTextPreview.style.display = '';
+      const docxRunsContainer = document.getElementById('docxRunsContainer');
+      if (docxRunsContainer) docxRunsContainer.remove();
+    }
     if (previewMeta) previewMeta.textContent = `Trace: ${data.traceId} · ${data.experience?.fromCache ? UI_TEXT.fromMemory : UI_TEXT.fromModel}`;
-    
     stopProcessTicker();
     setProcessProgress(100);
     setStep('step-preview');
@@ -157,13 +293,18 @@ async function finalizeTranslation() {
   setStatus(UI_TEXT.finalizing);
   setProcessProgress(92);
 
-  const payload = {
+  let payload = {
     previewId: previewState.previewId,
-    translatedText: translatedTextInput.value,
     sourceLanguage: previewState.sourceLanguage,
     targetLanguage: previewState.targetLanguage,
     originalFileName: previewState.originalFileName
   };
+  // Si es DOCX avanzado, enviar los runs traducidos
+  if (previewState.docxRuns) {
+    payload.docxRunsTranslated = previewState.docxRuns;
+  } else {
+    payload.translatedText = translatedTextInput.value;
+  }
 
   try {
     const response = await fetch('/api/translate/finalize', {
@@ -181,14 +322,24 @@ async function finalizeTranslation() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = 'traduccion_tamon.docx';
+    anchor.download = `Tamon_${previewState.originalFileName || 'traduccion'}.docx`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
 
     setProcessProgress(100);
     setStep('step-download');
-    setStatus(UI_TEXT.downloaded);
+    
+    // Magia de la Cola: Eliminamos el archivo que ya se terminó con éxito
+    window.removeFile(0);
+    
+    if (selectedFiles.length > 0) {
+        setStatus(`✅ Descargado. ¡Tienes ${selectedFiles.length} archivo(s) más en cola! Haz clic en "Generar vista previa IA" para seguir.`);
+        if (previewPanel) previewPanel.classList.add('hidden'); // Ocultamos el panel
+    } else {
+        setStatus(UI_TEXT.downloaded + " (Cola vacía)");
+    }
+
   } catch (error) {
     setStatus(error.message);
   }
@@ -204,6 +355,10 @@ if (sidebarToggle && sidebar) {
   sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('hide');
     sidebarToggle.classList.toggle('active');
+    
+    // NUEVO: Expande el contenido para que no quede el hueco negro
+    const mainContent = document.querySelector('.main-content');
+    if (mainContent) mainContent.classList.toggle('expanded');
   });
 }
 
@@ -236,7 +391,8 @@ function updateSidebarUser(user) {
   const usernameElem = document.getElementById('sidebar-username');
   const usertypeElem = document.getElementById('sidebar-usertype');
   const sidebarUser = document.getElementById('sidebar-user');
-  
+  const adminBtn = document.getElementById('admin-reports-btn'); // NUEVO
+
   if (user && Object.keys(user).length > 0) {
     const username = user.nombre || user.usuario || 'Usuario';
     if (usernameElem) {
@@ -244,20 +400,23 @@ function updateSidebarUser(user) {
       usernameElem.style.fontSize = '1.08rem';
     }
     
-    if (usertypeElem) {
+   if (usertypeElem) {
       if (user.role === 'admin') {
         usertypeElem.textContent = 'Admin';
         usertypeElem.className = 'user-badge admin';
-      } else if (user.plan === 'pro_plus') {
-        usertypeElem.textContent = 'Tamon Pro+';
-        usertypeElem.className = 'user-badge pro_plus';
+        if (adminBtn) adminBtn.style.display = 'block'; // Mostrar botón al admin
       } else {
-        usertypeElem.textContent = 'Tamon Chill';
-        usertypeElem.className = 'user-badge chill';
+        if (user.plan === 'pro_plus') {
+          usertypeElem.textContent = 'Tamon Pro+';
+          usertypeElem.className = 'user-badge pro_plus';
+        } else {
+          usertypeElem.textContent = 'Tamon Chill';
+          usertypeElem.className = 'user-badge chill';
+        }
+        if (adminBtn) adminBtn.style.display = 'none'; // Ocultar a mortales
       }
       usertypeElem.style.display = '';
     }
-
     if (sidebarUser) {
       sidebarUser.onclick = (e) => {
         e.stopPropagation();
@@ -307,7 +466,6 @@ function updateSidebarUser(user) {
   }
 }
 
-// Inicializar usuario desde LocalStorage
 const usuarioGuardado = localStorage.getItem('tamon_user');
 if (usuarioGuardado) {
   try { updateSidebarUser(JSON.parse(usuarioGuardado)); } 
@@ -316,7 +474,6 @@ if (usuarioGuardado) {
   updateSidebarUser(null);
 }
 
-// Modal de Autenticación
 const authModal = document.getElementById('auth-modal');
 const authToggleBtn = document.getElementById('auth-toggle-btn');
 const authForm = document.getElementById('auth-form');
@@ -371,6 +528,40 @@ if (authForm) {
     }
   });
 }
+// --- NUEVO: FUNCIÓN PARA ACTUALIZAR LA CUOTA EN LA BARRA SUPERIOR ---
+async function actualizarCuotaVisual() {
+  const usageCounter = document.getElementById('usage-counter');
+  if (!usageCounter) return;
+
+  const userJson = localStorage.getItem('tamon_user');
+  if (!userJson) {
+    usageCounter.textContent = 'Cuota: Inicia sesión para ver';
+    return;
+  }
+
+  const user = JSON.parse(userJson);
+  try {
+    // Llamamos a la ruta que creamos en userChatRoutes.js
+    const response = await fetch(`/api/user/quota/${user.id || user._id}`);
+    if (response.ok) {
+      const data = await response.json();
+      const restantes = data.total - data.usados;
+      
+      if (user.plan === 'pro_plus') {
+        usageCounter.innerHTML = `🌟 Tamon Pro+: <span style="color: #ff007f;">Ilimitado</span> (Usados hoy: ${data.usados})`;
+      } else {
+        // Si le quedan 3 o menos, se pone fucsia/rojo. Si no, se queda azulito.
+        const colorAlerta = restantes <= 3 ? '#ff007f' : '#a7e9f7';
+        usageCounter.innerHTML = `Cuota Chill: <span style="color: ${colorAlerta}; font-weight: bold;">${restantes} restantes</span> de ${data.total}`;
+      }
+    }
+  } catch (error) {
+    usageCounter.textContent = 'Error cargando cuota';
+  }
+}
+
+// Ejecutamos la función apenas cargue la página
+actualizarCuotaVisual();
 
 // =====================================================================
 // 7. MODAL VIP TAMON PRO+
@@ -379,8 +570,17 @@ const btnProPlus = getEl('#btn-pro-plus');
 const proModal = getEl('#pro-modal');
 const btnUpgradeNow = getEl('#btn-upgrade-now');
 
+
 if (btnProPlus && proModal) btnProPlus.addEventListener('click', () => proModal.style.display = 'flex');
 window.addEventListener('click', e => { if (e.target === proModal) proModal.style.display = 'none'; });
+
+// Botón "Quizás luego" cierra el modal
+const closeModalBtn = document.getElementById('close-modal-btn');
+if (closeModalBtn && proModal) {
+  closeModalBtn.addEventListener('click', () => {
+    proModal.style.display = 'none';
+  });
+}
 
 if (btnUpgradeNow && proModal) {
   btnUpgradeNow.addEventListener('click', async () => {
@@ -427,9 +627,9 @@ if (btnUpgradeNow && proModal) {
 }
 
 // =====================================================================
-// 8. CHAT TAMON Y FAQ (Acordeón y LocalStorage)
+// 8. CHAT TAMON Y FAQ
 // =====================================================================
-if (quickTranslateForm) quickTranslateForm.addEventListener('submit', e => { e.preventDefault(); alert("Función en desarrollo."); });
+// if (quickTranslateForm) quickTranslateForm.addEventListener('submit', e => { e.preventDefault(); alert("Función en desarrollo."); });
 if (form) form.addEventListener('submit', requestPreview);
 if (finalizeBtn) finalizeBtn.addEventListener('click', finalizeTranslation);
 
@@ -469,25 +669,102 @@ document.addEventListener('DOMContentLoaded', () => {
 });
 
 // =====================================================================
-// 9. LÓGICA DEL CHAT DE TAMON (ACTUALIZADO CON STREAMING)
+// 9. LÓGICA DEL CHAT DE TAMON (STREAMING + MARKDOWN + ICONOS)
 // =====================================================================
 const chatMessages = getEl('#chat-messages');
 const chatForm = getEl('#chat-form');
 const chatInput = getEl('#chat-input');
 
+// Variable temporal para guardar el texto de la IA si le damos a "No me gusta"
+window.currentTamonMessage = ""; 
+
 function renderChatMessage(msg, from, id = null) {
-  const div = document.createElement('div');
-  div.className = from === 'user' ? 'chat-bubble user-bubble' : 'chat-bubble tamon-bubble';
-  if (id) div.id = id;
-  
-  const label = from === 'user' ? '' : '<b>Tamon:</b> ';
-  div.innerHTML = `<span>${label}${msg.replace(/\n/g, '<br>')}</span>`;
-  
-  if (chatMessages) {
-    chatMessages.appendChild(div);
-    chatMessages.scrollTop = chatMessages.scrollHeight; 
+  if (from === 'user') {
+    const div = document.createElement('div');
+    div.className = 'chat-bubble user-bubble';
+    if (id) div.id = id;
+    div.innerHTML = `<span>${msg.replace(/\n/g, '<br>')}</span>`;
+    
+    if (chatMessages) {
+      chatMessages.appendChild(div);
+      chatMessages.scrollTop = chatMessages.scrollHeight; 
+    }
+    return div;
+  } else {
+    // Contenedor principal del mensaje
+    const wrapper = document.createElement('div');
+    wrapper.className = 'tamon-message-wrapper';
+    if (id) wrapper.id = id;
+
+    const bubble = document.createElement('div');
+    bubble.className = 'chat-bubble tamon-bubble';
+    
+    bubble.innerHTML = `
+      <div style="font-weight:bold; margin-bottom:4px;">Tamon:</div>
+      <div class="tamon-content">${marked.parse(msg)}</div>
+    `;
+
+   // Contenedor de iconos
+    const actions = document.createElement('div');
+    actions.className = 'message-actions';
+    actions.style.display = 'none'; // NUEVO: Se ocultan mientras "escribe..."
+    // Botón Copiar
+    const btnCopy = document.createElement('button');
+    btnCopy.className = 'action-btn';
+    btnCopy.title = 'Copiar texto';
+    btnCopy.innerHTML = '📋';
+    btnCopy.onclick = () => {
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = bubble.querySelector('.tamon-content').innerHTML;
+      navigator.clipboard.writeText(tempDiv.innerText);
+      
+      btnCopy.innerHTML = '✅';
+      setTimeout(() => btnCopy.innerHTML = '📋', 2000);
+    };
+
+    // Botón Me Gusta (Check)
+    const btnLike = document.createElement('button');
+    btnLike.className = 'action-btn';
+    btnLike.title = 'Buena respuesta';
+    btnLike.innerHTML = '👍';
+    btnLike.onclick = () => {
+      btnLike.innerHTML = '💖';
+      const toast = document.getElementById('tamon-toast');
+      toast.classList.add('show');
+      setTimeout(() => { 
+        toast.classList.remove('show'); 
+        btnLike.innerHTML = '👍'; 
+      }, 3000);
+    };
+    
+    // Botón No Me Gusta (Wrong / Modal)
+    const btnDislike = document.createElement('button');
+    btnDislike.className = 'action-btn';
+    btnDislike.title = 'Mala respuesta';
+    btnDislike.innerHTML = '👎';
+    btnDislike.onclick = () => {
+      // Extraemos solo el texto plano sin etiquetas <p> o <b>
+      const tempDiv = document.createElement('div');
+      tempDiv.innerHTML = bubble.querySelector('.tamon-content').innerHTML;
+      window.currentTamonMessage = tempDiv.innerText; 
+      
+      document.getElementById('feedback-text').value = ''; 
+      document.getElementById('feedback-modal').style.display = 'flex';
+    };
+
+    actions.appendChild(btnCopy);
+    actions.appendChild(btnLike);
+    actions.appendChild(btnDislike);
+
+    wrapper.appendChild(bubble);
+    wrapper.appendChild(actions);
+
+    if (chatMessages) {
+      chatMessages.appendChild(wrapper);
+      chatMessages.scrollTop = chatMessages.scrollHeight; 
+    }
+    return wrapper;
   }
-  return div;
 }
 
 if (chatForm) {
@@ -496,17 +773,15 @@ if (chatForm) {
     const msg = chatInput.value.trim();
     if (!msg) return;
     
-    // 1. Mostrar mensaje del usuario
     renderChatMessage(msg, 'user');
     chatInput.value = '';
     
     const userJson = localStorage.getItem('tamon_user');
     const nombreUsuario = userJson ? JSON.parse(userJson).nombre : 'Usuario';
 
-    // 2. Crear burbuja vacía para Tamon donde "caerá" el stream
     const tamonMsgId = 'tamon-stream-' + Date.now();
-    const tamonDiv = renderChatMessage('<i>escribiendo...</i>', 'tamon', tamonMsgId);
-    const textSpan = tamonDiv.querySelector('span');
+    const tamonWrapper = renderChatMessage('<i>escribiendo...</i>', 'tamon', tamonMsgId);
+    const contentDiv = tamonWrapper.querySelector('.tamon-content');
 
     try {
         const response = await fetch('/api/user/chat', { 
@@ -517,11 +792,9 @@ if (chatForm) {
 
         if (!response.ok) throw new Error('Error en la conexión');
 
-        // 3. PROCESAR EL STREAM (Lectura por trozos)
         const reader = response.body.getReader();
         const decoder = new TextDecoder();
         let fullText = "";
-        textSpan.innerHTML = `<b>Tamon:</b> `; // Limpiamos el "escribiendo..."
 
         while (true) {
             const { done, value } = await reader.read();
@@ -530,13 +803,149 @@ if (chatForm) {
             const chunk = decoder.decode(value, { stream: true });
             fullText += chunk;
             
-            // Actualizamos la burbuja en tiempo real con cada palabra nueva
-            textSpan.innerHTML = `<b>Tamon:</b> ${fullText.replace(/\n/g, '<br>')}`;
+            contentDiv.innerHTML = marked.parse(fullText);
             chatMessages.scrollTop = chatMessages.scrollHeight; 
         }
 
+        // Mostrar los iconos solo cuando termina de generar el texto (El arreglo anterior)
+        const actionsDiv = tamonWrapper.querySelector('.message-actions');
+        if (actionsDiv) actionsDiv.style.display = 'flex';
+
+        // NUEVO: Refrescar el contador de cuota de la barra superior al terminar el mensaje
+        actualizarCuotaVisual();
+
     } catch (error) {
-        if (textSpan) textSpan.innerHTML = `<b>Tamon:</b> Error: Mis circuitos están sobrecargados.`;
+//...
+        if (contentDiv) contentDiv.innerHTML = `Error: Mis circuitos están sobrecargados.`;
     }
   });
+}
+
+// =====================================================================
+// 10. LÓGICA DEL MODAL DE FEEDBACK (REPORTES)
+// =====================================================================
+const feedbackModal = document.getElementById('feedback-modal');
+const closeFeedbackBtn = document.getElementById('close-feedback-btn');
+const sendFeedbackBtn = document.getElementById('send-feedback-btn');
+
+if (closeFeedbackBtn) {
+  closeFeedbackBtn.onclick = () => feedbackModal.style.display = 'none';
+}
+
+if (sendFeedbackBtn) {
+  sendFeedbackBtn.onclick = async () => {
+    const comentario = document.getElementById('feedback-text').value.trim();
+    if (!comentario) return alert("Por favor, escribe un comentario detallado antes de enviar.");
+    
+    const userJson = localStorage.getItem('tamon_user');
+    const userId = userJson ? JSON.parse(userJson).id : null;
+
+    sendFeedbackBtn.textContent = 'Enviando...';
+
+    try {
+      await fetch('/api/user/feedback', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          userId: userId,
+          botMessage: window.currentTamonMessage,
+          userComment: comentario
+        })
+      });
+      
+      feedbackModal.style.display = 'none';
+      const toast = document.getElementById('tamon-toast');
+      toast.classList.add('show');
+      setTimeout(() => toast.classList.remove('show'), 3000);
+      
+    } catch (e) {
+      alert("Error enviando el reporte.");
+    } finally {
+      sendFeedbackBtn.textContent = 'Enviar a Admin';
+    }
+  };
+}// =====================================================================
+// 11. PANEL SECRETO DEL ADMIN (REPORTES DE IA)
+// =====================================================================
+const adminReportsBtn = document.getElementById('admin-reports-btn');
+const adminReportsSection = document.getElementById('admin-reports-section');
+const refreshReportsBtn = document.getElementById('refresh-reports-btn');
+const reportsContainer = document.getElementById('reports-container');
+
+if (adminReportsBtn) {
+  adminReportsBtn.onclick = () => {
+    showSection('admin'); 
+    loadReports();
+  };
+}
+
+// Modificamos un poco showSection para incluir la vista de admin
+const originalShowSection = window.showSection; // Guardamos la original temporalmente si es necesario, o la reescribimos:
+window.showSection = function(section) {
+  if (translationView) translationView.style.display = section === 'menu' ? '' : 'none';
+  if (chatSection) chatSection.style.display = section === 'chat' ? '' : 'none';
+  if (faqSection) faqSection.style.display = section === 'faq' ? '' : 'none';
+  if (adminReportsSection) adminReportsSection.style.display = section === 'admin' ? '' : 'none';
+  
+  [menuBtn, chatBtn, faqBtn, adminReportsBtn].forEach(btn => btn && btn.classList.remove('active'));
+  
+  if (section === 'menu' && menuBtn) menuBtn.classList.add('active');
+  if (section === 'chat' && chatBtn) chatBtn.classList.add('active');
+  if (section === 'faq' && faqBtn) faqBtn.classList.add('active');
+  if (section === 'admin' && adminReportsBtn) adminReportsBtn.classList.add('active');
+};
+
+if (refreshReportsBtn) {
+  refreshReportsBtn.onclick = loadReports;
+}
+
+async function loadReports() {
+  if (!reportsContainer) return;
+  reportsContainer.innerHTML = '<p style="color: #cbd5e1;">Cargando reportes de la base de datos...</p>';
+  
+  try {
+    // Llamaremos a una nueva ruta en el backend
+    const res = await fetch('/api/admin/reports');
+    const data = await res.json();
+    
+    if (!res.ok) throw new Error(data.error || 'Error cargando reportes');
+    
+    if (data.length === 0) {
+      reportsContainer.innerHTML = '<p style="color: #a894a3;">No hay reportes pendientes. Tamon se está portando bien.</p>';
+      return;
+    }
+
+    reportsContainer.innerHTML = '';
+    data.forEach(report => {
+      const div = document.createElement('div');
+      div.style.background = '#1e1c22';
+      div.style.padding = '15px';
+      div.style.borderRadius = '8px';
+      div.style.borderLeft = '4px solid #ff007f';
+      
+      const fecha = new Date(report.created_at).toLocaleString();
+      
+      div.innerHTML = `
+        <div style="font-size: 0.8rem; color: #a894a3; margin-bottom: 8px;">
+          Reporte ID: ${report.id} | Fecha: ${fecha} | ID Usuario: ${report.user_id || 'Anónimo'}
+        </div>
+        <div style="margin-bottom: 10px;">
+          <strong>🤖 Lo que dijo Tamon:</strong>
+          <div style="background: #2d2a32; padding: 8px; border-radius: 4px; font-size: 0.9rem; margin-top: 4px; color: #d983ab;">
+             "${report.bot_message}"
+          </div>
+        </div>
+        <div>
+          <strong style="color: #ff007f;">😡 Comentario del Usuario:</strong>
+          <div style="background: #2d2a32; padding: 8px; border-radius: 4px; font-size: 0.9rem; margin-top: 4px; color: #fff;">
+             "${report.user_comment}"
+          </div>
+        </div>
+      `;
+      reportsContainer.appendChild(div);
+    });
+
+  } catch (error) {
+    reportsContainer.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
+  }
 }
