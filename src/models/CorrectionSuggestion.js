@@ -9,7 +9,16 @@ const correctionSuggestionSchema = new mongoose.Schema(
     suggestedTranslation: { type: String, required: true },
     createdByRole: { type: String, enum: ['user', 'admin', 'system'], default: 'user' },
     status: { type: String, enum: ['pending', 'approved', 'rejected'], default: 'pending' },
-    reviewedBy: { type: String }
+    reviewedBy: { type: String },
+    version: { type: Number, default: 1 },
+    history: [
+      {
+        version: Number,
+        updatedAt: Date,
+        updatedBy: String,
+        changes: Object
+      }
+    ]
   },
   { timestamps: true }
 );

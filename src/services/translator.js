@@ -1,11 +1,8 @@
-const axios = require('axios');
-
-const CHUNK_SIZE = 1800;
-const MYMEMORY_MAX_CHARS = 450;
-const MYMEMORY_MAX_RETRIES = 4;
-const INTER_CHUNK_DELAY_MS = 150;
-const MIN_TRANSLATION_COVERAGE_RATIO = 0.22;
-const MAX_RECHUNK_DEPTH = 2;
+const { translate } = require('@vitalets/google-translate-api');
+// Ajustamos el chunk size para que Google no rechace peticiones por ser muy largas.
+const CHUNK_SIZE = 4500; 
+// Un retraso pequeño para no saturar al servidor y evitar que bloquee la IP
+const INTER_CHUNK_DELAY_MS = 500; 
 
 function delay(ms) {
   return new Promise((resolve) => setTimeout(resolve, ms));
@@ -15,8 +12,18 @@ function splitIntoChunks(text, size = CHUNK_SIZE) {
   const chunks = [];
   let pointer = 0;
   while (pointer < text.length) {
-    chunks.push(text.slice(pointer, pointer + size));
-    pointer += size;
+    // Intentamos cortar en un salto de línea o espacio para no romper palabras a la mitad
+    let end = pointer + size;
+    if (end < text.length) {
+      const lastSpace = text.lastIndexOf(' ', end);
+      const lastNewline = text.lastIndexOf('\n', end);
+      const breakPoint = Math.max(lastSpace, lastNewline);
+      if (breakPoint > pointer) {
+          end = breakPoint;
+      }
+    }
+    chunks.push(text.slice(pointer, end));
+    pointer = end;
   }
   return chunks;
 }

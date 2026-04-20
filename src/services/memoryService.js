@@ -1,7 +1,10 @@
-const GlossaryEntry = require('../models/GlossaryEntry');
-const UserCorrection = require('../models/UserCorrection');
-const DomainRule = require('../models/DomainRule');
-const { isDbReady } = require('../config/db');
+// ELIMINAMOS LAS IMPORTACIONES DE MONGOOSE:
+// const GlossaryEntry = require('../models/GlossaryEntry');
+// const UserCorrection = require('../models/UserCorrection');
+// const DomainRule = require('../models/DomainRule');
+
+// IMPORTAMOS POSTGRESQL:
+const { pool, isDbReady } = require('../config/db');
 const { sanitizeString } = require('../utils/validation');
 
 function escapeRegExp(value) {
@@ -19,19 +22,54 @@ async function getMemoryContext({ project, domain, sourceLanguage, targetLanguag
   const safeSourceLanguage = sanitizeString(sourceLanguage, { required: true, maxLength: 20 });
   const safeTargetLanguage = sanitizeString(targetLanguage, { required: true, maxLength: 20 });
 
-  const [glossary, corrections, rules] = await Promise.all([
-    GlossaryEntry.find({
-      project: safeProject,
-      sourceLanguage: safeSourceLanguage,
-      targetLanguage: safeTargetLanguage
-    }).lean(),
-    UserCorrection.find({
-      project: safeProject,
-      sourceLanguage: safeSourceLanguage,
-      targetLanguage: safeTargetLanguage
-    }).lean(),
-    DomainRule.find({ project: safeProject, domain: safeDomain }).lean()
-  ]);
+  let glossary = [];
+  let corrections = [];
+  let rules = [];
+
+  try {
+    // 1. AUTO-CREACIÓN DE TABLAS: Si no existen, se crean solas.
+    await pool.query(`
+      CREATE TABLE IF NOT EXISTS glossary_entries (
+        id SERIAL PRIMARY KEY, project VARCHAR(120), source_language VARCHAR(20), target_language VARCHAR(20),
+        source_term VARCHAR(255), target_term VARCHAR(255)
+      );
+      CREATE TABLE IF NOT EXISTS user_corrections (
+        id SERIAL PRIMARY KEY, project VARCHAR(120), source_language VARCHAR(20), target_language VARCHAR(20),
+        original_translation TEXT, corrected_translation TEXT
+      );
+      CREATE TABLE IF NOT EXISTS domain_rules (
+        id SERIAL PRIMARY KEY, project VARCHAR(120), domain VARCHAR(120),
+        find_text TEXT, replace_text TEXT, apply_stage VARCHAR(50)
+      );
+    `);
+
+    // 2. BUSCAMOS EN POSTGRESQL (En paralelo para que sea súper rápido)
+    // Usamos el "AS" para transformar los nombres de las columnas SQL (con_guion_bajo) al formato que espera JavaScript (camelCase)
+    const [glossaryRes, correctionsRes, rulesRes] = await Promise.all([
+      pool.query(
+        `SELECT source_term AS "sourceTerm", target_term AS "targetTerm" 
+         FROM glossary_entries WHERE project = $1 AND source_language = $2 AND target_language = $3`, 
+        [safeProject, safeSourceLanguage, safeTargetLanguage]
+      ),
+      pool.query(
+        `SELECT original_translation AS "originalTranslation", corrected_translation AS "correctedTranslation" 
+         FROM user_corrections WHERE project = $1 AND source_language = $2 AND target_language = $3`, 
+        [safeProject, safeSourceLanguage, safeTargetLanguage]
+      ),
+      pool.query(
+        `SELECT find_text AS "findText", replace_text AS "replaceText", apply_stage AS "applyStage" 
+         FROM domain_rules WHERE project = $1 AND domain = $2`, 
+        [safeProject, safeDomain]
+      )
+    ]);
+
+    glossary = glossaryRes.rows;
+    corrections = correctionsRes.rows;
+    rules = rulesRes.rows;
+
+  } catch (error) {
+    console.error("Aviso: Error cargando memoria de PostgreSQL.", error.message);
+  }
 
   return {
     glossary,

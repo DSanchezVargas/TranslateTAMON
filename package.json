@@ -6,9 +6,12 @@
   "scripts": {
     "test": "jest --runInBand",
     "start": "node src/server.js",
-    "dev": "nodemon src/server.js",
     "lint": "eslint . --max-warnings=0",
-    "build": "echo \"No build step required\""
+    "build": "echo \"No build step required\"",
+    "dev": "concurrently \"npm run dev:node\" \"npm run dev:python-docx\" \"npm run dev:python-pdf\"",
+    "dev:node": "nodemon src/server.js",
+    "dev:python-docx": "python ./python_services/docx_processor.py",
+    "dev:python-pdf": "set FLASK_RUN_PORT=5002&& python ./python_services/pdf_processor.py"
   },
   "repository": {
     "type": "git",
@@ -23,15 +26,23 @@
   },
   "homepage": "https://github.com/DSanchezVargas/TranslateTAMON#readme",
   "dependencies": {
+    "@google/generative-ai": "^0.24.1",
+    "@vitalets/google-translate-api": "^9.2.1",
     "axios": "^1.15.0",
+    "bcrypt": "^6.0.0",
+    "bcryptjs": "^3.0.3",
     "docx": "^9.6.1",
     "dotenv": "^17.4.2",
     "express": "^5.2.1",
     "express-rate-limit": "^8.3.2",
+    "jsonwebtoken": "^9.0.3",
     "mammoth": "^1.12.0",
     "mongoose": "^9.4.1",
     "multer": "^2.1.1",
+    "nodemailer": "^8.0.5",
     "pdf-parse": "^2.4.5",
+    "pg": "^8.20.0",
+    "qrcode": "^1.5.4",
     "tesseract.js": "^7.0.0"
   },
   "devDependencies": {
@@ -40,6 +51,8 @@
     "globals": "^17.5.0",
     "jest": "^30.3.0",
     "nodemon": "^3.1.14",
-    "supertest": "^7.2.2"
+    "supertest": "^7.2.2",
+    "concurrently": "^8.2.2"
   }
 }
+

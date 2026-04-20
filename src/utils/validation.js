@@ -13,13 +13,21 @@ function sanitizeString(value, { required = false, maxLength = 2000 } = {}) {
     throw new Error('Campo requerido vacío.');
   }
 
-  if (normalized.length > maxLength) {
+  if (Number.isFinite(maxLength) && normalized.length > maxLength) {
     throw new Error('Campo supera el tamaño permitido.');
   }
 
   return normalized;
 }
 
+function isInvalidTranslatedText(text) {
+  if (!text || typeof text !== 'string') return true;
+  const upper = text.toUpperCase();
+  // Validar si el proveedor gratuito tiró error de límite
+  return upper.includes('QUERY LENGTH LIMIT EXCEEDED') || upper.includes('MAX ALLOWED QUERY');
+}
+
 module.exports = {
-  sanitizeString
+  sanitizeString,
+  isInvalidTranslatedText
 };

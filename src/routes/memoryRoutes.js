@@ -7,6 +7,7 @@ const DomainRule = require('../models/DomainRule');
 const CorrectionSuggestion = require('../models/CorrectionSuggestion');
 const { sanitizeString } = require('../utils/validation');
 
+
 const router = express.Router();
 const memoryRateLimiter = rateLimit({
   windowMs: 60 * 1000,
