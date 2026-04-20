@@ -13,20 +13,18 @@ const pool = new Pool({
 let isConnected = false;
 
 async function connectDb() {
-  const mongoUri = process.env.MONGO_URI;
-  if (!mongoUri) {
-    console.warn('MONGO_URI no configurado. La aplicación correrá sin persistencia.');
-    return false;
-  }
-
   try {
-    await mongoose.connect(mongoUri, {
-      serverSelectionTimeoutMS: 5000
-    });
-    console.info('MongoDB conectado.');
+    // Intentamos conectar y hacer una consulta rápida para verificar
+    const client = await pool.connect();
+    console.info('¡PostgreSQL conectado a tamon_db con éxito!');
+    
+    // Liberamos el cliente para que el pool lo siga usando
+    client.release(); 
+    isConnected = true;
     return true;
   } catch (error) {
-    console.warn(`No se pudo conectar a MongoDB. La app correrá sin persistencia: ${error.message}`);
+    console.warn(`No se pudo conectar a PostgreSQL. Verifica que pgAdmin esté corriendo: ${error.message}`);
+    isConnected = false;
     return false;
   }
 }

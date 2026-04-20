@@ -16,7 +16,6 @@ async function getMemoryContext({ project, domain, sourceLanguage, targetLanguag
     return { glossary: [], corrections: [], preRules: [], postRules: [] };
   }
 
-  
   const safeProject = sanitizeString(project, { required: true, maxLength: 120 });
   const safeDomain = sanitizeString(domain, { required: true, maxLength: 120 });
   const safeSourceLanguage = sanitizeString(sourceLanguage, { required: true, maxLength: 20 });
@@ -82,10 +81,8 @@ async function getMemoryContext({ project, domain, sourceLanguage, targetLanguag
 function applyRules(text, rules) {
   return rules.reduce((acc, rule) => {
     if (!rule.findText) return acc;
-
     // Evita borrados masivos no intencionales por reemplazos vacios.
     if (typeof rule.replaceText !== 'string' || !rule.replaceText.trim()) return acc;
-
     return acc.replace(new RegExp(escapeRegExp(rule.findText), 'gi'), rule.replaceText);
   }, text);
 }
