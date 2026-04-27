@@ -1,5 +1,4 @@
 const mongoose = require('mongoose');
-
 const domainRuleSchema = new mongoose.Schema(
   {
     project: { type: String, required: true },
