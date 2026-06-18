@@ -8,6 +8,7 @@ const uploadRoutes = require('./routes/uploadRoutes');
 const adminChatRoutes = require('./routes/adminChatRoutes'); 
 const userChatRoutes = require('./routes/userChatRoutes'); 
 const userProfileRoutes = require('./routes/userProfileRoutes'); 
+const planRoutes = require('./routes/planRoutes');
 
 const {
   APP_NAME,
@@ -101,6 +102,8 @@ app.use(userInject);
 app.use('/api', translationRoutes);
 app.use('/api/memory', memoryRoutes);
 app.use('/api/auth', authRoutes); 
+app.use('/api/plans', planRoutes);
+app.use('/api/admin', adminRoutes); 
 app.use('/api/admin', adminChatRoutes); 
 app.use('/api/upload', uploadRoutes); 
 app.use('/api/user', userChatRoutes); 
@@ -128,7 +131,7 @@ app.use('/api/user/profile', userProfileRoutes);
   }
 })();
 
-app.use((error, req, res, next) => {
+app.use((error, req, res, _next) => {
   console.error("🚨 ERROR SILENCIOSO ATRAPADO EN LA RUTA:", req.originalUrl);
   console.error("Detalle del problema:", error);
   const status = error.status || 500;

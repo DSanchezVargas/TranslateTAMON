@@ -33,13 +33,37 @@ async function connectDb() {
         nombre VARCHAR(100),
         email VARCHAR(100) UNIQUE NOT NULL,
         password VARCHAR(255) NOT NULL,
-        plan VARCHAR(20) DEFAULT 'chill',
+        plan VARCHAR(20) DEFAULT 'free',
         role VARCHAR(20) DEFAULT 'user',
         mensajes_hoy INTEGER DEFAULT 0,
         ultima_fecha_chat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        username VARCHAR(100) UNIQUE
+        username VARCHAR(100) UNIQUE,
+        avatar_url TEXT,
+        user_status VARCHAR(20) DEFAULT 'active'
       );
-      
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS user_status VARCHAR(20) DEFAULT 'active';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
+
+      CREATE TABLE IF NOT EXISTS translation_history (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        original_file_name VARCHAR(255),
+        file_type VARCHAR(50),
+        source_language VARCHAR(20),
+        target_language VARCHAR(20),
+        project VARCHAR(120),
+        domain VARCHAR(120),
+        source_text_hash VARCHAR(255),
+        translated_text_cache TEXT,
+        source_text_length INTEGER,
+        translated_text_length INTEGER,
+        status VARCHAR(50),
+        error_message TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+       
       CREATE TABLE IF NOT EXISTS tamon_feedback (
         id SERIAL PRIMARY KEY,
         user_id INTEGER,

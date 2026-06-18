@@ -12,7 +12,7 @@ MVP para traducir documentos de entrada **PDF / DOCX / JPG / PNG / TXT** con:
 ## Stack
 
 - Node.js + Express
-- MongoDB (Compass) con Mongoose
+- PostgreSQL + MongoDB (memoria/entrenamiento)
 - OCR con Tesseract.js (imágenes)
 - Extracción de texto: `pdf-parse` (PDF) y `mammoth` (DOCX)
 - Traducción: LibreTranslate API
@@ -105,6 +105,31 @@ Respuesta:
 
 - Estado de producto para frontend/app: branding, flujo hiperautomatizado y estado de aprendizaje (incluye `learningProgressPercent` y operación autónoma sin admin 24/7).
 
+### Perfil de usuario
+
+- `GET /api/user/profile` → perfil completo (plan, cuotas e historial reciente)
+- `PUT /api/user/profile` → actualizar nombre/correo
+- `PUT /api/user/profile/password` → cambio seguro de contraseña
+- `POST /api/user/profile/avatar` → subir/cambiar avatar
+- `GET /api/user/profile/history` → historial completo de traducciones
+
+### Planes
+
+- `GET /api/plans` → catálogo de planes y beneficios
+- `GET /api/plans/current` → plan actual y próximo plan
+- `POST /api/plans/upgrade` → upgrade `free` → `pro_plus` con pago simulado (listo para Stripe)
+- `PUT /api/plans/change` → cambio de plan
+
+### Admin dashboard
+
+- `GET /api/admin/statistics`
+- `GET /api/admin/users`
+- `GET /api/admin/users/:id`
+- `PUT /api/admin/users/:id`
+- `GET /api/admin/usage-by-language`
+- `GET /api/admin/file-types`
+- `GET /api/admin/learning-metrics`
+
 ### `POST /api/assistant/translate-text`
 
 `application/json`:
@@ -151,6 +176,19 @@ npm run lint
 npm run test
 npm run build
 ```
+
+## Deploy en Vercel
+
+1. Configura variables de entorno de `.env.example` en Vercel.
+2. El archivo `vercel.json` enruta:
+   - Backend Express serverless por `api/index.js`
+   - Frontend estático desde `public/*`
+3. Define `API_BASE_URL` (frontend) y `DATABASE_URL` (backend) en el proyecto Vercel.
+4. Publica y valida:
+   - `/` (frontend principal)
+   - `/profile.html` (perfil)
+   - `/admin.html` (dashboard admin)
+   - `/api/*` (backend)
 
 ## Nota sobre PDF escaneado
 

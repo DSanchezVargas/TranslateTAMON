@@ -15,13 +15,12 @@ dns.setDefaultResultOrder('ipv4first');
 
 // Configuramos el enviador de correos con tus credenciales
 const transporter = nodemailer.createTransport({
-  host: 'smtp.gmail.com',
-  port: 465,
-  secure: true, 
-  auth: {
-    user: 'noblesserai20@gmail.com', 
-    pass: 'orpxqlpvffgjossz' 
-  }
+  host: process.env.SMTP_HOST || 'smtp.gmail.com',
+  port: Number(process.env.SMTP_PORT || 465),
+  secure: true,
+  auth: process.env.SMTP_USER && process.env.SMTP_PASS
+    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+    : undefined
 });
 
 // --- RUTA DE REGISTRO ---
@@ -44,17 +43,19 @@ router.post('/register', async (req, res) => {
     const result = await pool.query(
       `INSERT INTO users (nombre, email, password, plan, role) 
        VALUES ($1, $2, $3, $4, $5) RETURNING id, nombre, email, plan, role`,
-      [nombre, correo.toLowerCase(), hashedPassword, 'chill', 'user']
+      [nombre, correo.toLowerCase(), hashedPassword, 'free', 'user']
     );
     const nuevoUsuario = result.rows[0];
 
     try {
-      await transporter.sendMail({
-        from: '"Tamon IA" <noblesserai20@gmail.com>',
-        to: correo,
-        subject: '¡Bienvenido a Tamon! ✨',
-        text: `Hola ${nombre}, tu cuenta ha sido creada con éxito en Tamon.`
-      });
+      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        await transporter.sendMail({
+          from: `"Tamon IA" <${process.env.SMTP_USER}>`,
+          to: correo,
+          subject: '¡Bienvenido a Tamon! ✨',
+          text: `Hola ${nombre}, tu cuenta ha sido creada con éxito en Tamon.`
+        });
+      }
     } catch (mailErr) {
       console.error('Error enviando correo de registro:', mailErr);
     }
@@ -147,11 +148,12 @@ router.post('/join-vip', async (req, res) => {
       return res.status(400).json({ error: 'No se encontró un correo válido.' });
     }
 
-    await transporter.sendMail({
-      from: '"Tamon IA VIP" <noblesserai20@gmail.com>',
-      to: correo,
-      subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
-      html: `
+    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      await transporter.sendMail({
+        from: `"Tamon IA VIP" <${process.env.SMTP_USER}>`,
+        to: correo,
+        subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
+        html: `
         <div style="font-family: Arial, sans-serif; max-width: 600px; margin: auto; padding: 20px; border: 1px solid #7928ca; border-radius: 10px; background-color: #f8e6f3;">
             <h2 style="color: #7928ca;">¡Hola ${nombre || 'Usuario'}! 🚀</h2>
             <p style="color: #2d1221; font-size: 16px;">Confirmamos que tu espacio ha sido reservado con éxito en nuestra fila VIP.</p>
@@ -160,9 +162,14 @@ router.post('/join-vip', async (req, res) => {
             <p style="color: #2d1221; font-weight: bold;">Saludos,<br>El equipo de Tamon IA</p>
         </div>
       `
-    });
+      });
+    }
     
-    return res.status(200).json({ message: 'Correo VIP enviado con éxito' });
+    return res.status(200).json({
+      message: process.env.SMTP_USER && process.env.SMTP_PASS
+        ? 'Correo VIP enviado con éxito'
+        : 'Solicitud VIP registrada (SMTP no configurado)'
+    });
 
   } catch (error) {
     console.error('Error enviando correo VIP:', error);
