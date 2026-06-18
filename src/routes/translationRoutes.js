@@ -1,5 +1,6 @@
 const express = require('express');
 const router = express.Router();
+const fs = require('fs');
 // --- ENDPOINT DE FEEDBACK DE USUARIO ---
 router.post('/feedback', async (req, res) => {
   const { userId, comentario, tipo, traceId } = req.body;
@@ -70,19 +71,22 @@ async function saveHistory(record) {
   try {
     await pool.query(`
       CREATE TABLE IF NOT EXISTS translation_history (
-        id SERIAL PRIMARY KEY, original_file_name VARCHAR(255), file_type VARCHAR(50),
+        id SERIAL PRIMARY KEY, user_id INTEGER REFERENCES users(id) ON DELETE SET NULL, original_file_name VARCHAR(255), file_type VARCHAR(50),
         source_language VARCHAR(20), target_language VARCHAR(20), project VARCHAR(120),
         domain VARCHAR(120), source_text_hash VARCHAR(255), translated_text_cache TEXT,
         source_text_length INTEGER, translated_text_length INTEGER, status VARCHAR(50),
         error_message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `);
+
+    await pool.query('ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL');
     
     await pool.query(`
       INSERT INTO translation_history 
-      (original_file_name, file_type, source_language, target_language, project, domain, source_text_hash, translated_text_cache, source_text_length, translated_text_length, status, error_message)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12)
+      (user_id, original_file_name, file_type, source_language, target_language, project, domain, source_text_hash, translated_text_cache, source_text_length, translated_text_length, status, error_message)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
     `, [
+      record.userId || null,
       record.originalFileName || 'unknown', record.fileType || 'unknown', record.sourceLanguage || 'unknown',
       record.targetLanguage || 'unknown', record.project || 'default', record.domain || 'general',
       record.sourceTextHash || '', record.translatedTextCache || '', record.sourceTextLength || 0,
@@ -296,6 +300,7 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
   if (!req.file) return res.status(400).json({ error: 'Debes enviar un archivo.' });
 
   try {
+    const userId = Number(req.user?.id || req.user?._id);
     const sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });
     const targetLanguage = sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 });
     const project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
@@ -307,19 +312,20 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
 
     if (shouldReturnPreview) {
       setExperienceHeaders(res, { traceId, status: 'preview_ready', processingMs: Date.now() - startedAt });
-      await saveHistory({ originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success' });
+      await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success' });
       return res.status(200).json({ previewId, traceId, originalFileName: req.file.originalname, sourceLanguage, targetLanguage, originalText, translatedText, experience: { status: 'preview_ready', estimatedCompletionSeconds: estimateTranslationSecondsByText(originalText), fromCache, assistantMessage: buildAssistantMessage('preview_ready') } });
     }
 
     const translatedDocxBuffer = await createTranslatedDocxBuffer({ originalFileName: req.file.originalname, sourceLanguage, targetLanguage, translatedText });
-    await saveHistory({ originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success' });
+    await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success' });
 
     setExperienceHeaders(res, { traceId, status: 'document_ready', processingMs: Date.now() - startedAt });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${path.parse(req.file.originalname).name}-${targetLanguage}.docx"`);
     return res.status(200).send(translatedDocxBuffer);
   } catch (error) {
-    await saveHistory({ originalFileName: req.file?.originalname, status: 'failed', errorMessage: error.message });
+    const userId = Number(req.user?.id || req.user?._id);
+    await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: req.file?.originalname, status: 'failed', errorMessage: error.message });
     return next(error);
   }
 }
@@ -360,13 +366,42 @@ router.post('/translate/finalize', async (req, res, next) => {
     if (!finalText || !finalSourceLanguage || !finalTargetLanguage) return res.status(400).json({ error: 'Faltan datos.' });
 
     const translatedDocxBuffer = await createTranslatedDocxBuffer({ originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedText: finalText });
-    await saveHistory({ originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: finalText, status: 'success' });
+    const userId = Number(req.user?.id || req.user?._id);
+    await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: finalText, status: 'success' });
 
     setExperienceHeaders(res, { traceId, status: 'finalized', processingMs: Date.now() - startedAt });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${path.parse(finalFileName).name}-${finalTargetLanguage}.docx"`);
     return res.status(200).send(translatedDocxBuffer);
   } catch (error) { return next(error); }
+});
+
+router.post('/assistant/translate-text', async (req, res) => {
+  try {
+    const userName = String(req.body.userName || 'usuario').trim() || 'usuario';
+    const text = String(req.body.text || '').trim();
+    const sourceLanguage = String(req.body.sourceLanguage || '').trim();
+    const targetLanguage = String(req.body.targetLanguage || '').trim();
+
+    if (!text) return res.status(400).json({ error: 'Campo requerido: text' });
+    if (!sourceLanguage || !targetLanguage) {
+      return res.status(400).json({ error: 'Campo requerido: sourceLanguage y targetLanguage' });
+    }
+
+    const translatedText = sourceLanguage === targetLanguage
+      ? text
+      : await translateText(text, sourceLanguage, targetLanguage);
+
+    return res.json({
+      userName,
+      sourceLanguage,
+      targetLanguage,
+      translatedText,
+      assistantResponse: `Bueno ${userName}, tu traducción a ${targetLanguage} es: ${translatedText}`
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Error al traducir texto.', detail: error.message });
+  }
 });
 
 module.exports = router;

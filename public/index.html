@@ -3,11 +3,18 @@
   <head>
     <meta charset="utf-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1" />
-    <title>Tamon IA · Traducción hiperautomatizada</title>
+    <title>Tamon Translator · Traducción hiperautomatizada</title>
     <link rel="stylesheet" href="/styles.css" />
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
   <body>
+    <nav class="top-nav">
+      <a href="/" class="top-nav-brand">Tamon</a>
+      <div class="top-nav-links">
+        <a href="/profile.html">Mi perfil</a>
+        <a href="/admin.html">Admin dashboard</a>
+      </div>
+    </nav>
     <button id="sidebar-toggle" aria-label="Mostrar/Ocultar menú" class="sidebar-toggle">
       <span></span><span></span><span></span>
     </button>
@@ -19,6 +26,8 @@
     <button class="sidebar-btn" id="menu-btn">Menú principal</button>
     <button class="sidebar-btn" id="chat-btn">Conversación con Tamon</button>
     <button class="sidebar-btn" id="faq-btn">FAQ</button>
+    <a class="sidebar-btn sidebar-link-btn" href="/profile.html">Mi perfil</a>
+    <a class="sidebar-btn sidebar-link-btn" href="/admin.html">Admin dashboard</a>
     <button class="sidebar-btn" id="admin-reports-btn" style="display: none; background: linear-gradient(90deg, #333, #000); border: 1px solid #ff007f;">🛠️ Reportes de IA</button>
   </div>
   
@@ -50,7 +59,7 @@
       <header class="hero">
         <img src="/icons/tamon.svg" alt="Tamon" class="hero-icon" />
         <div>
-          <h1 style="margin-bottom: 0.2em;">Tamon's Hub</h1>
+          <h1 style="margin-bottom: 0.2em;">Tamon Translator Hub</h1>
           <p class="eyebrow" style="font-weight: 600; color: #7928ca; margin-bottom: 0.5em;">IA + programa en desarrollo para traducir documentos, imágenes y texto (no OCR).</p>
           <p class="subtitle" style="color: #2d1221;">Centro de traducción inteligente y asistente experimental. Tamon aprende y mejora en cada uso.</p>
         </div>
@@ -170,6 +179,11 @@
 
 
     </main>
+    <footer class="site-footer">
+      <a href="/">Inicio</a>
+      <a href="/profile.html">Perfil</a>
+      <a href="/admin.html">Admin</a>
+    </footer>
 
     <div id="pro-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
       <div style="background: #2d2a32; padding: 30px; border-radius: 15px; max-width: 450px; text-align: center; border: 1px solid #ff007f; color: #f8f9fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">

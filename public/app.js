@@ -443,6 +443,7 @@ function updateSidebarUser(user) {
         
         document.getElementById('sidebar-logout-btn-float').onclick = () => {
           localStorage.removeItem('tamon_user');
+          localStorage.removeItem('tamon_token');
           location.reload();
         };
         setTimeout(() => document.addEventListener('click', ev => {
@@ -515,6 +516,7 @@ if (authForm) {
       const data = await response.json();
       if (response.ok) {
         localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
+        if (data.token) localStorage.setItem('tamon_token', data.token);
         authModal.style.display = 'none';
         updateSidebarUser(data.usuario);
         if (!isLoginMode) alert('¡Registro exitoso!');

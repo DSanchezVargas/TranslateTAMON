@@ -731,3 +731,106 @@ textarea {
     padding: 5px;
 }
 .remove-file:hover { color: #fff; }
+
+.top-nav {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  padding: 0.75rem 1rem 0.75rem 250px;
+  background: rgba(30, 28, 34, 0.9);
+  position: sticky;
+  top: 0;
+  z-index: 120;
+}
+
+.top-nav a {
+  color: #fff;
+  text-decoration: none;
+  font-weight: 600;
+}
+
+.top-nav-links {
+  display: flex;
+  gap: 1rem;
+}
+
+.top-nav-brand {
+  color: #ff007f;
+  font-size: 1.2rem;
+}
+
+.sidebar-link-btn {
+  display: block;
+  text-align: center;
+  text-decoration: none;
+}
+
+.site-footer {
+  margin: 2rem auto 1rem auto;
+  display: flex;
+  justify-content: center;
+  gap: 1.2rem;
+}
+
+.site-footer a {
+  color: #e2e8f0;
+}
+
+.profile-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(280px, 1fr));
+  gap: 1rem;
+}
+
+.profile-avatar {
+  width: 96px;
+  height: 96px;
+  border-radius: 50%;
+  object-fit: cover;
+  margin: 0.8rem 0;
+}
+
+.kpi-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(180px, 1fr));
+  gap: 0.8rem;
+}
+
+.kpi-card {
+  background: #2f1b29;
+  border: 1px solid #8a5f77;
+  border-radius: 0.8rem;
+  padding: 0.8rem;
+}
+
+.kpi-card p {
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0.4rem 0 0;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.simple-table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 580px;
+}
+
+.simple-table th,
+.simple-table td {
+  border: 1px solid #8a5f77;
+  padding: 0.5rem;
+  text-align: left;
+}
+
+@media (max-width: 900px) {
+  .top-nav {
+    padding-left: 1rem;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 0.5rem;
+  }
+}
