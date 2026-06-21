@@ -1,0 +1,25 @@
+{
+  "admin": {
+    "name": "Tatsu",
+    "email": "yeonbinjimin@gmail.com",
+    "password": "Zhenya_26"
+  },
+  "user_oliver": {
+    "name": "Oliver",
+    "email": "oliversaldanay@gmail.com",
+    "password": "Oliver_26",
+    "plan": "Tamon Chill"
+  },
+  "user_sailar": {
+    "name": "Sailar",
+    "email": "sailar774@gmail.com",
+    "password": "Sailar_26",
+    "plan": "Tamon Chill"
+  },
+  "user_sonia": {
+    "name": "Sonia",
+    "email": "scaipotrujillo@gmail.com",
+    "password": "Sonia_26",
+    "plan": "Tamon Chill"
+  }
+}

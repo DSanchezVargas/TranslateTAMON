@@ -5,7 +5,7 @@
   "main": "src/server.js",
   "scripts": {
     "test": "jest --runInBand",
-    "start": "node src/server.js",
+    "start": "concurrently \"node src/server.js\" \"python3 python_services/docx_processor.py\" \"python3 python_services/pdf_processor.py\"",
     "lint": "eslint . --max-warnings=0",
     "build": "echo \"No build step required\"",
     "dev": "concurrently \"npm run dev:node\" \"npm run dev:python-docx\" \"npm run dev:python-pdf\"",
