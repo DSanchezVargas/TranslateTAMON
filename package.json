@@ -5,7 +5,7 @@
   "main": "Back/src/server.js",
   "scripts": {
     "test": "npm run test --prefix Back",
-    "start": "npm run start --prefix Back",
+    "start": "concurrently \"node Back/src/server.js\" \"python3 Back/python_services/docx_processor.py\" \"python3 Back/python_services/pdf_processor.py\"",
     "lint": "npm run lint --prefix Back",
     "build": "echo \"No build step required\"",
     "dev": "concurrently \"npm run dev:node\" \"npm run dev:python-docx\" \"npm run dev:python-pdf\"",
