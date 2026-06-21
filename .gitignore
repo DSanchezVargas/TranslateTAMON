@@ -416,3 +416,7 @@ FodyWeavers.xsd
 *.msix
 *.msm
 *.msp
+
+# Archivos de credenciales de pruebas locales
+real_users.json
+

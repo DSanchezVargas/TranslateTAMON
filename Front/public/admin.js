@@ -1,5 +1,7 @@
 let languageChart;
 let fileTypeChart;
+const user = JSON.parse(localStorage.getItem('tamon_user') || 'null');
+const token = localStorage.getItem('tamon_token');
 
 function adminFetch(path, options = {}) {
   const separator = path.includes('?') ? '&' : '?';
@@ -35,9 +37,11 @@ async function loadDashboard() {
   const fileTypes = await fileTypesRes.json();
   const learning = await learningRes.json();
 
-  document.getElementById('kpi-translations').textContent = stats.totalTranslations || 0;
-  document.getElementById('kpi-users').textContent = stats.activeUsers || 0;
-  document.getElementById('kpi-learning').textContent = `${learning.learningProgressPercent || 0}%`;
+  document.getElementById('kpi-total-users').textContent = stats.totalUsers || 0;
+  document.getElementById('kpi-chill-users').textContent = stats.chillUsers || 0;
+  document.getElementById('kpi-proplus-users').textContent = stats.proPlusUsers || 0;
+  document.getElementById('kpi-most-lang').textContent = stats.mostRequestedLanguage || '-';
+  document.getElementById('kpi-most-file').textContent = stats.mostUsedFileType || '-';
 
   const usageItems = usage.items || [];
   languageChart = renderChart(
@@ -127,6 +131,86 @@ document.getElementById('user-filters').addEventListener('submit', (event) => {
   });
 });
 
+function initSidebar() {
+  if (!user || user.role !== 'admin') {
+    alert('Acceso denegado. Solo administradores.');
+    window.location.href = '/';
+    return;
+  }
+  
+  const sidebarUsername = document.getElementById('sidebar-username');
+  const sidebarUsertype = document.getElementById('sidebar-usertype');
+  if (sidebarUsername) sidebarUsername.textContent = user.nombre || user.username || 'Admin';
+  if (sidebarUsertype) {
+    sidebarUsertype.textContent = 'Admin';
+    sidebarUsertype.className = 'user-badge admin';
+  }
+
+  const sidebarUser = document.getElementById('sidebar-user');
+  if (sidebarUser) {
+    sidebarUser.onclick = (e) => {
+      e.stopPropagation();
+      let menu = document.getElementById('sidebar-user-float-menu');
+      if (menu) {
+        menu.remove();
+        return;
+      }
+      menu = document.createElement('div');
+      menu.id = 'sidebar-user-float-menu';
+      const rect = sidebarUser.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.left = rect.left + 'px';
+      menu.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
+      menu.style.background = '#2d2a32';
+      menu.style.color = '#fff';
+      menu.style.border = '1.5px solid #7928ca';
+      menu.style.borderRadius = '12px';
+      menu.style.padding = '18px 20px 14px 20px';
+      menu.style.zIndex = 2000;
+      
+      menu.innerHTML = `
+        <div style="margin-bottom: 12px; padding: 0 4px;">
+          <div style="font-weight: 700; font-size: 1.15rem; color: #fff; line-height: 1.2;">${user.nombre || 'Admin'}</div>
+          <div style="font-size: 0.85rem; margin-top: 4px; display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: 700; background: linear-gradient(135deg, #7928ca, #ff007f); color: #fff;">
+            Administrador
+          </div>
+        </div>
+        <div style="height: 1px; background: rgba(255, 255, 255, 0.1); margin: 12px 0;"></div>
+        
+        <a href="/profile.html" class="dropdown-menu-item">
+          <span>👤</span> Mi Perfil
+        </a>
+        
+        <a href="/admin.html" class="dropdown-menu-item">
+          <span>🛠️</span> Admin Dashboard
+        </a>
+        
+        <button id="sidebar-logout-btn-float" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; color: #fff; padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: #ff007f; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(255, 0, 127, 0.2); margin-top: 4px;">
+          <span>🚪</span> Cerrar Sesión
+        </button>
+      `;
+      document.body.appendChild(menu);
+      
+      document.getElementById('sidebar-logout-btn-float').onclick = () => {
+        localStorage.removeItem('tamon_user');
+        localStorage.removeItem('tamon_token');
+        window.location.href = '/';
+      };
+
+      setTimeout(() => {
+        const clickOutsideHandler = ev => {
+          if (!menu.contains(ev.target) && ev.target !== sidebarUser && !sidebarUser.contains(ev.target)) {
+            menu.remove();
+            document.removeEventListener('click', clickOutsideHandler);
+          }
+        };
+        document.addEventListener('click', clickOutsideHandler);
+      }, 100);
+    };
+  }
+}
+
+initSidebar();
 loadDashboard();
 loadUsers();
 loadSuggestions();

@@ -1,6 +1,22 @@
 const express = require('express');
 const router = express.Router();
 const fs = require('fs');
+const jwt = require('jsonwebtoken');
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
+
+function resolveUserId(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      return Number(decoded.id);
+    } catch (e) {
+      // Ignorar error de verificación de token
+    }
+  }
+  return Number(req.user?.id || req.user?._id || null);
+}
 // --- ENDPOINT DE FEEDBACK DE USUARIO ---
 router.post('/feedback', async (req, res) => {
   const { userId, comentario, tipo, traceId } = req.body;
@@ -49,8 +65,7 @@ const { pool, isDbReady } = require('../config/db');
 const { sanitizeString, isInvalidTranslatedText } = require('../utils/validation');
 const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
-const DEFAULT_UPLOAD_LIMIT_MB = 100;
-const uploadLimitMb = Math.max(Number(process.env.MAX_UPLOAD_MB) || DEFAULT_UPLOAD_LIMIT_MB, 1);
+const uploadLimitMb = 5120; // 5 GB máximo global en el parser para permitir la subida de Pro+
 const upload = multer({
   storage: multer.memoryStorage(),
   limits: { fileSize: uploadLimitMb * 1024 * 1024 }
@@ -75,22 +90,25 @@ async function saveHistory(record) {
         source_language VARCHAR(20), target_language VARCHAR(20), project VARCHAR(120),
         domain VARCHAR(120), source_text_hash VARCHAR(255), translated_text_cache TEXT,
         source_text_length INTEGER, translated_text_length INTEGER, status VARCHAR(50),
-        error_message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        error_message TEXT, created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        file_size_bytes BIGINT DEFAULT 0
       )
     `);
 
     await pool.query('ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL');
+    await pool.query('ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0');
     
     await pool.query(`
       INSERT INTO translation_history 
-      (user_id, original_file_name, file_type, source_language, target_language, project, domain, source_text_hash, translated_text_cache, source_text_length, translated_text_length, status, error_message)
-      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13)
+      (user_id, original_file_name, file_type, source_language, target_language, project, domain, source_text_hash, translated_text_cache, source_text_length, translated_text_length, status, error_message, file_size_bytes)
+      VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14)
     `, [
       record.userId || null,
       record.originalFileName || 'unknown', record.fileType || 'unknown', record.sourceLanguage || 'unknown',
       record.targetLanguage || 'unknown', record.project || 'default', record.domain || 'general',
       record.sourceTextHash || '', record.translatedTextCache || '', record.sourceTextLength || 0,
-      record.translatedTextLength || 0, record.status || 'unknown', record.errorMessage || ''
+      record.translatedTextLength || 0, record.status || 'unknown', record.errorMessage || '',
+      record.fileSizeBytes || 0
     ]);
   } catch (e) { console.error("Error guardando historial en Postgres:", e); }
 }
@@ -207,7 +225,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
 }
 
 const { extractDocxRunsWithIndices } = require('../services/docxRunsExtractor');
-async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, project, domain }) {
+async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, project, domain, userId }) {
   const ext = path.extname(file.originalname).toLowerCase();
   if (ext === '.docx') {
     // Extraer runs con índices
@@ -225,7 +243,7 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
     const cached = await findCachedTranslation({ sourceHash: sourceTextHash, sourceLanguage, targetLanguage, project, domain });
     if (cached?.translatedTextCache) return { originalText, translatedText: cached.translatedTextCache, sourceTextHash, fromCache: true };
 
-    const memory = await getMemoryContext({ project, domain, sourceLanguage, targetLanguage });
+    const memory = await getMemoryContext({ userId, project, domain, sourceLanguage, targetLanguage });
     const preRuledText = applyRules(originalText, memory.preRules);
     const { text: textWithPlaceholders, placeholders } = applyGlossaryPlaceholders(preRuledText, memory.glossary);
     let translatedText = await translateText(textWithPlaceholders, sourceLanguage, targetLanguage);
@@ -242,26 +260,73 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
   const traceId = crypto.randomUUID();
 
   // --- NUEVA LÓGICA DE CUOTA POR TIPO Y VENTANA DE TIEMPO ---
+  let isPro = false;
+  let isAdmin = false;
+  let userId = null;
+
   if (isDbReady()) {
     try {
-      const clientIp = req.ip || req.connection.remoteAddress;
-      const ext = req.file ? path.extname(req.file.originalname).toLowerCase() : '';
-      let tipo = 'text';
-      let limite = 10, ventanaMs = 30 * 60 * 1000; // texto: 10 por media hora
-      if (ext === '.pdf') { tipo = 'pdf'; limite = 15; ventanaMs = 60 * 60 * 1000; } // 15 por hora
-      else if (ext === '.docx') { tipo = 'docx'; limite = 20; ventanaMs = 2 * 60 * 60 * 1000; } // 20 por 2 horas
-      else if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) { tipo = 'image'; limite = 15; ventanaMs = 2 * 60 * 60 * 1000; } // 15 por 2 horas
+      userId = resolveUserId(req);
+      let dbUser = null;
 
-      // --- Detectar si es usuario Pro+ o admin (ajusta según tu lógica de usuario) ---
-      let isPro = false;
-      let isAdmin = false;
-      try {
-        const user = req.user || {};
-        if (user.plan === 'pro' || user.isPro) isPro = true;
-        if (user.role === 'admin' || user.isAdmin) isAdmin = true;
-      } catch {}
+      if (userId && Number.isInteger(userId)) {
+        const userRes = await pool.query('SELECT id, plan, role, COALESCE(chibis_count, 0) AS chibis_count FROM users WHERE id = $1', [userId]);
+        dbUser = userRes.rows[0];
+      }
 
-      if (!isPro && !isAdmin) {
+      if (dbUser) {
+        if (dbUser.role === 'admin') {
+          isAdmin = true;
+        } else {
+          isPro = dbUser.plan === 'pro_plus' || dbUser.plan === 'pro';
+          const chibisCount = Number(dbUser.chibis_count || 0);
+          const baseQuota = isPro ? 50 : 15;
+          const limit = baseQuota + chibisCount * 10;
+
+          // Obtener las traducciones en cooldown (activas)
+          const activeCooldownsRes = await pool.query(
+            `SELECT *, 
+               (created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) AS expires_at,
+               EXTRACT(EPOCH FROM ((created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) - NOW()))::INT AS remaining_seconds
+             FROM translation_history
+             WHERE user_id = $1 AND status = 'success'
+               AND (created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) > NOW()
+             ORDER BY expires_at ASC`,
+            [userId]
+          );
+          
+          const activeTranslations = activeCooldownsRes.rows;
+          const usedQuota = activeTranslations.length;
+
+          if (usedQuota >= limit) {
+            const earliestExpiry = activeTranslations[0];
+            const sec = earliestExpiry.remaining_seconds || 0;
+            const hours = Math.floor(sec / 3600);
+            const minutes = Math.max(Math.ceil((sec % 3600) / 60), 1);
+            
+            let resetMsg = `${minutes} minutos`;
+            if (hours > 0) {
+              resetMsg = `${hours} horas y ${minutes} minutos`;
+            }
+
+            return res.status(403).json({
+              error: `⏳ Utilizaste tus cuotas que se restablecen en ${resetMsg}. Espera o usa un plan Chibi/actualiza a Pro+.`,
+              proPlus: true,
+              limitReached: true,
+              cooldownRemainingSeconds: sec
+            });
+          }
+        }
+      } else {
+        // Invitado / Anónimo (basado en IP)
+        const clientIp = req.ip || req.connection.remoteAddress;
+        const ext = req.file ? path.extname(req.file.originalname).toLowerCase() : '';
+        let tipo = 'text';
+        let limite = 10, ventanaMs = 30 * 60 * 1000; // texto: 10 por media hora
+        if (ext === '.pdf') { tipo = 'pdf'; limite = 15; ventanaMs = 60 * 60 * 1000; } // 15 por hora
+        else if (ext === '.docx') { tipo = 'docx'; limite = 20; ventanaMs = 2 * 60 * 60 * 1000; } // 20 por 2 horas
+        else if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) { tipo = 'image'; limite = 15; ventanaMs = 2 * 60 * 60 * 1000; } // 15 por 2 horas
+
         await pool.query(`CREATE TABLE IF NOT EXISTS client_quotas_tipo (
           ip VARCHAR(50), tipo VARCHAR(20), count INT DEFAULT 0, last_used TIMESTAMP, PRIMARY KEY (ip, tipo)
         )`);
@@ -270,11 +335,9 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
         let quota = resDB.rows[0];
 
         if (!quota || (now - new Date(quota.last_used)) > ventanaMs) {
-          // Nueva ventana
           await pool.query('INSERT INTO client_quotas_tipo (ip, tipo, count, last_used) VALUES ($1, $2, 1, $3) ON CONFLICT (ip, tipo) DO UPDATE SET count = 1, last_used = $3', [clientIp, tipo, now]);
         } else {
           if (quota.count >= limite) {
-            // Calcular tiempo restante
             const msRestante = ventanaMs - (now - new Date(quota.last_used));
             const minutos = Math.ceil(msRestante / 60000);
             let tipoMsg = tipo;
@@ -283,7 +346,7 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
             else if (tipo === 'image') tipoMsg = 'imágenes';
             else if (tipo === 'text') tipoMsg = 'textos';
             return res.status(403).json({
-              error: `⏳ Has alcanzado el límite de ${limite} ${tipoMsg}. Intenta de nuevo en ${minutos} minutos o <b>actualiza a Tamon Pro+</b> para uso ilimitado.`,
+              error: `⏳ Has alcanzado el límite de ${limite} ${tipoMsg} para invitados. Registra una cuenta o inicia sesión para obtener más cuota.`,
               proPlus: true,
               tipo,
               minutosRestantes: minutos,
@@ -293,39 +356,39 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
           await pool.query('UPDATE client_quotas_tipo SET count = count + 1, last_used = $3 WHERE ip = $1 AND tipo = $2', [clientIp, tipo, now]);
         }
       }
-      // Si es Pro+ o admin, no se limita
     } catch (err) { console.error("Error cuota Postgres:", err); }
   }
 
   if (!req.file) return res.status(400).json({ error: 'Debes enviar un archivo.' });
 
   try {
-    const userId = Number(req.user?.id || req.user?._id);
     const sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });
     const targetLanguage = sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 });
     const project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
     const domain = sanitizeString(req.body.domain || 'general', { required: true, maxLength: 120 });
 
-    const { originalText, translatedText, sourceTextHash, fromCache } = await createPreviewFromFile({ file: req.file, sourceLanguage, targetLanguage, project, domain });
+    const { originalText, translatedText, sourceTextHash, fromCache } = await createPreviewFromFile({ file: req.file, sourceLanguage, targetLanguage, project, domain, userId });
     const previewId = crypto.randomUUID(); clearExpiredPreviews();
     previewStore.set(previewId, { originalFileName: req.file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, expiresAt: Date.now() + PREVIEW_TTL_MS });
 
+    const safeUserId = Number.isInteger(userId) ? userId : null;
+
     if (shouldReturnPreview) {
       setExperienceHeaders(res, { traceId, status: 'preview_ready', processingMs: Date.now() - startedAt });
-      await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success' });
+      await saveHistory({ userId: safeUserId, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success', fileSizeBytes: req.file.size });
       return res.status(200).json({ previewId, traceId, originalFileName: req.file.originalname, sourceLanguage, targetLanguage, originalText, translatedText, experience: { status: 'preview_ready', estimatedCompletionSeconds: estimateTranslationSecondsByText(originalText), fromCache, assistantMessage: buildAssistantMessage('preview_ready') } });
     }
 
     const translatedDocxBuffer = await createTranslatedDocxBuffer({ originalFileName: req.file.originalname, sourceLanguage, targetLanguage, translatedText });
-    await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success' });
+    await saveHistory({ userId: safeUserId, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success', fileSizeBytes: req.file.size });
 
     setExperienceHeaders(res, { traceId, status: 'document_ready', processingMs: Date.now() - startedAt });
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${path.parse(req.file.originalname).name}-${targetLanguage}.docx"`);
     return res.status(200).send(translatedDocxBuffer);
   } catch (error) {
-    const userId = Number(req.user?.id || req.user?._id);
-    await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: req.file?.originalname, status: 'failed', errorMessage: error.message });
+    const safeUserId = Number.isInteger(userId) ? userId : null;
+    await saveHistory({ userId: safeUserId, originalFileName: req.file?.originalname, status: 'failed', errorMessage: error.message, fileSizeBytes: req.file ? req.file.size : 0 });
     return next(error);
   }
 }

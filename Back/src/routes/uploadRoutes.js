@@ -21,24 +21,24 @@ const storage = multer.diskStorage({
   }
 });
 
-const MAX_UPLOAD_MB = process.env.MAX_UPLOAD_MB ? parseInt(process.env.MAX_UPLOAD_MB) : 100;
 const upload = multer({ 
   storage,
-  limits: { fileSize: MAX_UPLOAD_MB * 1024 * 1024 }
+  limits: { fileSize: 5120 * 1024 * 1024 } // 5 GB limit in multer global parser
 });
 
 const { extractTextFromFile } = require('../services/fileTextExtractor');
 
 // Endpoint para subir archivos (Word, PDF, imagen) y extraer texto
 router.post('/upload', upload.single('file'), async (req, res) => {
-  // Simulación de usuario autenticado (en producción usar req.user)
-  const userType = req.user ? req.user.plan : 'free';
-  const maxSizeMB = userType === 'free' ? 1024 : MAX_UPLOAD_MB;
+  const userPlan = req.user ? req.user.plan : 'free';
+  const isPro = userPlan === 'pro_plus' || userPlan === 'pro' || (req.user && req.user.role === 'admin');
+  const maxSizeMB = isPro ? 5120 : 1024;
   if (!req.file) {
     return res.status(400).json({ error: 'No se subió ningún archivo.' });
   }
   if (req.file.size > maxSizeMB * 1024 * 1024) {
-    return res.status(400).json({ error: `El archivo supera el límite de ${maxSizeMB}MB para tu tipo de usuario (${userType}).` });
+    const displaySize = isPro ? '5 GB' : '1 GB';
+    return res.status(400).json({ error: `El archivo supera el límite de ${displaySize} para tu tipo de usuario (${userPlan === 'free' ? 'Tamon Chill' : 'Tamon Pro+'}).` });
   }
   let extracted = { text: '', type: '' };
   try {

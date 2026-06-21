@@ -1,30 +1,17 @@
 {
-  "name": "translatetamon",
+  "name": "translatetamon-backend",
   "version": "0.1.0",
-  "description": "MVP translation system PDF DOCX JPG PNG to DOCX",
-  "main": "Back/src/server.js",
+  "description": "Backend for Tamon Translator",
+  "main": "src/server.js",
   "scripts": {
-    "test": "npm run test --prefix Back",
-    "start": "npm run start --prefix Back",
-    "lint": "npm run lint --prefix Back",
-    "build": "echo \"No build step required\"",
+    "test": "jest --runInBand",
+    "start": "node src/server.js",
+    "lint": "eslint . --max-warnings=0",
     "dev": "concurrently \"npm run dev:node\" \"npm run dev:python-docx\" \"npm run dev:python-pdf\"",
-    "dev:node": "nodemon Back/src/server.js",
-    "dev:python-docx": "python ./Back/python_services/docx_processor.py",
-    "dev:python-pdf": "set FLASK_RUN_PORT=5002&& python ./Back/python_services/pdf_processor.py"
+    "dev:node": "nodemon src/server.js",
+    "dev:python-docx": "python ./python_services/docx_processor.py",
+    "dev:python-pdf": "set FLASK_RUN_PORT=5002&& python ./python_services/pdf_processor.py"
   },
-  "repository": {
-    "type": "git",
-    "url": "git+https://github.com/DSanchezVargas/TranslateTAMON.git"
-  },
-  "keywords": [],
-  "author": "",
-  "license": "ISC",
-  "type": "commonjs",
-  "bugs": {
-    "url": "https://github.com/DSanchezVargas/TranslateTAMON/issues"
-  },
-  "homepage": "https://github.com/DSanchezVargas/TranslateTAMON#readme",
   "dependencies": {
     "@google/generative-ai": "^0.24.1",
     "@vitalets/google-translate-api": "^9.2.1",
@@ -55,4 +42,3 @@
     "concurrently": "^8.2.2"
   }
 }
-

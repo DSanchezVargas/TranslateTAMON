@@ -154,7 +154,7 @@ function stopProcessTicker() {
 const dropzone = document.getElementById('dropzone');
 const fileInput = document.getElementById('document');
 const fileListContainer = document.getElementById('file-list');
-let selectedFiles = []; 
+let selectedFiles = [];
 
 if (dropzone && fileInput) {
   dropzone.addEventListener('click', () => fileInput.click());
@@ -178,11 +178,23 @@ if (dropzone && fileInput) {
 }
 
 function handleFiles(files) {
-  for (let i = 0; i < files.length; i++) selectedFiles.push(files[i]);
+  const tamonUser = JSON.parse(localStorage.getItem('tamon_user') || 'null');
+  const plan = tamonUser ? tamonUser.plan : 'free';
+  const isAdmin = tamonUser && tamonUser.role === 'admin';
+  const maxSize = (plan === 'pro_plus' || isAdmin) ? 5 * 1024 * 1024 * 1024 : 1024 * 1024 * 1024;
+  const displayLimit = (plan === 'pro_plus' || isAdmin) ? '5 GB' : '1 GB';
+
+  for (let i = 0; i < files.length; i++) {
+    if (files[i].size > maxSize) {
+      alert(`⚠️ El archivo "${files[i].name}" supera el límite permitido de ${displayLimit} para tu plan (${plan === 'free' ? 'Tamon Chill' : 'Tamon Pro+'}).`);
+      continue;
+    }
+    selectedFiles.push(files[i]);
+  }
   renderFileList();
 }
 
-window.removeFile = function(index) {
+window.removeFile = function (index) {
   selectedFiles.splice(index, 1);
   renderFileList();
 }
@@ -199,25 +211,25 @@ function renderFileList() {
     `;
     fileListContainer.appendChild(div);
   });
-  
+
   if (selectedFiles.length > 0) {
-      const dataTransfer = new DataTransfer();
-      dataTransfer.items.add(selectedFiles[0]); // El sistema toma el primero de la cola para mandarlo al servidor
-      fileInput.files = dataTransfer.files;
+    const dataTransfer = new DataTransfer();
+    dataTransfer.items.add(selectedFiles[0]); // El sistema toma el primero de la cola para mandarlo al servidor
+    fileInput.files = dataTransfer.files;
   } else {
-      fileInput.value = '';
+    fileInput.value = '';
   }
 }
 
 async function requestPreview(event) {
   event.preventDefault();
-  
+
   if (selectedFiles.length === 0) {
     alert("Por favor, arrastra o selecciona al menos un archivo.");
     return;
   }
 
-  const fileToProcess = selectedFiles[0]; 
+  const fileToProcess = selectedFiles[0];
   const formData = new FormData(form);
   formData.set('document', fileToProcess);
 
@@ -226,7 +238,10 @@ async function requestPreview(event) {
   startProcessTicker(Math.max(Math.ceil(fileToProcess.size / 8000), 60));
 
   try {
-    const response = await fetch('/api/translate/preview', { method: 'POST', body: formData });
+    const headers = {};
+    const token = localStorage.getItem('tamon_token');
+    if (token) headers['Authorization'] = 'Bearer ' + token;
+    const response = await fetch('/api/translate/preview', { method: 'POST', headers, body: formData });
     const rawBody = await response.text();
     const data = rawBody ? JSON.parse(rawBody) : {};
 
@@ -309,7 +324,10 @@ async function finalizeTranslation() {
   try {
     const response = await fetch('/api/translate/finalize', {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (localStorage.getItem('tamon_token') || '')
+      },
       body: JSON.stringify(payload)
     });
 
@@ -329,15 +347,15 @@ async function finalizeTranslation() {
 
     setProcessProgress(100);
     setStep('step-download');
-    
+
     // Magia de la Cola: Eliminamos el archivo que ya se terminó con éxito
     window.removeFile(0);
-    
+
     if (selectedFiles.length > 0) {
-        setStatus(`✅ Descargado. ¡Tienes ${selectedFiles.length} archivo(s) más en cola! Haz clic en "Generar vista previa IA" para seguir.`);
-        if (previewPanel) previewPanel.classList.add('hidden'); // Ocultamos el panel
+      setStatus(`✅ Descargado. ¡Tienes ${selectedFiles.length} archivo(s) más en cola! Haz clic en "Generar vista previa IA" para seguir.`);
+      if (previewPanel) previewPanel.classList.add('hidden'); // Ocultamos el panel
     } else {
-        setStatus(UI_TEXT.downloaded + " (Cola vacía)");
+      setStatus(UI_TEXT.downloaded + " (Cola vacía)");
     }
 
   } catch (error) {
@@ -355,7 +373,7 @@ if (sidebarToggle && sidebar) {
   sidebarToggle.addEventListener('click', () => {
     sidebar.classList.toggle('hide');
     sidebarToggle.classList.toggle('active');
-    
+
     // NUEVO: Expande el contenido para que no quede el hueco negro
     const mainContent = document.querySelector('.main-content');
     if (mainContent) mainContent.classList.toggle('expanded');
@@ -373,7 +391,7 @@ function showSection(section) {
   if (translationView) translationView.style.display = section === 'menu' ? '' : 'none';
   if (chatSection) chatSection.style.display = section === 'chat' ? '' : 'none';
   if (faqSection) faqSection.style.display = section === 'faq' ? '' : 'none';
-  
+
   [menuBtn, chatBtn, faqBtn].forEach(btn => btn && btn.classList.remove('active'));
   if (section === 'menu' && menuBtn) menuBtn.classList.add('active');
   if (section === 'chat' && chatBtn) chatBtn.classList.add('active');
@@ -391,20 +409,31 @@ function updateSidebarUser(user) {
   const usernameElem = document.getElementById('sidebar-username');
   const usertypeElem = document.getElementById('sidebar-usertype');
   const sidebarUser = document.getElementById('sidebar-user');
-  const adminBtn = document.getElementById('admin-reports-btn'); // NUEVO
+  const servicesBtn = document.getElementById('services-btn');
+  const btnProPlus = document.getElementById('btn-pro-plus');
 
   if (user && Object.keys(user).length > 0) {
+    if (btnProPlus) {
+      if (user.plan === 'pro_plus' || user.role === 'admin') {
+        btnProPlus.style.display = 'none';
+      } else {
+        btnProPlus.style.display = 'block';
+      }
+    }
     const username = user.nombre || user.usuario || 'Usuario';
     if (usernameElem) {
       usernameElem.textContent = username;
       usernameElem.style.fontSize = '1.08rem';
     }
-    
-   if (usertypeElem) {
+
+    if (servicesBtn) {
+      servicesBtn.style.display = 'block';
+    }
+
+    if (usertypeElem) {
       if (user.role === 'admin') {
         usertypeElem.textContent = 'Admin';
         usertypeElem.className = 'user-badge admin';
-        if (adminBtn) adminBtn.style.display = 'block'; // Mostrar botón al admin
       } else {
         if (user.plan === 'pro_plus') {
           usertypeElem.textContent = 'Tamon Pro+';
@@ -413,7 +442,6 @@ function updateSidebarUser(user) {
           usertypeElem.textContent = 'Tamon Chill';
           usertypeElem.className = 'user-badge chill';
         }
-        if (adminBtn) adminBtn.style.display = 'none'; // Ocultar a mortales
       }
       usertypeElem.style.display = '';
     }
@@ -421,7 +449,10 @@ function updateSidebarUser(user) {
       sidebarUser.onclick = (e) => {
         e.stopPropagation();
         let menu = document.getElementById('sidebar-user-float-menu');
-        if (menu) menu.remove();
+        if (menu) {
+          menu.remove();
+          return;
+        }
         menu = document.createElement('div');
         menu.id = 'sidebar-user-float-menu';
         const rect = sidebarUser.getBoundingClientRect();
@@ -432,32 +463,67 @@ function updateSidebarUser(user) {
         menu.style.color = '#fff';
         menu.style.border = '1.5px solid #7928ca';
         menu.style.borderRadius = '12px';
-        menu.style.padding = '18px 22px 10px 22px';
+        menu.style.padding = '18px 20px 14px 20px';
         menu.style.zIndex = 2000;
+
+        let adminOptionHtml = '';
+        if (user.role === 'admin') {
+          adminOptionHtml = `
+            <a href="/admin.html" class="dropdown-menu-item">
+              <span>🛠️</span> Admin Dashboard
+            </a>
+          `;
+        }
+
         menu.innerHTML = `
-          <div style="font-weight:600;font-size:1.13rem;margin-bottom:2px;">${username}</div>
-          <div style="font-size:0.98rem;opacity:0.85;margin-bottom:10px;">${usertypeElem.textContent}</div>
-          <button id="sidebar-logout-btn-float" style="display:block;width:100%;padding:8px 0;background:#ff007f;color:#fff;border:none;border-radius:8px;font-weight:bold;cursor:pointer;">Cerrar sesión</button>
+          <div style="margin-bottom: 12px; padding: 0 4px;">
+            <div style="font-weight: 700; font-size: 1.15rem; color: #fff; line-height: 1.2;">${username}</div>
+            <div style="font-size: 0.85rem; margin-top: 4px; display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: 700; background: ${user.role === 'admin'
+            ? 'linear-gradient(135deg, #7928ca, #ff007f)'
+            : (user.plan === 'pro_plus' ? '#7928ca' : '#6c63ff')
+          }; color: #fff;">
+              ${user.role === 'admin' ? 'Administrador' : usertypeElem.textContent}
+            </div>
+          </div>
+          <div style="height: 1px; background: rgba(255, 255, 255, 0.1); margin: 12px 0;"></div>
+          
+          <a href="/profile.html" class="dropdown-menu-item">
+            <span>👤</span> Mi Perfil
+          </a>
+          
+          ${adminOptionHtml}
+          
+          <button id="sidebar-logout-btn-float" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; color: #fff; padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: #ff007f; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(255, 0, 127, 0.2); margin-top: 4px;">
+            <span>🚪</span> Cerrar Sesión
+          </button>
         `;
         document.body.appendChild(menu);
-        
+
         document.getElementById('sidebar-logout-btn-float').onclick = () => {
           localStorage.removeItem('tamon_user');
           localStorage.removeItem('tamon_token');
           location.reload();
         };
-        setTimeout(() => document.addEventListener('click', ev => {
-          if (!menu.contains(ev.target)) menu.remove();
-        }, { once: true }), 100);
+
+        setTimeout(() => {
+          const clickOutsideHandler = ev => {
+            if (!menu.contains(ev.target) && ev.target !== sidebarUser && !sidebarUser.contains(ev.target)) {
+              menu.remove();
+              document.removeEventListener('click', clickOutsideHandler);
+            }
+          };
+          document.addEventListener('click', clickOutsideHandler);
+        }, 100);
       };
     }
   } else {
     if (usernameElem) {
-        usernameElem.textContent = 'Inicia sesión / Regístrate';
-        usernameElem.style.fontSize = '0.95rem';
+      usernameElem.textContent = 'Inicia sesión / Regístrate';
+      usernameElem.style.fontSize = '0.95rem';
     }
     if (usertypeElem) usertypeElem.style.display = 'none';
-    
+    if (servicesBtn) servicesBtn.style.display = 'none';
+
     if (sidebarUser) {
       sidebarUser.onclick = () => {
         const modal = document.getElementById('auth-modal');
@@ -465,11 +531,158 @@ function updateSidebarUser(user) {
       };
     }
   }
+  syncPlanButtons(user);
 }
+
+function syncPlanButtons(user) {
+  const btnChill = document.getElementById('btn-select-chill');
+  const btnPro = document.getElementById('btn-select-pro');
+  const btnSelectChibi = document.getElementById('btn-select-chibi');
+
+  if (!btnChill || !btnPro) return;
+
+  if (!user || Object.keys(user).length === 0) {
+    btnChill.disabled = false;
+    btnChill.textContent = 'Elegir plan';
+    btnChill.style.background = 'linear-gradient(135deg, #7928ca, #3b82f6)';
+    btnChill.style.color = '#fff';
+    btnChill.style.border = 'none';
+    btnChill.style.cursor = 'pointer';
+    btnChill.style.boxShadow = '0 4px 15px rgba(121,40,202,0.2)';
+    btnChill.onclick = () => {
+      const authModal = document.getElementById('auth-modal');
+      if (authModal) authModal.style.display = 'flex';
+    };
+
+    btnPro.disabled = false;
+    btnPro.textContent = 'Actualizar ahora';
+    btnPro.style.background = 'linear-gradient(135deg, #ff007f, #7928ca)';
+    btnPro.style.color = '#fff';
+    btnPro.style.border = 'none';
+    btnPro.style.cursor = 'pointer';
+    btnPro.style.boxShadow = '0 4px 15px rgba(255, 0, 127, 0.3)';
+    btnPro.onclick = () => {
+      const authModal = document.getElementById('auth-modal');
+      if (authModal) authModal.style.display = 'flex';
+    };
+
+    if (btnSelectChibi) {
+      btnSelectChibi.disabled = false;
+      btnSelectChibi.textContent = 'Comprar Chibi';
+      btnSelectChibi.style.background = '#ffe600';
+      btnSelectChibi.style.color = '#000';
+      btnSelectChibi.style.border = 'none';
+      btnSelectChibi.style.cursor = 'pointer';
+      btnSelectChibi.style.boxShadow = '0 4px 15px rgba(255, 230, 0, 0.2)';
+      btnSelectChibi.onclick = () => {
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.style.display = 'flex';
+      };
+    }
+    return;
+  }
+
+  if (user.plan === 'pro_plus' || user.role === 'admin') {
+    btnPro.disabled = true;
+    btnPro.textContent = 'Plan Activo';
+    btnPro.style.background = 'rgba(255, 255, 255, 0.05)';
+    btnPro.style.color = '#888';
+    btnPro.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+    btnPro.style.cursor = 'not-allowed';
+    btnPro.style.boxShadow = 'none';
+    btnPro.onclick = null;
+
+    btnChill.disabled = false;
+    btnChill.textContent = 'Cambiar a Chill';
+    btnChill.style.background = 'transparent';
+    btnChill.style.color = '#fff';
+    btnChill.style.border = '1px solid #7928ca';
+    btnChill.style.cursor = 'pointer';
+    btnChill.style.boxShadow = 'none';
+    btnChill.onclick = async () => {
+      if (confirm('¿Seguro que deseas volver al plan gratuito Tamon Chill?')) {
+        try {
+          const response = await fetch('/api/plans/change', {
+            method: 'PUT',
+            headers: {
+              'Content-Type': 'application/json',
+              'Authorization': 'Bearer ' + localStorage.getItem('tamon_token')
+            },
+            body: JSON.stringify({ targetPlan: 'free' })
+          });
+          const data = await response.json();
+          if (response.ok) {
+            const updatedUser = { ...user, plan: 'free' };
+            localStorage.setItem('tamon_user', JSON.stringify(updatedUser));
+            alert('Has cambiado al plan Tamon Chill.');
+            location.reload();
+          } else {
+            alert(data.error || 'Error al cambiar de plan.');
+          }
+        } catch (e) {
+          alert('Error de conexión al cambiar de plan.');
+        }
+      }
+    };
+
+    if (btnSelectChibi) {
+      btnSelectChibi.disabled = false;
+      btnSelectChibi.textContent = 'Comprar Chibi';
+      btnSelectChibi.style.background = '#ffe600';
+      btnSelectChibi.style.color = '#000';
+      btnSelectChibi.style.border = 'none';
+      btnSelectChibi.style.cursor = 'pointer';
+      btnSelectChibi.style.boxShadow = '0 4px 15px rgba(255, 230, 0, 0.2)';
+      btnSelectChibi.onclick = () => {
+        showPaymentScreen(user, 'chibi');
+        const proModal = document.getElementById('pro-modal');
+        if (proModal) proModal.style.display = 'flex';
+      };
+    }
+  } else {
+    btnChill.disabled = true;
+    btnChill.textContent = 'Plan Activo';
+    btnChill.style.background = 'rgba(255, 255, 255, 0.05)';
+    btnChill.style.color = '#888';
+    btnChill.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+    btnChill.style.cursor = 'not-allowed';
+    btnChill.style.boxShadow = 'none';
+    btnChill.onclick = null;
+
+    btnPro.disabled = false;
+    btnPro.textContent = 'Actualizar ahora';
+    btnPro.style.background = 'linear-gradient(135deg, #ff007f, #7928ca)';
+    btnPro.style.color = '#fff';
+    btnPro.style.border = 'none';
+    btnPro.style.cursor = 'pointer';
+    btnPro.style.boxShadow = '0 4px 15px rgba(255, 0, 127, 0.3)';
+    btnPro.onclick = () => {
+      showPaymentScreen(user, 'pro_plus');
+      const proModal = document.getElementById('pro-modal');
+      if (proModal) proModal.style.display = 'flex';
+    };
+
+    if (btnSelectChibi) {
+      btnSelectChibi.disabled = false;
+      btnSelectChibi.textContent = 'Comprar Chibi';
+      btnSelectChibi.style.background = '#ffe600';
+      btnSelectChibi.style.color = '#000';
+      btnSelectChibi.style.border = 'none';
+      btnSelectChibi.style.cursor = 'pointer';
+      btnSelectChibi.style.boxShadow = '0 4px 15px rgba(255, 230, 0, 0.2)';
+      btnSelectChibi.onclick = () => {
+        showPaymentScreen(user, 'chibi');
+        const proModal = document.getElementById('pro-modal');
+        if (proModal) proModal.style.display = 'flex';
+      };
+    }
+  }
+}
+
 
 const usuarioGuardado = localStorage.getItem('tamon_user');
 if (usuarioGuardado) {
-  try { updateSidebarUser(JSON.parse(usuarioGuardado)); } 
+  try { updateSidebarUser(JSON.parse(usuarioGuardado)); }
   catch (e) { updateSidebarUser(null); }
 } else {
   updateSidebarUser(null);
@@ -548,7 +761,7 @@ async function actualizarCuotaVisual() {
     if (response.ok) {
       const data = await response.json();
       const restantes = data.total - data.usados;
-      
+
       if (user.plan === 'pro_plus') {
         usageCounter.innerHTML = `🌟 Tamon Pro+: <span style="color: #ff007f;">Ilimitado</span> (Usados hoy: ${data.usados})`;
       } else {
@@ -573,7 +786,14 @@ const proModal = getEl('#pro-modal');
 const btnUpgradeNow = getEl('#btn-upgrade-now');
 
 
-if (btnProPlus && proModal) btnProPlus.addEventListener('click', () => proModal.style.display = 'flex');
+if (btnProPlus && proModal) {
+  btnProPlus.addEventListener('click', () => {
+    const userJson = localStorage.getItem('tamon_user');
+    const user = userJson ? JSON.parse(userJson) : null;
+    restoreModalBenefits(user);
+    proModal.style.display = 'flex';
+  });
+}
 window.addEventListener('click', e => { if (e.target === proModal) proModal.style.display = 'none'; });
 
 // Botón "Quizás luego" cierra el modal
@@ -584,48 +804,302 @@ if (closeModalBtn && proModal) {
   });
 }
 
-if (btnUpgradeNow && proModal) {
-  btnUpgradeNow.addEventListener('click', async () => {
-    const userJson = localStorage.getItem('tamon_user');
-    if (!userJson) {
-        alert('Debes iniciar sesión para unirte a la fila VIP.');
-        proModal.style.display = 'none';
-        if (authModal) authModal.style.display = 'flex';
-        return;
-    }
+function restoreModalBenefits(user) {
+  const modalBody = document.getElementById('pro-modal-body');
+  if (!modalBody) return;
 
-    const user = JSON.parse(userJson);
-    const textoOriginal = btnUpgradeNow.textContent;
-    btnUpgradeNow.textContent = 'Enviando...';
-    btnUpgradeNow.disabled = true;
+  modalBody.innerHTML = `
+    <h2 style="margin-top: 0; color: #ff007f; font-size: 1.8rem;">✨ Tamon Pro+</h2>
+    <p style="color: #cbd5e1; margin-bottom: 20px;">Desbloquea el poder total del aprendizaje hiperautomatizado y olvídate de los límites diarios.</p>
+    
+    <ul style="text-align: left; line-height: 1.8; margin-bottom: 25px; list-style: none; padding-left: 0;">
+      <li>✅ <strong>Documentos ilimitados:</strong> Sin tope de 10 archivos al día.</li>
+      <li>🚀 <strong>Motor VIP Oficial:</strong> Cero bloqueos de servidor.</li>
+      <li>📚 <strong>Memoria extendida:</strong> Tamon aprende más rápido de ti.</li>
+    </ul>
+    
+    <div style="display: flex; justify-content: center; gap: 15px;">
+      <button id="close-modal-btn-restore" style="background: transparent; border: 1px solid #cbd5e1; color: #cbd5e1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Quizás luego</button>
+      <button id="btn-upgrade-now" style="background: linear-gradient(135deg, #ff007f, #7928ca); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);">Actualizar ahora</button>
+    </div>
+  `;
+
+  document.getElementById('close-modal-btn-restore').onclick = () => {
+    proModal.style.display = 'none';
+  };
+
+  document.getElementById('btn-upgrade-now').onclick = () => {
+    if (!user) {
+      alert('Debes iniciar sesión para actualizar tu plan.');
+      proModal.style.display = 'none';
+      const authModal = document.getElementById('auth-modal');
+      if (authModal) authModal.style.display = 'flex';
+      return;
+    }
+    showPaymentScreen(user);
+  };
+}
+
+function showPaymentScreen(user, itemType = 'pro_plus') {
+  const modalBody = document.getElementById('pro-modal-body');
+  if (!modalBody) return;
+
+  const isProPlus = itemType === 'pro_plus';
+  const itemName = isProPlus ? 'Tamon Pro+' : 'Recarga Flash (Chibi)';
+  const itemPrice = isProPlus ? 'S/ 17.80 al mes' : 'S/ 8.50';
+  const itemDesc = isProPlus
+    ? 'Desbloquea 50 documentos diarios, traductor de alta fidelidad, IA con modelos Pro y velocidad VIP.'
+    : 'Agrega +10 documentos a tu cuota diaria de traducciones hoy. Acumulable y aplicable a tu cuenta.';
+
+  modalBody.innerHTML = `
+    <h2 style="margin-top: 0; color: #ff007f; font-size: 1.5rem;">💳 Método de Pago</h2>
+    <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px; text-align: left;">
+      <div style="font-size: 0.8rem; color: #a894a3; text-transform: uppercase;">Producto seleccionado</div>
+      <div style="font-weight: bold; font-size: 1.1rem; color: #fff; margin-top: 2px;">${itemName}</div>
+      <div style="font-size: 0.85rem; color: #cbd5e1; margin-top: 4px;">${itemDesc}</div>
+      <div style="font-size: 1.25rem; font-weight: bold; color: #ffe600; margin-top: 10px;">${itemPrice}</div>
+    </div>
+    <p style="color: #cbd5e1; margin-bottom: 15px; font-size: 0.9rem;">Selecciona cómo deseas realizar tu pago:</p>
+    
+    <div style="display: flex; flex-direction: column; gap: 12px; margin-bottom: 20px;">
+      <button id="btn-pay-card" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; background: rgba(255,255,255,0.06); color: #fff; border: 1px solid #7928ca; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(121,40,202,0.15)'" onmouseout="this.style.background='rgba(255,255,255,0.06)'">
+        <span>💳</span> Tarjeta de Crédito / Débito
+      </button>
+      <button id="btn-pay-cash" style="display: flex; align-items: center; justify-content: center; gap: 8px; width: 100%; padding: 12px; background: rgba(255, 230, 0, 0.08); color: #ffe600; border: 1px solid #ffe600; border-radius: 10px; font-weight: bold; cursor: pointer; transition: 0.2s;" onmouseover="this.style.background='rgba(255, 230, 0, 0.18)'" onmouseout="this.style.background='rgba(255, 230, 0, 0.08)'">
+        <span>💵</span> PagoEfectivo (Banca Móvil / Agentes)
+      </button>
+    </div>
+    
+    <button id="btn-payment-back" style="background: transparent; border: 1px solid #cbd5e1; color: #cbd5e1; padding: 8px 16px; border-radius: 8px; cursor: pointer; font-weight: bold; font-size: 0.9rem;">Atrás</button>
+  `;
+
+  document.getElementById('btn-payment-back').onclick = () => {
+    restoreModalBenefits(user);
+  };
+
+  document.getElementById('btn-pay-card').onclick = () => {
+    showCardPaymentForm(user, itemType);
+  };
+
+  document.getElementById('btn-pay-cash').onclick = () => {
+    showCashPaymentForm(user, itemType);
+  };
+}
+
+function showCardPaymentForm(user, itemType = 'pro_plus') {
+  const modalBody = document.getElementById('pro-modal-body');
+  if (!modalBody) return;
+
+  const isProPlus = itemType === 'pro_plus';
+  const itemName = isProPlus ? 'Tamon Pro+' : 'Recarga Flash (Chibi)';
+  const itemPrice = isProPlus ? 'S/ 17.80' : 'S/ 8.50';
+
+  modalBody.innerHTML = `
+    <h2 style="margin-top: 0; color: #ff007f; font-size: 1.5rem;">💳 Tarjeta de Crédito / Débito</h2>
+    <p style="color: #cbd5e1; margin-bottom: 15px; font-size: 0.85rem; line-height: 1.3;">Ingresa los datos de tu tarjeta para procesar el pago de forma segura.</p>
+    
+    <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 12px; font-size: 0.85rem; text-align: left; display: flex; justify-content: space-between; align-items: center;">
+      <span style="color: #cbd5e1;">Pagarás: <strong>${itemName}</strong></span>
+      <span style="color: #ffe600; font-weight: bold;">${itemPrice}</span>
+    </div>
+
+    <form id="simulated-card-form" style="display: flex; flex-direction: column; gap: 10px; text-align: left; width: 100%;">
+      <label style="font-size: 0.85rem; color: #cbd5e1; font-weight: bold;">Número de Tarjeta
+        <input type="text" id="card-num" placeholder="4242 4242 4242 4242" required style="width: 100%; padding: 8px; background: #1e1c22; border: 1px solid #7928ca; color:#fff;" />
+      </label>
+      <div style="display: flex; gap: 10px;">
+        <label style="flex: 1; font-size: 0.85rem; color: #cbd5e1; font-weight: bold;">Expiración (MM/AA)
+          <input type="text" id="card-exp" placeholder="12/29" required style="width: 100%; padding: 8px; background: #1e1c22; border: 1px solid #7928ca; color:#fff;" />
+        </label>
+        <label style="flex: 1; font-size: 0.85rem; color: #cbd5e1; font-weight: bold;">CVC
+          <input type="text" id="card-cvc" placeholder="123" required style="width: 100%; padding: 8px; background: #1e1c22; border: 1px solid #7928ca; color:#fff;" />
+        </label>
+      </div>
+      <label style="font-size: 0.85rem; color: #cbd5e1; font-weight: bold;">Nombre del Titular
+        <input type="text" id="card-name" placeholder="${user.nombre || 'Usuario'}" required style="width: 100%; padding: 8px; background: #1e1c22; border: 1px solid #7928ca; color:#fff;" />
+      </label>
+      
+      <button type="submit" id="btn-submit-payment" style="width: 100%; padding: 12px; margin-top: 15px; background: linear-gradient(135deg, #ff007f, #7928ca); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+        Confirmar y Pagar ${itemPrice}
+      </button>
+    </form>
+    
+    <button id="btn-card-back" style="background: transparent; border: none; color: #cbd5e1; cursor: pointer; text-decoration: underline; margin-top: 15px; font-size: 0.9rem;">Atrás</button>
+  `;
+
+  document.getElementById('btn-card-back').onclick = () => {
+    showPaymentScreen(user, itemType);
+  };
+
+  document.getElementById('simulated-card-form').onsubmit = async (e) => {
+    e.preventDefault();
+    const btn = document.getElementById('btn-submit-payment');
+    btn.textContent = 'Procesando pago...';
+    btn.disabled = true;
 
     try {
-        const response = await fetch('/api/auth/join-vip', {
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ correo: user.correo, nombre: user.nombre || 'Usuario' })
-        });
+      const endpoint = isProPlus ? '/api/plans/upgrade' : '/api/plans/buy-chibi';
+      const bodyPayload = isProPlus ? { targetPlan: 'pro_plus' } : {};
 
-        if (response.ok) {
-            proModal.innerHTML = `
-              <div style="background: #2d2a32; padding: 40px; border-radius: 15px; text-align: center; border: 1px solid #7928ca;">
-                <h2 style="color: #7928ca; font-size: 1.8rem; margin-top: 0;">¡Estás en la lista VIP! 🚀</h2>
-                <p style="color: #cbd5e1; margin-top: 15px;">Revisa tu bandeja de entrada (${user.correo}).</p>
-                <button id="close-success-btn" style="margin-top: 25px; padding: 10px 20px; border-radius: 8px; cursor: pointer;">Entendido</button>
-              </div>`;
-            document.getElementById('close-success-btn').onclick = () => location.reload();
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('tamon_token')
+        },
+        body: JSON.stringify(bodyPayload)
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        let successMessage = '';
+        if (isProPlus) {
+          const updatedUser = { ...user, plan: 'pro_plus' };
+          localStorage.setItem('tamon_user', JSON.stringify(updatedUser));
+          successMessage = `
+            <h2 style="color: #7928ca; font-size: 1.8rem; margin-top: 0;">¡Pago Exitoso! 🎉</h2>
+            <p style="color: #cbd5e1; margin-top: 15px;">Tu cuenta ha sido actualizada con éxito a <strong>Tamon Pro+</strong>.</p>
+            <p style="color: #ff007f; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">¡Tu límite diario ahora es de 50 documentos!</p>
+          `;
         } else {
-            alert((await response.json()).error);
+          successMessage = `
+            <h2 style="color: #ffe600; font-size: 1.8rem; margin-top: 0;">¡Recarga Exitosa! ⚡</h2>
+            <p style="color: #cbd5e1; margin-top: 15px;">Se ha cargado un <strong>Chibi (+10 documentos)</strong> a tu cuota diaria.</p>
+            <p style="color: #ffe600; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">¡Tus documentos se agregaron con éxito!</p>
+          `;
         }
-    } catch (error) {
-        alert('Error al conectar con el servidor.');
-    } finally {
-        if (document.getElementById('btn-upgrade-now')) {
-            btnUpgradeNow.textContent = textoOriginal;
-            btnUpgradeNow.disabled = false;
-        }
+
+        modalBody.innerHTML = `
+          ${successMessage}
+          <button id="btn-payment-success-close" style="margin-top: 25px; padding: 10px 20px; background: #7928ca; color:#fff; border:none; border-radius: 8px; cursor: pointer; font-weight:bold;">Aceptar y Actualizar</button>
+        `;
+        document.getElementById('btn-payment-success-close').onclick = () => {
+          location.reload();
+        };
+      } else {
+        alert(data.error || 'Error al procesar el pago.');
+        btn.textContent = `Confirmar y Pagar ${itemPrice}`;
+        btn.disabled = false;
+      }
+    } catch (err) {
+      alert('Error de conexión.');
+      btn.textContent = `Confirmar y Pagar ${itemPrice}`;
+      btn.disabled = false;
     }
-  });
+  };
+}
+
+function showCashPaymentForm(user, itemType = 'pro_plus') {
+  const modalBody = document.getElementById('pro-modal-body');
+  if (!modalBody) return;
+
+  const isProPlus = itemType === 'pro_plus';
+  const itemName = isProPlus ? 'Tamon Pro+' : 'Recarga Flash (Chibi)';
+  const itemPrice = isProPlus ? 'S/ 17.80' : 'S/ 8.50';
+
+  const cipCode = Math.floor(10000000 + Math.random() * 90000000);
+
+  modalBody.innerHTML = `
+    <!-- Header estilo PagoEfectivo -->
+    <div style="background: #ffe600; color: #000; padding: 10px; border-radius: 10px; font-weight: bold; font-size: 1.2rem; display: flex; align-items: center; justify-content: center; gap: 8px; margin-bottom: 15px;">
+      <span>💵</span> PagoEfectivo
+    </div>
+    <p style="color: #cbd5e1; margin-bottom: 15px; font-size: 0.9rem; line-height: 1.3;">Genera tu código CIP y realiza el pago a través de tu banca móvil o en agentes autorizados.</p>
+    
+    <div style="background: #1e1c22; padding: 15px; border-radius: 8px; border: 1.5px dashed #ffe600; margin: 15px 0;">
+      <div style="font-size: 0.8rem; color: #a894a3; text-transform: uppercase; letter-spacing: 1px;">Código CIP generado</div>
+      <div id="cip-value" style="font-size: 1.8rem; font-weight: bold; color: #ffe600; margin: 5px 0; font-family: monospace;">${cipCode}</div>
+      <button id="btn-copy-cip" style="background: rgba(255,230,0,0.1); border: 1px solid #ffe600; color: #ffe600; padding: 4px 10px; border-radius: 6px; font-size: 0.75rem; font-weight: bold; cursor: pointer; margin-top: 5px; transition: 0.2s;" onmouseover="this.style.background='rgba(255,230,0,0.2)'" onmouseout="this.style.background='rgba(255,230,0,0.1)'">
+        📋 Copiar Código CIP
+      </button>
+      <div style="font-size: 0.85rem; color: #fff; font-weight: bold; margin-top: 10px;">Total a pagar: ${itemPrice}</div>
+    </div>
+    
+    <div style="text-align: left; font-size: 0.8rem; color: #cbd5e1; background: rgba(255,255,255,0.02); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.06); margin-bottom: 20px; line-height: 1.4;">
+      <strong style="color: #ffe600; display: block; margin-bottom: 4px;">¿Cómo pagar en Perú?</strong>
+      1. Entra a tu app bancaria (BCP, BBVA, Interbank, Scotiabank, etc.) o banca por internet.<br>
+      2. Selecciona: <strong>Pago de Servicios</strong> > Buscar empresa <strong>"PagoEfectivo"</strong>.<br>
+      3. Ingresa el código CIP de arriba y confirma el pago.<br>
+      4. O paga físicamente indicando el código CIP en cualquier <strong>Agente BCP, Agente Interbank, Tambo</strong> o bodegas autorizadas.
+    </div>
+    
+    <button id="btn-submit-cash-payment" style="width: 100%; padding: 12px; background: #ffe600; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-bottom: 12px; box-shadow: 0 4px 15px rgba(255, 230, 0, 0.25); transition: 0.2s;" onmouseover="this.style.transform='scale(1.02)'" onmouseout="this.style.transform='scale(1)'">
+      Confirmar Pago
+    </button>
+    
+    <button id="btn-cash-back" style="background: transparent; border: none; color: #cbd5e1; cursor: pointer; text-decoration: underline; font-size: 0.9rem;">Atrás</button>
+  `;
+
+  document.getElementById('btn-copy-cip').onclick = () => {
+    navigator.clipboard.writeText(cipCode.toString()).then(() => {
+      const toast = document.getElementById('tamon-toast');
+      if (toast) {
+        toast.textContent = '¡Código CIP copiado al portapapeles! 📋';
+        toast.classList.add('show');
+        setTimeout(() => toast.classList.remove('show'), 3000);
+      }
+    });
+  };
+
+  document.getElementById('btn-cash-back').onclick = () => {
+    showPaymentScreen(user, itemType);
+  };
+
+  document.getElementById('btn-submit-cash-payment').onclick = async () => {
+    const btn = document.getElementById('btn-submit-cash-payment');
+    btn.textContent = 'Verificando pago...';
+    btn.disabled = true;
+
+    try {
+      const endpoint = isProPlus ? '/api/plans/upgrade' : '/api/plans/buy-chibi';
+      const bodyPayload = isProPlus ? { targetPlan: 'pro_plus' } : {};
+
+      const response = await fetch(endpoint, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': 'Bearer ' + localStorage.getItem('tamon_token')
+        },
+        body: JSON.stringify(bodyPayload)
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        let successMessage = '';
+        if (isProPlus) {
+          const updatedUser = { ...user, plan: 'pro_plus' };
+          localStorage.setItem('tamon_user', JSON.stringify(updatedUser));
+          successMessage = `
+            <h2 style="color: #ffe600; font-size: 1.8rem; margin-top: 0;">¡Pago Completado! 🎉</h2>
+            <p style="color: #cbd5e1; margin-top: 15px;">El CIP <strong>${cipCode}</strong> ha sido verificado y procesado con éxito.</p>
+            <p style="color: #ffe600; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">¡Tu plan Tamon Pro+ ya está activo!</p>
+          `;
+        } else {
+          successMessage = `
+            <h2 style="color: #ffe600; font-size: 1.8rem; margin-top: 0;">¡Recarga Completada! ⚡</h2>
+            <p style="color: #cbd5e1; margin-top: 15px;">El CIP <strong>${cipCode}</strong> ha sido procesado con éxito.</p>
+            <p style="color: #ffe600; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">¡Se ha agregado un Chibi (+10 documentos)!</p>
+          `;
+        }
+
+        modalBody.innerHTML = `
+          ${successMessage}
+          <button id="btn-payment-success-close" style="margin-top: 25px; padding: 10px 20px; background: #ffe600; color:#000; border:none; border-radius: 8px; cursor: pointer; font-weight:bold;">Aceptar y Actualizar</button>
+        `;
+        document.getElementById('btn-payment-success-close').onclick = () => {
+          location.reload();
+        };
+      } else {
+        alert(data.error || 'Error al validar el pago.');
+        btn.textContent = 'Confirmar Pago';
+        btn.disabled = false;
+      }
+    } catch (err) {
+      alert('Error de conexión.');
+      btn.textContent = 'Confirmar Pago';
+      btn.disabled = false;
+    }
+  };
 }
 
 // =====================================================================
@@ -640,7 +1114,7 @@ document.addEventListener('DOMContentLoaded', () => {
   showSection('menu');
 
   document.querySelectorAll('.faq-question').forEach(btn => {
-    btn.addEventListener('click', function() { this.parentElement.classList.toggle('active'); });
+    btn.addEventListener('click', function () { this.parentElement.classList.toggle('active'); });
   });
 
   const faqList = document.getElementById('faq-list');
@@ -656,9 +1130,9 @@ document.addEventListener('DOMContentLoaded', () => {
       faqList.appendChild(li);
     });
   }
-  
+
   window.removeFaq = idx => { faqs.splice(idx, 1); localStorage.setItem('tamon_faqs', JSON.stringify(faqs)); renderFaqs(); };
-  
+
   if (faqForm) {
     faqForm.onsubmit = e => {
       e.preventDefault();
@@ -678,7 +1152,7 @@ const chatForm = getEl('#chat-form');
 const chatInput = getEl('#chat-input');
 
 // Variable temporal para guardar el texto de la IA si le damos a "No me gusta"
-window.currentTamonMessage = ""; 
+window.currentTamonMessage = "";
 
 function renderChatMessage(msg, from, id = null) {
   if (from === 'user') {
@@ -686,10 +1160,10 @@ function renderChatMessage(msg, from, id = null) {
     div.className = 'chat-bubble user-bubble';
     if (id) div.id = id;
     div.innerHTML = `<span>${msg.replace(/\n/g, '<br>')}</span>`;
-    
+
     if (chatMessages) {
       chatMessages.appendChild(div);
-      chatMessages.scrollTop = chatMessages.scrollHeight; 
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     return div;
   } else {
@@ -700,13 +1174,13 @@ function renderChatMessage(msg, from, id = null) {
 
     const bubble = document.createElement('div');
     bubble.className = 'chat-bubble tamon-bubble';
-    
+
     bubble.innerHTML = `
       <div style="font-weight:bold; margin-bottom:4px;">Tamon:</div>
       <div class="tamon-content">${marked.parse(msg)}</div>
     `;
 
-   // Contenedor de iconos
+    // Contenedor de iconos
     const actions = document.createElement('div');
     actions.className = 'message-actions';
     actions.style.display = 'none'; // NUEVO: Se ocultan mientras "escribe..."
@@ -719,7 +1193,7 @@ function renderChatMessage(msg, from, id = null) {
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = bubble.querySelector('.tamon-content').innerHTML;
       navigator.clipboard.writeText(tempDiv.innerText);
-      
+
       btnCopy.innerHTML = '✅';
       setTimeout(() => btnCopy.innerHTML = '📋', 2000);
     };
@@ -733,12 +1207,12 @@ function renderChatMessage(msg, from, id = null) {
       btnLike.innerHTML = '💖';
       const toast = document.getElementById('tamon-toast');
       toast.classList.add('show');
-      setTimeout(() => { 
-        toast.classList.remove('show'); 
-        btnLike.innerHTML = '👍'; 
+      setTimeout(() => {
+        toast.classList.remove('show');
+        btnLike.innerHTML = '👍';
       }, 3000);
     };
-    
+
     // Botón No Me Gusta (Wrong / Modal)
     const btnDislike = document.createElement('button');
     btnDislike.className = 'action-btn';
@@ -748,9 +1222,9 @@ function renderChatMessage(msg, from, id = null) {
       // Extraemos solo el texto plano sin etiquetas <p> o <b>
       const tempDiv = document.createElement('div');
       tempDiv.innerHTML = bubble.querySelector('.tamon-content').innerHTML;
-      window.currentTamonMessage = tempDiv.innerText; 
-      
-      document.getElementById('feedback-text').value = ''; 
+      window.currentTamonMessage = tempDiv.innerText;
+
+      document.getElementById('feedback-text').value = '';
       document.getElementById('feedback-modal').style.display = 'flex';
     };
 
@@ -763,7 +1237,7 @@ function renderChatMessage(msg, from, id = null) {
 
     if (chatMessages) {
       chatMessages.appendChild(wrapper);
-      chatMessages.scrollTop = chatMessages.scrollHeight; 
+      chatMessages.scrollTop = chatMessages.scrollHeight;
     }
     return wrapper;
   }
@@ -771,13 +1245,13 @@ function renderChatMessage(msg, from, id = null) {
 
 if (chatForm) {
   chatForm.addEventListener('submit', async (e) => {
-    e.preventDefault(); 
+    e.preventDefault();
     const msg = chatInput.value.trim();
     if (!msg) return;
-    
+
     renderChatMessage(msg, 'user');
     chatInput.value = '';
-    
+
     const userJson = localStorage.getItem('tamon_user');
     const nombreUsuario = userJson ? JSON.parse(userJson).nombre : 'Usuario';
 
@@ -786,39 +1260,39 @@ if (chatForm) {
     const contentDiv = tamonWrapper.querySelector('.tamon-content');
 
     try {
-        const response = await fetch('/api/user/chat', { 
-            method: 'POST',
-            headers: { 'Content-Type': 'application/json' },
-            body: JSON.stringify({ message: msg, userName: nombreUsuario })
-        });
+      const response = await fetch('/api/user/chat', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ message: msg, userName: nombreUsuario })
+      });
 
-        if (!response.ok) throw new Error('Error en la conexión');
+      if (!response.ok) throw new Error('Error en la conexión');
 
-        const reader = response.body.getReader();
-        const decoder = new TextDecoder();
-        let fullText = "";
+      const reader = response.body.getReader();
+      const decoder = new TextDecoder();
+      let fullText = "";
 
-        while (true) {
-            const { done, value } = await reader.read();
-            if (done) break;
+      while (true) {
+        const { done, value } = await reader.read();
+        if (done) break;
 
-            const chunk = decoder.decode(value, { stream: true });
-            fullText += chunk;
-            
-            contentDiv.innerHTML = marked.parse(fullText);
-            chatMessages.scrollTop = chatMessages.scrollHeight; 
-        }
+        const chunk = decoder.decode(value, { stream: true });
+        fullText += chunk;
 
-        // Mostrar los iconos solo cuando termina de generar el texto (El arreglo anterior)
-        const actionsDiv = tamonWrapper.querySelector('.message-actions');
-        if (actionsDiv) actionsDiv.style.display = 'flex';
+        contentDiv.innerHTML = marked.parse(fullText);
+        chatMessages.scrollTop = chatMessages.scrollHeight;
+      }
 
-        // NUEVO: Refrescar el contador de cuota de la barra superior al terminar el mensaje
-        actualizarCuotaVisual();
+      // Mostrar los iconos solo cuando termina de generar el texto (El arreglo anterior)
+      const actionsDiv = tamonWrapper.querySelector('.message-actions');
+      if (actionsDiv) actionsDiv.style.display = 'flex';
+
+      // NUEVO: Refrescar el contador de cuota de la barra superior al terminar el mensaje
+      actualizarCuotaVisual();
 
     } catch (error) {
-//...
-        if (contentDiv) contentDiv.innerHTML = `Error: Mis circuitos están sobrecargados.`;
+      //...
+      if (contentDiv) contentDiv.innerHTML = `Error: Mis circuitos están sobrecargados.`;
     }
   });
 }
@@ -838,7 +1312,7 @@ if (sendFeedbackBtn) {
   sendFeedbackBtn.onclick = async () => {
     const comentario = document.getElementById('feedback-text').value.trim();
     if (!comentario) return alert("Por favor, escribe un comentario detallado antes de enviar.");
-    
+
     const userJson = localStorage.getItem('tamon_user');
     const userId = userJson ? JSON.parse(userJson).id : null;
 
@@ -854,12 +1328,12 @@ if (sendFeedbackBtn) {
           userComment: comentario
         })
       });
-      
+
       feedbackModal.style.display = 'none';
       const toast = document.getElementById('tamon-toast');
       toast.classList.add('show');
       setTimeout(() => toast.classList.remove('show'), 3000);
-      
+
     } catch (e) {
       alert("Error enviando el reporte.");
     } finally {
@@ -876,25 +1350,36 @@ const reportsContainer = document.getElementById('reports-container');
 
 if (adminReportsBtn) {
   adminReportsBtn.onclick = () => {
-    showSection('admin'); 
+    showSection('admin');
     loadReports();
   };
 }
 
-// Modificamos un poco showSection para incluir la vista de admin
-const originalShowSection = window.showSection; // Guardamos la original temporalmente si es necesario, o la reescribimos:
-window.showSection = function(section) {
+const servicesBtn = document.getElementById('services-btn');
+const servicesSection = document.getElementById('services-section');
+
+if (servicesBtn) {
+  servicesBtn.onclick = () => {
+    showSection('services');
+  };
+}
+
+// Modificamos un poco showSection para incluir la vista de admin y planes
+const originalShowSection = window.showSection;
+window.showSection = function (section) {
   if (translationView) translationView.style.display = section === 'menu' ? '' : 'none';
   if (chatSection) chatSection.style.display = section === 'chat' ? '' : 'none';
   if (faqSection) faqSection.style.display = section === 'faq' ? '' : 'none';
   if (adminReportsSection) adminReportsSection.style.display = section === 'admin' ? '' : 'none';
-  
-  [menuBtn, chatBtn, faqBtn, adminReportsBtn].forEach(btn => btn && btn.classList.remove('active'));
-  
+  if (servicesSection) servicesSection.style.display = section === 'services' ? '' : 'none';
+
+  [menuBtn, chatBtn, faqBtn, adminReportsBtn, servicesBtn].forEach(btn => btn && btn.classList.remove('active'));
+
   if (section === 'menu' && menuBtn) menuBtn.classList.add('active');
   if (section === 'chat' && chatBtn) chatBtn.classList.add('active');
   if (section === 'faq' && faqBtn) faqBtn.classList.add('active');
   if (section === 'admin' && adminReportsBtn) adminReportsBtn.classList.add('active');
+  if (section === 'services' && servicesBtn) servicesBtn.classList.add('active');
 };
 
 if (refreshReportsBtn) {
@@ -904,14 +1389,13 @@ if (refreshReportsBtn) {
 async function loadReports() {
   if (!reportsContainer) return;
   reportsContainer.innerHTML = '<p style="color: #cbd5e1;">Cargando reportes de la base de datos...</p>';
-  
+
   try {
-    // Llamaremos a una nueva ruta en el backend
     const res = await fetch('/api/admin/reports');
     const data = await res.json();
-    
+
     if (!res.ok) throw new Error(data.error || 'Error cargando reportes');
-    
+
     if (data.length === 0) {
       reportsContainer.innerHTML = '<p style="color: #a894a3;">No hay reportes pendientes. Tamon se está portando bien.</p>';
       return;
@@ -924,9 +1408,9 @@ async function loadReports() {
       div.style.padding = '15px';
       div.style.borderRadius = '8px';
       div.style.borderLeft = '4px solid #ff007f';
-      
+
       const fecha = new Date(report.created_at).toLocaleString();
-      
+
       div.innerHTML = `
         <div style="font-size: 0.8rem; color: #a894a3; margin-bottom: 8px;">
           Reporte ID: ${report.id} | Fecha: ${fecha} | ID Usuario: ${report.user_id || 'Anónimo'}
@@ -950,4 +1434,22 @@ async function loadReports() {
   } catch (error) {
     reportsContainer.innerHTML = `<p style="color: red;">Error: ${error.message}</p>`;
   }
+}
+
+// Registro de botones para comprar planes en la vista Nuestros Planes y Servicios
+// El control de clics para btn-select-pro y btn-select-chill se realiza dinámicamente en syncPlanButtons(user)
+
+const btnSelectChibi = document.getElementById('btn-select-chibi');
+if (btnSelectChibi) {
+  btnSelectChibi.onclick = () => {
+    const userJson = localStorage.getItem('tamon_token') ? localStorage.getItem('tamon_user') : null;
+    if (!userJson) {
+      const authModal = document.getElementById('auth-modal');
+      if (authModal) authModal.style.display = 'flex';
+      return;
+    }
+    showPaymentScreen(JSON.parse(userJson), 'chibi');
+    const proModal = document.getElementById('pro-modal');
+    if (proModal) proModal.style.display = 'flex';
+  };
 }

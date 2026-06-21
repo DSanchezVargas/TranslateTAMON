@@ -8,8 +8,10 @@ describe('app routes', () => {
     process.env.ADMIN_TOKEN = 'test-admin-token';
   });
 
-  afterAll(() => {
+  afterAll(async () => {
     process.env.ADMIN_TOKEN = previousAdminToken;
+    const { pool } = require('../src/config/db');
+    await pool.end();
   });
 
   test('GET /health responds ok', async () => {
@@ -127,9 +129,10 @@ describe('app routes', () => {
     expect(response.status).toBe(403);
   });
 
-  test('POST /api/memory/glossary rejects non-admin', async () => {
+  test('POST /api/memory/glossary rejects unauthenticated', async () => {
     const response = await request(app)
       .post('/api/memory/glossary')
+      .set('Authorization', 'Bearer invalid-token')
       .send({
         project: 'default',
         sourceLanguage: 'en',
@@ -138,7 +141,7 @@ describe('app routes', () => {
         targetTerm: 'riesgo'
       });
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(401);
   });
 
   test('POST /api/memory/rules rejects non-admin', async () => {

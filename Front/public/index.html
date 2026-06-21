@@ -8,13 +8,7 @@
     <script src="https://cdn.jsdelivr.net/npm/marked/marked.min.js"></script>
   </head>
   <body>
-    <nav class="top-nav">
-      <a href="/" class="top-nav-brand">Tamon</a>
-      <div class="top-nav-links">
-        <a href="/profile.html">Mi perfil</a>
-        <a href="/admin.html">Admin dashboard</a>
-      </div>
-    </nav>
+
     <button id="sidebar-toggle" aria-label="Mostrar/Ocultar menú" class="sidebar-toggle">
       <span></span><span></span><span></span>
     </button>
@@ -26,9 +20,7 @@
     <button class="sidebar-btn" id="menu-btn">Menú principal</button>
     <button class="sidebar-btn" id="chat-btn">Conversación con Tamon</button>
     <button class="sidebar-btn" id="faq-btn">FAQ</button>
-    <a class="sidebar-btn sidebar-link-btn" href="/profile.html">Mi perfil</a>
-    <a class="sidebar-btn sidebar-link-btn" href="/admin.html">Admin dashboard</a>
-    <button class="sidebar-btn" id="admin-reports-btn" style="display: none; background: linear-gradient(90deg, #333, #000); border: 1px solid #ff007f;">🛠️ Reportes de IA</button>
+    <button class="sidebar-btn" id="services-btn" style="display: none; background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">Nuestros planes y servicios</button>
   </div>
   
   <div class="sidebar-user" id="sidebar-user" style="cursor:pointer;">
@@ -95,6 +87,87 @@
     </div>
   </div>
 </section>
+
+      <section id="services-section" class="panel" style="display:none;">
+        <h2 style="color: #7928ca; font-size: 1.8rem; margin-bottom: 5px;">✨ Nuestros Planes y Servicios</h2>
+        <p class="subtitle" style="color: #cbd5e1; margin-bottom: 25px;">Selecciona el plan ideal para tus necesidades en TranslateTAMON.</p>
+        
+        <!-- INTRODUCCIÓN CREATIVA DE TAMON -->
+        <div style="background: linear-gradient(135deg, rgba(121,40,202,0.12), rgba(255,0,127,0.12)); border: 1.5px solid rgba(121,40,202,0.25); border-radius: 12px; padding: 22px; margin-bottom: 25px; text-align: left; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+          <div style="position: absolute; right: -25px; bottom: -30px; font-size: 7.5rem; font-weight: 900; opacity: 0.04; font-family: 'Outfit', sans-serif; pointer-events: none; user-select: none; color: #fff;">TAMON</div>
+          <h4 style="margin: 0 0 10px 0; color: #ff007f; font-size: 1.15rem; display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; font-weight: 600;">
+            🚀 ¿Qué es Tamon? El Corazón de tu Traducción Inteligente
+          </h4>
+          <p style="margin: 0; color: #cbd5e1; font-size: 0.9rem; line-height: 1.6; font-family: 'Inter', sans-serif;">
+            TranslateTAMON no es solo un traductor de palabras; es un motor de <strong>hiperautomatización lingüística y aprendizaje adaptativo</strong>. Procesamos tus documentos en formatos como Word, PDF o texto directo conservando intactos el diseño, fuentes y formatos originales. Al integrar la potencia de modelos neuronales avanzados de IA, Tamon aprende de las correcciones que realizas y aplica ese conocimiento a tus futuras traducciones, ahorrándote tiempo valioso y garantizando una fidelidad técnica incomparable.
+          </p>
+        </div>
+
+        <div class="plans-container" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 25px; margin-top: 20px;">
+          
+          <!-- PLAN CHILL -->
+          <div class="plan-card" style="background: rgba(255,255,255,0.02); border: 1px solid rgba(255,255,255,0.1); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 4px 15px rgba(0,0,0,0.2);">
+            <div>
+              <div style="font-size: 0.8rem; text-transform: uppercase; color: #a7e9f7; font-weight: bold; letter-spacing: 1px;">Plan Básico</div>
+              <h3 style="font-size: 1.6rem; color: #fff; margin: 10px 0 5px 0;">Tamon Chill</h3>
+              <div style="font-size: 1.8rem; font-weight: bold; color: #a7e9f7; margin: 15px 0;">S/ 0.00 <span style="font-size: 0.9rem; font-weight: normal; color: #cbd5e1;">al mes</span></div>
+              
+              <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 15px 0;">
+              
+              <ul style="list-style: none; padding: 0; text-align: left; line-height: 2; color: #cbd5e1; font-size: 0.95rem;">
+                <li>✔️ <strong>15 documentos diarios</strong></li>
+                <li>✔️ Hasta <strong>1 GB total</strong> de almacenamiento</li>
+                <li>✔️ Traductor con diseño moderno</li>
+                <li>✔️ Chat Tamon IA (Modelo Estándar)</li>
+                <li style="opacity: 0.4;">❌ Traductor de alta fidelidad</li>
+                <li style="opacity: 0.4;">❌ Modelos IA Pro (en desarrollo)</li>
+              </ul>
+            </div>
+            <button id="btn-select-chill" disabled style="width: 100%; padding: 12px; margin-top: 25px; background: rgba(255,255,255,0.05); color: #888; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-weight: bold; cursor: not-allowed;">Plan Activo</button>
+          </div>
+
+          <!-- PLAN PRO+ -->
+          <div class="plan-card" style="background: rgba(121,40,202,0.05); border: 2px solid #7928ca; border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 8px 25px rgba(121,40,202,0.25); position: relative;">
+            <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, #ff007f, #7928ca); color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">RECOMENDADO</div>
+            <div>
+              <div style="font-size: 0.8rem; text-transform: uppercase; color: #ff007f; font-weight: bold; letter-spacing: 1px;">Plan Premium</div>
+              <h3 style="font-size: 1.6rem; color: #fff; margin: 10px 0 5px 0;">Tamon Pro+</h3>
+              <div style="font-size: 1.8rem; font-weight: bold; color: #ff007f; margin: 15px 0;">S/ 17.80 <span style="font-size: 0.9rem; font-weight: normal; color: #cbd5e1;">al mes</span></div>
+              
+              <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 15px 0;">
+              
+              <ul style="list-style: none; padding: 0; text-align: left; line-height: 2; color: #cbd5e1; font-size: 0.95rem;">
+                <li>✔️ <strong>50 documentos diarios</strong></li>
+                <li>✔️ Hasta <strong>5 GB total</strong> de procesamiento</li>
+                <li>✔️ Traductor de <strong>alta fidelidad</strong></li>
+                <li>✔️ Chat Tamon IA (Modelos Pro)</li>
+                <li>✔️ Prioridad VIP y cero bloqueos</li>
+              </ul>
+            </div>
+            <button id="btn-select-pro" style="width: 100%; padding: 12px; margin-top: 25px; background: linear-gradient(135deg, #ff007f, #7928ca); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(255,0,127,0.3);">Actualizar ahora</button>
+          </div>
+
+          <!-- RECARGAS CHIBIS -->
+          <div class="plan-card" style="background: rgba(255,230,0,0.03); border: 1.5px solid #ffe600; border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 4px 15px rgba(255,230,0,0.1);">
+            <div>
+              <div style="font-size: 0.8rem; text-transform: uppercase; color: #ffe600; font-weight: bold; letter-spacing: 1px;">Recargas Flash</div>
+              <h3 style="font-size: 1.6rem; color: #fff; margin: 10px 0 5px 0;">Chibis</h3>
+              <div style="font-size: 1.8rem; font-weight: bold; color: #ffe600; margin: 15px 0;">S/ 8.50 <span style="font-size: 0.9rem; font-weight: normal; color: #cbd5e1;">por recarga</span></div>
+              
+              <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 15px 0;">
+              
+              <ul style="list-style: none; padding: 0; text-align: left; line-height: 2; color: #cbd5e1; font-size: 0.95rem;">
+                <li>✔️ <strong>+10 documentos</strong> para traducir</li>
+                <li>✔️ Válido para planes Chill y Pro+</li>
+                <li>✔️ Activación inmediata con PagoEfectivo</li>
+                <li style="opacity: 0.5;">❌ No incluye créditos para la IA</li>
+              </ul>
+            </div>
+            <button id="btn-select-chibi" style="width: 100%; padding: 12px; margin-top: 25px; background: #ffe600; color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s;">Comprar Chibi</button>
+          </div>
+
+        </div>
+      </section>
 
       <section id="translation-view">
         <section class="panel">
@@ -176,29 +249,23 @@
         </section>
 
       </section>
-
-
     </main>
-    <footer class="site-footer">
-      <a href="/">Inicio</a>
-      <a href="/profile.html">Perfil</a>
-      <a href="/admin.html">Admin</a>
-    </footer>
-
     <div id="pro-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-      <div style="background: #2d2a32; padding: 30px; border-radius: 15px; max-width: 450px; text-align: center; border: 1px solid #ff007f; color: #f8f9fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-        <h2 style="margin-top: 0; color: #ff007f; font-size: 1.8rem;">✨ Tamon Pro+</h2>
-        <p style="color: #cbd5e1; margin-bottom: 20px;">Desbloquea el poder total del aprendizaje hiperautomatizado y olvídate de los límites diarios.</p>
-        
-        <ul style="text-align: left; line-height: 1.8; margin-bottom: 25px; list-style: none; padding-left: 0;">
-          <li>✅ <strong>Documentos ilimitados:</strong> Sin tope de 10 archivos al día.</li>
-          <li>🚀 <strong>Motor VIP Oficial:</strong> Cero bloqueos de servidor.</li>
-          <li>📚 <strong>Memoria extendida:</strong> Tamon aprende más rápido de ti.</li>
-        </ul>
-        
-        <div style="display: flex; justify-content: center; gap: 15px;">
-          <button id="close-modal-btn" style="background: transparent; border: 1px solid #cbd5e1; color: #cbd5e1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Quizás luego</button>
-          <button id="btn-upgrade-now" style="background: linear-gradient(135deg, #ff007f, #7928ca); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);">Actualizar ahora</button>
+      <div id="pro-modal-box" style="background: #2d2a32; padding: 30px; border-radius: 15px; width: 95%; max-width: 450px; text-align: center; border: 1px solid #ff007f; color: #f8f9fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <div id="pro-modal-body">
+          <h2 style="margin-top: 0; color: #ff007f; font-size: 1.8rem;">✨ Tamon Pro+</h2>
+          <p style="color: #cbd5e1; margin-bottom: 20px;">Desbloquea el poder total del aprendizaje hiperautomatizado y olvídate de los límites diarios.</p>
+          
+          <ul style="text-align: left; line-height: 1.8; margin-bottom: 25px; list-style: none; padding-left: 0;">
+            <li>✅ <strong>Documentos ilimitados:</strong> Sin tope de 10 archivos al día.</li>
+            <li>🚀 <strong>Motor VIP Oficial:</strong> Cero bloqueos de servidor.</li>
+            <li>📚 <strong>Memoria extendida:</strong> Tamon aprende más rápido de ti.</li>
+          </ul>
+          
+          <div style="display: flex; justify-content: center; gap: 15px;">
+            <button id="close-modal-btn" style="background: transparent; border: 1px solid #cbd5e1; color: #cbd5e1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Quizás luego</button>
+            <button id="btn-upgrade-now" style="background: linear-gradient(135deg, #ff007f, #7928ca); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);">Actualizar ahora</button>
+          </div>
         </div>
       </div>
     </div>
@@ -236,6 +303,7 @@
         </div>
       </div>
     </div>
+
 
     <script src="/app.js"></script>
   </body>
