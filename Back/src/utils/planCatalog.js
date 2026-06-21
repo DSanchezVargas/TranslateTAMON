@@ -26,8 +26,8 @@ const PLAN_CATALOG = {
 function normalizePlan(rawPlan) {
   if (!rawPlan) return 'free';
   const normalized = String(rawPlan).toLowerCase();
-  if (normalized === 'pro' || normalized === 'vip') return 'pro_plus';
-  if (normalized === 'chill' || normalized === 'gratis') return 'free';
+  if (normalized.includes('pro') || normalized.includes('vip')) return 'pro_plus';
+  if (normalized.includes('chill') || normalized.includes('gratis')) return 'free';
   return PLAN_CATALOG[normalized] ? normalized : 'free';
 }
 

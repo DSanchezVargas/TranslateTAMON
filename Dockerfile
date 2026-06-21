@@ -15,6 +15,17 @@ WORKDIR /app
 
 # Copiar archivos de empaquetado de dependencias
 COPY package*.json ./
+<<<<<<< HEAD
+COPY Back/package*.json ./Back/
+
+# Instalar dependencias de Node
+RUN npm install
+RUN npm install --prefix Back
+
+# Copiar dependencias de Python y ejecutarlas
+COPY Back/python_services/requirements.txt ./requirements.txt
+RUN pip3 install --no-cache-dir -r requirements.txt
+=======
 
 # Instalar dependencias de Node
 RUN npm install
@@ -22,6 +33,7 @@ RUN npm install
 # Copiar dependencias de Python y ejecutarlas
 COPY python_services/requirements.txt ./python_services/requirements.txt
 RUN pip3 install --no-cache-dir -r python_services/requirements.txt
+>>>>>>> origin/main
 
 # Copiar todo el código del proyecto al contenedor
 COPY . .

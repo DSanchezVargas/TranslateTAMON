@@ -1,0 +1,93 @@
+<!doctype html>
+<html lang="es">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Admin Dashboard · Tamon</title>
+    <link rel="stylesheet" href="/styles.css" />
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+  </head>
+  <body>
+    <a href="/" class="sidebar-toggle" aria-label="Volver al inicio" style="display: flex; align-items: center; justify-content: center; text-decoration: none; color: #fff;" onmouseover="this.querySelector('svg').style.transform='translateX(-2px)'" onmouseout="this.querySelector('svg').style.transform='translateX(0)'">
+      <svg width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" style="transition: transform 0.2s ease;"><line x1="19" y1="12" x2="5" y2="12"></line><polyline points="12 19 5 12 12 5"></polyline></svg>
+    </a>
+    <div class="sidebar">
+      <div class="sidebar-menu">
+        <div class="sidebar-logo">
+          <img src="/icons/tamon.svg" alt="Tamon" style="width: 48px; height: 48px; border-radius: 50%;" />
+        </div>
+        <button class="sidebar-btn" onclick="window.location.href='/'">Volver al inicio</button>
+        <button class="sidebar-btn active">Panel Admin</button>
+      </div>
+      
+      <div class="sidebar-user" id="sidebar-user" style="cursor:pointer;">
+        <div class="user-icon" id="sidebar-user-icon">👤</div>
+        <div style="display:flex; flex-direction:column; justify-content:center;">
+          <div id="sidebar-username" style="font-weight:600; font-size:1.08rem;">Usuario</div>
+          <div id="sidebar-usertype" style="font-size:0.93rem; opacity:0.85;"></div>
+        </div>
+        <div id="sidebar-user-menu"></div>
+      </div>
+    </div>
+
+    <div class="main-content">
+      <main class="app-shell">
+        <header class="hero">
+          <img src="/icons/tamon.svg" alt="Tamon" class="hero-icon" />
+          <div>
+            <h1 style="margin: 0;">Panel Admin</h1>
+            <p class="subtitle">Uso, aprendizaje y gestión de usuarios de Tamon.</p>
+          </div>
+        </header>
+
+      <section class="panel kpi-grid" style="display: grid; grid-template-columns: repeat(auto-fit, minmax(180px, 1fr)); gap: 15px;">
+        <article class="kpi-card"><h3>Usuarios Registrados</h3><p id="kpi-total-users">-</p></article>
+        <article class="kpi-card"><h3>Usuarios en Chill</h3><p id="kpi-chill-users">-</p></article>
+        <article class="kpi-card"><h3>Usuarios en Pro+</h3><p id="kpi-proplus-users">-</p></article>
+        <article class="kpi-card"><h3>Idioma Más Solicitado</h3><p id="kpi-most-lang">-</p></article>
+        <article class="kpi-card"><h3>Archivo Más Usado</h3><p id="kpi-most-file">-</p></article>
+      </section>
+
+      <section class="panel profile-grid">
+        <div>
+          <h2>Idiomas más usados</h2>
+          <canvas id="language-chart"></canvas>
+        </div>
+        <div>
+          <h2>Tipos de archivo</h2>
+          <canvas id="filetype-chart"></canvas>
+        </div>
+      </section>
+
+      <section class="panel">
+        <h2>Usuarios</h2>
+        <form id="user-filters" class="grid-form">
+          <label>Búsqueda<input id="filter-search" placeholder="nombre o correo" /></label>
+          <label>Plan
+            <select id="filter-plan">
+              <option value="">Todos</option>
+              <option value="free">Free</option>
+              <option value="pro_plus">Pro Plus</option>
+            </select>
+          </label>
+          <label>Estado
+            <select id="filter-status">
+              <option value="">Todos</option>
+              <option value="active">Activo</option>
+              <option value="blocked">Bloqueado</option>
+            </select>
+          </label>
+          <button class="btn-primary" type="submit">Aplicar filtros</button>
+        </form>
+        <div id="users-table" class="table-scroll"></div>
+      </section>
+
+      <section class="panel">
+        <h2>Sugerencias de corrección pendientes</h2>
+        <div id="suggestions-list"></div>
+      </section>
+      </main>
+    </div>
+    <script src="/admin.js"></script>
+  </body>
+</html>

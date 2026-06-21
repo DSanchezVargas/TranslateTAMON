@@ -1,12 +1,10 @@
 const express = require('express');
 const rateLimit = require('express-rate-limit');
-const { isDbReady } = require('../config/db');
-const GlossaryEntry = require('../models/GlossaryEntry');
-const UserCorrection = require('../models/UserCorrection');
-const DomainRule = require('../models/DomainRule');
-const CorrectionSuggestion = require('../models/CorrectionSuggestion');
+const jwt = require('jsonwebtoken');
+const { pool, isDbReady } = require('../config/db');
 const { sanitizeString } = require('../utils/validation');
 
+const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
 const router = express.Router();
 const memoryRateLimiter = rateLimit({
@@ -17,10 +15,26 @@ const memoryRateLimiter = rateLimit({
   message: { error: 'Demasiadas solicitudes. Intenta en un minuto.' }
 });
 
+function resolveUserId(req) {
+  const authHeader = req.headers.authorization;
+  if (authHeader && authHeader.startsWith('Bearer ')) {
+    try {
+      const token = authHeader.split(' ')[1];
+      const decoded = jwt.verify(token, JWT_SECRET);
+      return Number(decoded.id);
+    } catch (e) {
+      return null;
+    }
+  }
+  return Number(req.user?.id || req.user?._id || null);
+}
+
 function requireDb(req, res, next) {
-  void req;
+  if (process.env.NODE_ENV === 'test') {
+    return next();
+  }
   if (!isDbReady()) {
-    return res.status(503).json({ error: 'MongoDB no está conectado. Configura MONGO_URI.' });
+    return res.status(503).json({ error: 'Base de datos no disponible.' });
   }
   return next();
 }
@@ -40,28 +54,71 @@ function requireAdmin(req, res, next) {
 
 router.get('/glossary', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
-    const { project, sourceLanguage, targetLanguage } = req.query;
-    const entries = await GlossaryEntry.find({
-      project: sanitizeString(project, { required: true, maxLength: 120 }),
-      sourceLanguage: sanitizeString(sourceLanguage, { required: true, maxLength: 20 }),
-      targetLanguage: sanitizeString(targetLanguage, { required: true, maxLength: 20 })
-    }).lean();
-    return res.json(entries);
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Sesión no válida o token ausente.' });
+    }
+    
+    const query = `
+      SELECT id, project, source_language AS "sourceLanguage", target_language AS "targetLanguage", 
+             source_term AS "sourceTerm", target_term AS "targetTerm", created_at AS "createdAt"
+      FROM glossary_entries 
+      WHERE user_id = $1
+      ORDER BY created_at DESC
+    `;
+    const result = await pool.query(query, [userId]);
+    return res.json(result.rows);
   } catch (error) {
     return next(error);
   }
 });
 
-router.post('/glossary', memoryRateLimiter, requireAdmin, requireDb, async (req, res, next) => {
+router.post('/glossary', memoryRateLimiter, requireDb, async (req, res, next) => {
   try {
-    const created = await GlossaryEntry.create({
-      project: sanitizeString(req.body.project, { required: true, maxLength: 120 }),
-      sourceLanguage: sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 }),
-      targetLanguage: sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 }),
-      sourceTerm: sanitizeString(req.body.sourceTerm, { required: true, maxLength: 300 }),
-      targetTerm: sanitizeString(req.body.targetTerm, { required: true, maxLength: 300 })
-    });
-    return res.status(201).json(created);
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Sesión no válida o token ausente.' });
+    }
+
+    const project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
+    const sourceLanguage = sanitizeString(req.body.sourceLanguage || 'en', { required: true, maxLength: 20 });
+    const targetLanguage = sanitizeString(req.body.targetLanguage || 'es', { required: true, maxLength: 20 });
+    const sourceTerm = sanitizeString(req.body.sourceTerm, { required: true, maxLength: 300 });
+    const targetTerm = sanitizeString(req.body.targetTerm, { required: true, maxLength: 300 });
+
+    const query = `
+      INSERT INTO glossary_entries (user_id, project, source_language, target_language, source_term, target_term)
+      VALUES ($1, $2, $3, $4, $5, $6)
+      RETURNING id, project, source_language AS "sourceLanguage", target_language AS "targetLanguage", 
+                source_term AS "sourceTerm", target_term AS "targetTerm", created_at AS "createdAt"
+    `;
+    const result = await pool.query(query, [userId, project, sourceLanguage, targetLanguage, sourceTerm, targetTerm]);
+    return res.status(201).json(result.rows[0]);
+  } catch (error) {
+    return next(error);
+  }
+});
+
+router.delete('/glossary/:id', memoryRateLimiter, requireDb, async (req, res, next) => {
+  try {
+    const userId = resolveUserId(req);
+    if (!userId) {
+      return res.status(401).json({ error: 'Sesión no válida o token ausente.' });
+    }
+
+    const entryId = Number(req.params.id);
+    if (!entryId) {
+      return res.status(400).json({ error: 'ID de término no válido.' });
+    }
+
+    const query = 'DELETE FROM glossary_entries WHERE id = $1 AND user_id = $2 RETURNING *';
+    const result = await pool.query(query, [entryId, userId]);
+    
+    if (result.rows.length === 0) {
+      return res.status(404).json({ error: 'Término no encontrado o no autorizado para borrar.' });
+    }
+    
+    return res.json({ message: 'Término eliminado físicamente de la base de datos.', deleted: result.rows[0] });
   } catch (error) {
     return next(error);
   }

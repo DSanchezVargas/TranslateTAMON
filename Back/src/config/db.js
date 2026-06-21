@@ -45,6 +45,9 @@ async function connectDb() {
       ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS user_status VARCHAR(20) DEFAULT 'active';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS chibis_count INTEGER DEFAULT 0;
+      ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+      ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0;
 
       CREATE TABLE IF NOT EXISTS translation_history (
         id SERIAL PRIMARY KEY,
@@ -61,7 +64,8 @@ async function connectDb() {
         translated_text_length INTEGER,
         status VARCHAR(50),
         error_message TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        file_size_bytes BIGINT DEFAULT 0
       );
        
       CREATE TABLE IF NOT EXISTS tamon_feedback (
@@ -71,6 +75,23 @@ async function connectDb() {
         user_comment TEXT,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      CREATE TABLE IF NOT EXISTS glossary_entries (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE CASCADE,
+        project VARCHAR(120),
+        source_language VARCHAR(20),
+        target_language VARCHAR(20),
+        source_term VARCHAR(255) NOT NULL,
+        target_term VARCHAR(255) NOT NULL,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
+
+      ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
+      ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS project VARCHAR(120);
+      ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS source_language VARCHAR(20);
+      ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS target_language VARCHAR(20);
+      ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
     `);
     
     client.release(); 
@@ -87,8 +108,22 @@ function isDbReady() {
   return isConnected;
 }
 
+const mongoose = require('mongoose');
+async function connectMongo() {
+  const mongoUri = process.env.MONGO_URI || 'mongodb+srv://Tatsu:Alastor_24@translatetamon.qj7mfik.mongodb.net/';
+  try {
+    await mongoose.connect(mongoUri);
+    console.info('¡MongoDB conectado con éxito!');
+    return true;
+  } catch (e) {
+    console.error('Error al conectar a MongoDB:', e.message);
+    return false;
+  }
+}
+
 module.exports = {
   connectDb,
   isDbReady,
+  connectMongo,
   pool 
 };

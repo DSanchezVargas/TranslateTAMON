@@ -31,7 +31,17 @@ function parsePagination(req) {
 router.get('/statistics', requireAdmin, async (_req, res) => {
   if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
   try {
-    const [translations, languages, fileTypes, users] = await Promise.all([
+    const [
+      translations,
+      languages,
+      fileTypes,
+      users,
+      totalUsersQuery,
+      chillUsersQuery,
+      proPlusUsersQuery,
+      topLanguageQuery,
+      topFileTypeQuery
+    ] = await Promise.all([
       pool.query(`SELECT COUNT(*)::INT AS total FROM translation_history WHERE status = 'success'`),
       pool.query(`
         SELECT target_language AS language, COUNT(*)::INT AS total
@@ -48,14 +58,47 @@ router.get('/statistics', requireAdmin, async (_req, res) => {
         GROUP BY LOWER(file_type)
         ORDER BY total DESC
       `),
-      pool.query(`SELECT COUNT(*)::INT AS total FROM users WHERE COALESCE(user_status, 'active') = 'active'`)
+      pool.query(`SELECT COUNT(*)::INT AS total FROM users WHERE COALESCE(user_status, 'active') = 'active'`),
+      pool.query(`SELECT COUNT(*)::INT AS total FROM users`),
+      pool.query(`SELECT COUNT(*)::INT AS total FROM users WHERE plan IN ('free', 'chill', 'gratis')`),
+      pool.query(`SELECT COUNT(*)::INT AS total FROM users WHERE plan = 'pro_plus'`),
+      pool.query(`
+        SELECT target_language AS language, COUNT(*)::INT AS total
+        FROM translation_history
+        WHERE target_language IS NOT NULL AND target_language <> ''
+        GROUP BY target_language
+        ORDER BY total DESC
+        LIMIT 1
+      `),
+      pool.query(`
+        SELECT COALESCE(NULLIF(LOWER(file_type), ''), 'escribir') AS file_type, COUNT(*)::INT AS total
+        FROM translation_history
+        GROUP BY COALESCE(NULLIF(LOWER(file_type), ''), 'escribir')
+        ORDER BY total DESC
+        LIMIT 1
+      `)
     ]);
+
+    const formatLang = (lang) => {
+      const mapping = { es: 'Español', en: 'English', pt: 'Português', fr: 'Français', de: 'Deutsch', it: 'Italiano', zh: '中文', ja: '日本語', ko: '한국어', ru: 'Русский', ar: 'العربية', hi: 'हिन्दी' };
+      return mapping[lang] || lang;
+    };
+
+    const mostRequestedLanguage = topLanguageQuery.rows[0] ? formatLang(topLanguageQuery.rows[0].language) : '-';
+    const rawFileType = topFileTypeQuery.rows[0]?.file_type || '-';
+    const mostUsedFileType = rawFileType === 'escribir' ? 'Escribir (Texto Directo)' : rawFileType.toUpperCase();
 
     return res.json({
       totalTranslations: translations.rows[0]?.total || 0,
       activeUsers: users.rows[0]?.total || 0,
       mostUsedLanguages: languages.rows,
-      filesByType: fileTypes.rows
+      filesByType: fileTypes.rows,
+      // Nuevos KPIs:
+      totalUsers: totalUsersQuery.rows[0]?.total || 0,
+      chillUsers: chillUsersQuery.rows[0]?.total || 0,
+      proPlusUsers: proPlusUsersQuery.rows[0]?.total || 0,
+      mostRequestedLanguage,
+      mostUsedFileType
     });
   } catch (error) {
     return res.status(500).json({ error: 'Error al cargar estadísticas.', detail: error.message });

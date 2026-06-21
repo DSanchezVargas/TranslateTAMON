@@ -112,4 +112,26 @@ router.put('/change', requireAuth, async (req, res) => {
   }
 });
 
+// --- NUEVO: COMPRAR UN CHIBI (Recarga Flash de +10 documentos) ---
+router.post('/buy-chibi', requireAuth, async (req, res) => {
+  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
+  try {
+    // Incrementamos chibis_count en la base de datos
+    const result = await pool.query(
+      `UPDATE users SET chibis_count = COALESCE(chibis_count, 0) + 1 WHERE id = $1 RETURNING chibis_count`,
+      [req.authUserId]
+    );
+    const updatedUser = result.rows[0];
+    if (!updatedUser) return res.status(404).json({ error: 'Usuario no encontrado.' });
+
+    return res.json({
+      message: 'Recarga Flash (Chibi) activada con éxito.',
+      chibisCount: updatedUser.chibis_count,
+      additionalDocs: 10
+    });
+  } catch (error) {
+    return res.status(500).json({ error: 'Error al comprar Chibi.', detail: error.message });
+  }
+});
+
 module.exports = router;

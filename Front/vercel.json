@@ -1,0 +1,9 @@
+{
+  "version": 2,
+  "cleanUrls": true,
+  "rewrites": [
+    { "source": "/api/:path*", "destination": "https://translatetamon.onrender.com/api/:path*" },
+    { "source": "/admin", "destination": "/admin.html" },
+    { "source": "/profile", "destination": "/profile.html" }
+  ]
+}

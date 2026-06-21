@@ -47,7 +47,7 @@ function getUserIdFromRequest(req) {
 
 async function getDbUser(userId) {
   const result = await pool.query(
-    `SELECT id, nombre, email, plan, role, username, avatar_url, user_status, mensajes_hoy, ultima_fecha_chat
+    `SELECT id, nombre, email, plan, role, username, avatar_url, user_status, mensajes_hoy, ultima_fecha_chat, COALESCE(chibis_count, 0) AS chibis_count
      FROM users WHERE id = $1`,
     [userId]
   );
@@ -75,15 +75,32 @@ router.get('/', requireAuth, async (req, res) => {
 
     const normalizedPlan = normalizePlan(user.plan);
     const planInfo = getPlanDetails(normalizedPlan);
-    const usedDocs = Number(user.mensajes_hoy || 0);
-    const quota = planInfo.dailyDocumentQuota === null
-      ? { used: usedDocs, total: null, remaining: null, unlimited: true }
-      : {
-          used: usedDocs,
-          total: planInfo.dailyDocumentQuota,
-          remaining: Math.max(planInfo.dailyDocumentQuota - usedDocs, 0),
-          unlimited: false
-        };
+    const chibisCount = Number(user.chibis_count || 0);
+
+    const activeCooldownsRes = await pool.query(
+      `SELECT COUNT(*)::INT AS count FROM translation_history 
+       WHERE user_id = $1 AND status = 'success'
+         AND (created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) > NOW()`,
+      [req.authUserId]
+    );
+    const usedDocs = activeCooldownsRes.rows[0]?.count || 0;
+
+    const isAdmin = user.role === 'admin';
+    const isPro = normalizedPlan === 'pro_plus' || normalizedPlan === 'pro';
+
+    let quota;
+    if (isAdmin) {
+      quota = { used: usedDocs, total: null, remaining: null, unlimited: true };
+    } else {
+      const baseQuota = isPro ? 50 : 15;
+      const totalDocs = baseQuota + chibisCount * 10;
+      quota = {
+        used: usedDocs,
+        total: totalDocs,
+        remaining: Math.max(totalDocs - usedDocs, 0),
+        unlimited: false
+      };
+    }
 
     const historyResult = await pool.query(
       `SELECT id, original_file_name, file_type, source_language, target_language, status, created_at
@@ -103,6 +120,7 @@ router.get('/', requireAuth, async (req, res) => {
       status: user.user_status || 'active',
       avatarUrl: user.avatar_url || null,
       plan: normalizedPlan,
+      chibisCount,
       planInfo,
       quota,
       translationHistory: historyResult.rows
