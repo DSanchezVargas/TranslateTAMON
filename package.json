@@ -4,9 +4,15 @@
   "description": "MVP translation system PDF DOCX JPG PNG to DOCX",
   "main": "Back/src/server.js",
   "scripts": {
+<<<<<<< HEAD
     "test": "npm run test --prefix Back",
     "start": "concurrently \"node Back/src/server.js\" \"python3 Back/python_services/docx_processor.py\" \"python3 Back/python_services/pdf_processor.py\"",
     "lint": "npm run lint --prefix Back",
+=======
+    "test": "jest --runInBand",
+    "start": "concurrently \"node src/server.js\" \"python3 python_services/docx_processor.py\" \"python3 python_services/pdf_processor.py\"",
+    "lint": "eslint . --max-warnings=0",
+>>>>>>> origin/main
     "build": "echo \"No build step required\"",
     "dev": "concurrently \"npm run dev:node\" \"npm run dev:python-docx\" \"npm run dev:python-pdf\"",
     "dev:node": "nodemon Back/src/server.js",
