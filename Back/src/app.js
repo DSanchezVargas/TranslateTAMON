@@ -169,7 +169,7 @@ app.use('/api/user/profile', userProfileRoutes);
           const hashedPassword = await bcrypt.hash(rawPassword, salt);
           
           await pool.query(
-            `INSERT INTO users (nombre, email, password, plan, role) VALUES ($1, $2, $3, $4, $5)`,
+            `INSERT INTO users (nombre, email, password, plan, role, user_status) VALUES ($1, $2, $3, $4, $5, 'active')`,
             [nombre, email, hashedPassword, plan, role]
           );
           console.info(`Usuario real creado en PostgreSQL: ${nombre} (${email})`);
@@ -188,7 +188,7 @@ app.use('/api/user/profile', userProfileRoutes);
             }
             
             await pool.query(
-              `UPDATE users SET nombre = $1, password = $2, plan = $3, role = $4 WHERE id = $5`,
+              `UPDATE users SET nombre = $1, password = $2, plan = $3, role = $4, user_status = 'active' WHERE id = $5`,
               [nombre, hashedPassword, plan, role, existingUser.id]
             );
             console.info(`Usuario real actualizado en PostgreSQL: ${nombre} (${email})`);

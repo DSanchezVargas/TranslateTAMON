@@ -46,7 +46,9 @@ async function connectDb() {
         ultima_fecha_chat TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
         username VARCHAR(100) UNIQUE,
         avatar_url TEXT,
-        user_status VARCHAR(20) DEFAULT 'active'
+        user_status VARCHAR(20) DEFAULT 'pending',
+        verification_code VARCHAR(6),
+        verification_code_expires TIMESTAMP
       );
 
       CREATE TABLE IF NOT EXISTS translation_history (
@@ -88,9 +90,12 @@ async function connectDb() {
       );
 
       ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS user_status VARCHAR(20) DEFAULT 'active';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS user_status VARCHAR(20) DEFAULT 'pending';
+      ALTER TABLE users ALTER COLUMN user_status SET DEFAULT 'pending';
       ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
       ALTER TABLE users ADD COLUMN IF NOT EXISTS chibis_count INTEGER DEFAULT 0;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code VARCHAR(6);
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS verification_code_expires TIMESTAMP;
 
       ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
       ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0;

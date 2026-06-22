@@ -126,7 +126,28 @@
             <button id="btn-select-chill" disabled style="width: 100%; padding: 12px; margin-top: 25px; background: rgba(255,255,255,0.05); color: #888; border: 1px solid rgba(255,255,255,0.1); border-radius: 8px; font-weight: bold; cursor: not-allowed;">Plan Activo</button>
           </div>
 
-          <!-- PLAN PRO+ -->
+          <!-- PLAN PRO+ BETA (GRATIS EN BETA) -->
+          <div class="plan-card" style="background: rgba(0, 242, 254, 0.05); border: 2px solid #00f2fe; border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 8px 25px rgba(0, 242, 254, 0.25); position: relative;">
+            <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">BETA PÚBLICA</div>
+            <div>
+              <div style="font-size: 0.8rem; text-transform: uppercase; color: #00f2fe; font-weight: bold; letter-spacing: 1px;">Prueba Gratis</div>
+              <h3 style="font-size: 1.6rem; color: #fff; margin: 10px 0 5px 0;">Tamon Pro+ Beta</h3>
+              <div style="font-size: 1.8rem; font-weight: bold; color: #00f2fe; margin: 15px 0;">S/ 0.00 <span style="font-size: 0.9rem; font-weight: normal; color: #cbd5e1;">durante la Beta</span></div>
+              
+              <hr style="border: 0; border-top: 1px solid rgba(255,255,255,0.08); margin: 15px 0;">
+              
+              <ul style="list-style: none; padding: 0; text-align: left; line-height: 2; color: #cbd5e1; font-size: 0.95rem;">
+                <li>✔️ <strong>50 documentos diarios</strong></li>
+                <li>✔️ Hasta <strong>5 GB total</strong> de procesamiento</li>
+                <li>✔️ Traductor de <strong>alta fidelidad</strong></li>
+                <li>✔️ Chat Tamon IA (Modelos Pro)</li>
+                <li>✔️ Sin costo durante fase de prueba</li>
+              </ul>
+            </div>
+            <button id="btn-select-beta" style="width: 100%; padding: 12px; margin-top: 25px; background: linear-gradient(135deg, #00f2fe, #4facfe); color: #000; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(0, 242, 254, 0.3);">Activar Beta Gratis</button>
+          </div>
+
+          <!-- PLAN PRO+ (PAGO OFICIAL) -->
           <div class="plan-card" style="background: rgba(121,40,202,0.05); border: 2px solid #7928ca; border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 8px 25px rgba(121,40,202,0.25); position: relative;">
             <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, #ff007f, #7928ca); color: #fff; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">RECOMENDADO</div>
             <div>
@@ -269,24 +290,50 @@
         </div>
       </div>
     </div>
-<div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1001; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
+    <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 1001; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
       <div style="background: #2d2a32; padding: 35px; border-radius: 15px; width: 320px; border: 1px solid #7928ca; color: #f8f9fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
         
-        <h2 id="auth-title" style="margin-top: 0; color: #7928ca; text-align: center; font-size: 1.6rem;">Iniciar Sesión</h2>
-        
-        <form id="auth-form" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
-          <input type="text" id="auth-nombre" placeholder="Tu Nombre (ej. Tatsu)" style="display: none; padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
+        <!-- Sección de credenciales (Login / Registro) -->
+        <div id="auth-credentials-section">
+          <h2 id="auth-title" style="margin-top: 0; color: #7928ca; text-align: center; font-size: 1.6rem;">Iniciar Sesión</h2>
           
-          <input type="email" id="auth-correo" placeholder="Correo electrónico" required style="padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
-          <input type="password" id="auth-pass" placeholder="Contraseña" required style="padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
-          
-          <button type="submit" id="auth-submit-btn" style="background: #7928ca; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px;">Entrar a Tamon</button>
-        </form>
+          <form id="auth-form" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
+            <input type="text" id="auth-nombre" placeholder="Tu Nombre (ej. Tatsu)" style="display: none; padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
+            
+            <input type="email" id="auth-correo" placeholder="Correo electrónico" required style="padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
+            <input type="password" id="auth-pass" placeholder="Contraseña" required style="padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
+            
+            <button type="submit" id="auth-submit-btn" style="background: #7928ca; color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px;">Entrar a Tamon</button>
+          </form>
 
-        <p style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: #cbd5e1;">
-          <span id="auth-toggle-text">¿No tienes cuenta?</span> 
-          <strong id="auth-toggle-btn" style="color: #ff007f; cursor: pointer;">Regístrate aquí</strong>
-        </p>
+          <p style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: #cbd5e1;">
+            <span id="auth-toggle-text">¿No tienes cuenta?</span> 
+            <strong id="auth-toggle-btn" style="color: #ff007f; cursor: pointer;">Regístrate aquí</strong>
+          </p>
+        </div>
+
+        <!-- Sección de verificación de código OTP -->
+        <div id="auth-verification-section" style="display: none;">
+          <h2 style="margin-top: 0; color: #ff0080; text-align: center; font-size: 1.6rem;">Verifica tu cuenta</h2>
+          <p style="text-align: center; font-size: 0.9rem; margin-top: 10px; margin-bottom: 20px; color: #cbd5e1;">
+            Te enviamos un código de 6 dígitos al correo <strong id="verification-email-target" style="color: #a7e9f7;"></strong>.
+          </p>
+          
+          <form id="verification-form" style="display: flex; flex-direction: column; gap: 15px;">
+            <input type="text" id="verification-code" placeholder="Código de 6 dígitos" maxlength="6" required style="padding: 12px; border-radius: 8px; text-align: center; font-size: 20px; font-weight: bold; letter-spacing: 4px; border: none; background: #1e1c22; color: white;" />
+            
+            <button type="submit" id="verification-submit-btn" style="background: linear-gradient(135deg, #7928ca, #ff0080); color: white; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px;">Verificar Cuenta</button>
+          </form>
+
+          <p style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: #cbd5e1;">
+            ¿No recibiste el código? <br>
+            <strong id="verification-resend-btn" style="color: #a7e9f7; cursor: pointer; text-decoration: underline;">Re-enviar código</strong>
+          </p>
+          <p style="text-align: center; margin-top: 10px; font-size: 0.85rem; margin-bottom: 0;">
+            <strong id="verification-back-btn" style="color: #cbd5e1; cursor: pointer;">Volver</strong>
+          </p>
+        </div>
+
       </div>
     </div>
 

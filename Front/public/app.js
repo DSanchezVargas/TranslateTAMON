@@ -538,6 +538,7 @@ function syncPlanButtons(user) {
   const btnChill = document.getElementById('btn-select-chill');
   const btnPro = document.getElementById('btn-select-pro');
   const btnSelectChibi = document.getElementById('btn-select-chibi');
+  const btnBeta = document.getElementById('btn-select-beta');
 
   if (!btnChill || !btnPro) return;
 
@@ -566,6 +567,20 @@ function syncPlanButtons(user) {
       if (authModal) authModal.style.display = 'flex';
     };
 
+    if (btnBeta) {
+      btnBeta.disabled = false;
+      btnBeta.textContent = 'Activar Beta Gratis';
+      btnBeta.style.background = 'linear-gradient(135deg, #00f2fe, #4facfe)';
+      btnBeta.style.color = '#000';
+      btnBeta.style.border = 'none';
+      btnBeta.style.cursor = 'pointer';
+      btnBeta.style.boxShadow = '0 4px 15px rgba(0, 242, 254, 0.3)';
+      btnBeta.onclick = () => {
+        const authModal = document.getElementById('auth-modal');
+        if (authModal) authModal.style.display = 'flex';
+      };
+    }
+
     if (btnSelectChibi) {
       btnSelectChibi.disabled = false;
       btnSelectChibi.textContent = 'Comprar Chibi';
@@ -591,6 +606,17 @@ function syncPlanButtons(user) {
     btnPro.style.cursor = 'not-allowed';
     btnPro.style.boxShadow = 'none';
     btnPro.onclick = null;
+
+    if (btnBeta) {
+      btnBeta.disabled = true;
+      btnBeta.textContent = 'Plan Beta Activo';
+      btnBeta.style.background = 'rgba(255, 255, 255, 0.05)';
+      btnBeta.style.color = '#888';
+      btnBeta.style.border = '1px solid rgba(255, 255, 255, 0.1)';
+      btnBeta.style.cursor = 'not-allowed';
+      btnBeta.style.boxShadow = 'none';
+      btnBeta.onclick = null;
+    }
 
     btnChill.disabled = false;
     btnChill.textContent = 'Cambiar a Chill';
@@ -662,6 +688,41 @@ function syncPlanButtons(user) {
       if (proModal) proModal.style.display = 'flex';
     };
 
+    if (btnBeta) {
+      btnBeta.disabled = false;
+      btnBeta.textContent = 'Activar Beta Gratis';
+      btnBeta.style.background = 'linear-gradient(135deg, #00f2fe, #4facfe)';
+      btnBeta.style.color = '#000';
+      btnBeta.style.border = 'none';
+      btnBeta.style.cursor = 'pointer';
+      btnBeta.style.boxShadow = '0 4px 15px rgba(0, 242, 254, 0.3)';
+      btnBeta.onclick = async () => {
+        if (confirm('¿Deseas activar la Beta de Tamon Pro+ de forma gratuita?')) {
+          try {
+            const response = await fetch('/api/plans/change', {
+              method: 'PUT',
+              headers: {
+                'Content-Type': 'application/json',
+                'Authorization': 'Bearer ' + localStorage.getItem('tamon_token')
+              },
+              body: JSON.stringify({ targetPlan: 'pro_plus' })
+            });
+            const data = await response.json();
+            if (response.ok) {
+              const updatedUser = { ...user, plan: 'pro_plus' };
+              localStorage.setItem('tamon_user', JSON.stringify(updatedUser));
+              alert('¡Felicidades! Has activado Tamon Pro+ Beta de forma gratuita.');
+              location.reload();
+            } else {
+              alert(data.error || 'Error al activar el plan Beta.');
+            }
+          } catch (e) {
+            alert('Error de conexión al activar el plan Beta.');
+          }
+        }
+      };
+    }
+
     if (btnSelectChibi) {
       btnSelectChibi.disabled = false;
       btnSelectChibi.textContent = 'Comprar Chibi';
@@ -728,19 +789,119 @@ if (authForm) {
       });
       const data = await response.json();
       if (response.ok) {
-        localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
-        if (data.token) localStorage.setItem('tamon_token', data.token);
-        authModal.style.display = 'none';
-        updateSidebarUser(data.usuario);
-        if (!isLoginMode) alert('¡Registro exitoso!');
+        if (data.requiereVerificacion) {
+          // Cambiar a la sección de verificación por código OTP
+          document.getElementById('auth-credentials-section').style.display = 'none';
+          document.getElementById('auth-verification-section').style.display = 'block';
+          document.getElementById('verification-email-target').textContent = data.correo;
+          document.getElementById('verification-code').value = '';
+          document.getElementById('verification-code').focus();
+        } else {
+          localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
+          if (data.token) localStorage.setItem('tamon_token', data.token);
+          authModal.style.display = 'none';
+          updateSidebarUser(data.usuario);
+        }
       } else {
-        alert(data.error);
+        if (data.requiereVerificacion) {
+          // En caso de que el login retorne error porque la cuenta sigue pendiente
+          document.getElementById('auth-credentials-section').style.display = 'none';
+          document.getElementById('auth-verification-section').style.display = 'block';
+          document.getElementById('verification-email-target').textContent = data.correo;
+          document.getElementById('verification-code').value = '';
+          document.getElementById('verification-code').focus();
+          alert(data.error);
+        } else {
+          alert(data.error);
+        }
       }
     } catch (err) {
       alert('Error de conexión.');
     } finally {
       document.getElementById('auth-submit-btn').textContent = isLoginMode ? 'Entrar a Tamon' : 'Registrarse';
     }
+  });
+}
+
+// --- MANEJADORES DE LA VERIFICACIÓN DE CÓDIGO (OTP) ---
+const verificationForm = document.getElementById('verification-form');
+if (verificationForm) {
+  verificationForm.addEventListener('submit', async (e) => {
+    e.preventDefault();
+    const submitBtn = document.getElementById('verification-submit-btn');
+    const codigoInput = document.getElementById('verification-code');
+    const correo = document.getElementById('verification-email-target').textContent;
+    
+    submitBtn.textContent = 'Verificando...';
+    submitBtn.disabled = true;
+    try {
+      const response = await fetch('/api/auth/verify-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo, codigo: codigoInput.value.trim() })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert(data.mensaje || '¡Cuenta verificada con éxito!');
+        localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
+        if (data.token) localStorage.setItem('tamon_token', data.token);
+        
+        // Limpiar el estado de los contenedores
+        document.getElementById('auth-credentials-section').style.display = 'block';
+        document.getElementById('auth-verification-section').style.display = 'none';
+        
+        authModal.style.display = 'none';
+        updateSidebarUser(data.usuario);
+        location.reload();
+      } else {
+        alert(data.error || 'El código es incorrecto.');
+      }
+    } catch (err) {
+      alert('Error de conexión al verificar el código.');
+    } finally {
+      submitBtn.textContent = 'Verificar Cuenta';
+      submitBtn.disabled = false;
+    }
+  });
+}
+
+const verificationResendBtn = document.getElementById('verification-resend-btn');
+if (verificationResendBtn) {
+  verificationResendBtn.addEventListener('click', async () => {
+    const correo = document.getElementById('verification-email-target').textContent;
+    if (!correo) return;
+    
+    verificationResendBtn.style.pointerEvents = 'none';
+    verificationResendBtn.style.opacity = '0.5';
+    verificationResendBtn.textContent = 'Enviando...';
+    
+    try {
+      const response = await fetch('/api/auth/resend-code', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ correo })
+      });
+      const data = await response.json();
+      if (response.ok) {
+        alert('Se ha enviado un nuevo código de 6 dígitos a tu correo.');
+      } else {
+        alert(data.error || 'Error al re-enviar el código.');
+      }
+    } catch (err) {
+      alert('Error de conexión al solicitar el nuevo código.');
+    } finally {
+      verificationResendBtn.style.pointerEvents = 'auto';
+      verificationResendBtn.style.opacity = '1';
+      verificationResendBtn.textContent = 'Re-enviar código';
+    }
+  });
+}
+
+const verificationBackBtn = document.getElementById('verification-back-btn');
+if (verificationBackBtn) {
+  verificationBackBtn.addEventListener('click', () => {
+    document.getElementById('auth-credentials-section').style.display = 'block';
+    document.getElementById('auth-verification-section').style.display = 'none';
   });
 }
 // --- NUEVO: FUNCIÓN PARA ACTUALIZAR LA CUOTA EN LA BARRA SUPERIOR ---
