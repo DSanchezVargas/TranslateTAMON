@@ -46,6 +46,24 @@ app.get('/health', (_, res) => {
   });
 });
 
+app.get('/api/test-db', async (_, res) => {
+  try {
+    const result = await pool.query('SELECT NOW()');
+    res.json({
+      status: 'success',
+      message: 'PostgreSQL connection is working!',
+      time: result.rows[0]
+    });
+  } catch (err) {
+    res.status(500).json({
+      status: 'error',
+      message: 'PostgreSQL connection failed!',
+      error: err.message,
+      stack: err.stack
+    });
+  }
+});
+
 app.get('/api/assistant/status', async (req, res, next) => {
   try {
     let totalTranslations = 0;
