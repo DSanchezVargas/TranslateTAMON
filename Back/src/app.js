@@ -120,7 +120,9 @@ app.use('/api/user/profile', userProfileRoutes);
 
 // Cargar y sincronizar usuarios reales desde real_users.json si existe
 (async () => {
-  if (process.env.NODE_ENV === 'test') return;
+  if (process.env.NODE_ENV === 'test' || process.env.NODE_ENV === 'production' || process.env.RENDER === 'true') {
+    return;
+  }
   try {
     const fs = require('fs');
     const bcrypt = require('bcrypt');
