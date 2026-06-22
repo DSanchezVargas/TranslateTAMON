@@ -1,12 +1,18 @@
 const { Pool } = require('pg');
 
-// MAGIA DE CONEXIÓN: 
-// Si existe process.env.DATABASE_URL (Render), usa esa conexión en la nube con SSL obligatorio.
-// Si no existe, usa tus credenciales locales (localhost) para cuando programas en tu laptop.
+// Forzar a Node.js a aceptar certificados auto-firmados en las cadenas de conexión SSL (Supabase / Render)
+process.env.NODE_TLS_REJECT_UNAUTHORIZED = '0';
+
+let connectionString = process.env.DATABASE_URL;
+if (connectionString) {
+  // Limpiamos sslmode de la URL para que no sobrescriba la opción ssl de pg
+  connectionString = connectionString.replace(/[?&]sslmode=[^&]+/g, '');
+}
+
 const pool = new Pool(
-  process.env.DATABASE_URL 
+  connectionString 
     ? {
-        connectionString: process.env.DATABASE_URL,
+        connectionString: connectionString,
         ssl: { rejectUnauthorized: false } // Indispensable para que Render no rechaze la conexión
       }
     : {
