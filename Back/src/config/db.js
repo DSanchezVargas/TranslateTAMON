@@ -49,13 +49,6 @@ async function connectDb() {
         user_status VARCHAR(20) DEFAULT 'active'
       );
 
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS user_status VARCHAR(20) DEFAULT 'active';
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
-      ALTER TABLE users ADD COLUMN IF NOT EXISTS chibis_count INTEGER DEFAULT 0;
-      ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
-      ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0;
-
       CREATE TABLE IF NOT EXISTS translation_history (
         id SERIAL PRIMARY KEY,
         user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
@@ -93,6 +86,14 @@ async function connectDb() {
         target_term VARCHAR(255) NOT NULL,
         created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       );
+
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS avatar_url TEXT;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS user_status VARCHAR(20) DEFAULT 'active';
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS username VARCHAR(100) UNIQUE;
+      ALTER TABLE users ADD COLUMN IF NOT EXISTS chibis_count INTEGER DEFAULT 0;
+
+      ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE SET NULL;
+      ALTER TABLE translation_history ADD COLUMN IF NOT EXISTS file_size_bytes BIGINT DEFAULT 0;
 
       ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS user_id INTEGER REFERENCES users(id) ON DELETE CASCADE;
       ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS project VARCHAR(120);
