@@ -234,30 +234,84 @@ async function loadGlossary() {
   }
 }
 
-async function deleteGlossaryTerm(id) {
-  if (!confirm('¿Estás seguro de eliminar este término físicamente de tu glosario?')) return;
+// =====================================================================
+// DIÁLOGOS Y ALERTAS PERSONALIZADOS (Estilo Tamon)
+// =====================================================================
+window.alert = function(message) {
+  const modal = document.getElementById('tamon-dialog-modal');
+  const titleEl = document.getElementById('tamon-dialog-title');
+  const msgEl = document.getElementById('tamon-dialog-message');
+  const cancelBtn = document.getElementById('tamon-dialog-cancel-btn');
+  const confirmBtn = document.getElementById('tamon-dialog-confirm-btn');
 
-  try {
-    const response = await fetch(`/api/memory/glossary/${id}`, {
-      method: 'DELETE',
-      headers: authHeaders()
-    });
-    const data = await response.json();
-
-    if (response.ok) {
-      const row = document.getElementById(`glossary-row-${id}`);
-      if (row) row.remove();
-      // Si la tabla queda vacía, recargar
-      const tbody = document.getElementById('glossary-list-tbody');
-      if (tbody && tbody.children.length === 0) {
-        tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: rgba(255,255,255,0.4);">Tu glosario está vacío. Agrega términos arriba.</td></tr>`;
-      }
-    } else {
-      alert(data.error || 'No se pudo eliminar el término.');
-    }
-  } catch (e) {
-    alert('Error al intentar conectar con el servidor.');
+  if (!modal || !titleEl || !msgEl || !confirmBtn) {
+    console.info("Tamon Alert Fallback:", message);
+    return;
   }
+
+  titleEl.textContent = 'Tamon IA';
+  msgEl.textContent = message;
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  
+  confirmBtn.onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  modal.style.display = 'flex';
+};
+
+function showTamonConfirm(message, onConfirm) {
+  const modal = document.getElementById('tamon-dialog-modal');
+  const titleEl = document.getElementById('tamon-dialog-title');
+  const msgEl = document.getElementById('tamon-dialog-message');
+  const cancelBtn = document.getElementById('tamon-dialog-cancel-btn');
+  const confirmBtn = document.getElementById('tamon-dialog-confirm-btn');
+
+  if (!modal || !titleEl || !msgEl || !confirmBtn || !cancelBtn) {
+    if (window.confirm(message)) onConfirm();
+    return;
+  }
+
+  titleEl.textContent = 'Tamon IA';
+  msgEl.textContent = message;
+  cancelBtn.style.display = 'block';
+
+  confirmBtn.onclick = () => {
+    modal.style.display = 'none';
+    onConfirm();
+  };
+
+  cancelBtn.onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  modal.style.display = 'flex';
+}
+
+async function deleteGlossaryTerm(id) {
+  showTamonConfirm('¿Estás seguro de eliminar este término físicamente de tu glosario?', async () => {
+    try {
+      const response = await fetch(`/api/memory/glossary/${id}`, {
+        method: 'DELETE',
+        headers: authHeaders()
+      });
+      const data = await response.json();
+
+      if (response.ok) {
+        const row = document.getElementById(`glossary-row-${id}`);
+        if (row) row.remove();
+        // Si la tabla queda vacía, recargar
+        const tbody = document.getElementById('glossary-list-tbody');
+        if (tbody && tbody.children.length === 0) {
+          tbody.innerHTML = `<tr><td colspan="3" style="text-align: center; color: rgba(255,255,255,0.4);">No hay términos en tu glosario aún.</td></tr>`;
+        }
+      } else {
+        alert(data.error || 'Error al eliminar el término.');
+      }
+    } catch (error) {
+      alert('Error de conexión.');
+    }
+  });
 }
 
 // Vinculamos la función globalmente para que el onclick del botón en la fila la llame

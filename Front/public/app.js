@@ -1,4 +1,58 @@
 // =====================================================================
+// 0. DIÁLOGOS Y ALERTAS PERSONALIZADOS (Estilo Tamon)
+// =====================================================================
+window.alert = function(message) {
+  const modal = document.getElementById('tamon-dialog-modal');
+  const titleEl = document.getElementById('tamon-dialog-title');
+  const msgEl = document.getElementById('tamon-dialog-message');
+  const cancelBtn = document.getElementById('tamon-dialog-cancel-btn');
+  const confirmBtn = document.getElementById('tamon-dialog-confirm-btn');
+
+  if (!modal || !titleEl || !msgEl || !confirmBtn) {
+    console.info("Tamon Alert Fallback:", message);
+    return;
+  }
+
+  titleEl.textContent = 'Tamon IA';
+  msgEl.textContent = message;
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  
+  confirmBtn.onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  modal.style.display = 'flex';
+};
+
+function showTamonConfirm(message, onConfirm) {
+  const modal = document.getElementById('tamon-dialog-modal');
+  const titleEl = document.getElementById('tamon-dialog-title');
+  const msgEl = document.getElementById('tamon-dialog-message');
+  const cancelBtn = document.getElementById('tamon-dialog-cancel-btn');
+  const confirmBtn = document.getElementById('tamon-dialog-confirm-btn');
+
+  if (!modal || !titleEl || !msgEl || !confirmBtn || !cancelBtn) {
+    if (window.confirm(message)) onConfirm();
+    return;
+  }
+
+  titleEl.textContent = 'Tamon IA';
+  msgEl.textContent = message;
+  cancelBtn.style.display = 'block';
+
+  confirmBtn.onclick = () => {
+    modal.style.display = 'none';
+    onConfirm();
+  };
+
+  cancelBtn.onclick = () => {
+    modal.style.display = 'none';
+  };
+
+  modal.style.display = 'flex';
+}
+
+// =====================================================================
 // 1. CONFIGURACIÓN INICIAL Y CONSTANTES
 // =====================================================================
 const LANGUAGES = [
@@ -625,8 +679,8 @@ function syncPlanButtons(user) {
     btnChill.style.border = '1px solid #7928ca';
     btnChill.style.cursor = 'pointer';
     btnChill.style.boxShadow = 'none';
-    btnChill.onclick = async () => {
-      if (confirm('¿Seguro que deseas volver al plan gratuito Tamon Chill?')) {
+    btnChill.onclick = () => {
+      showTamonConfirm('¿Seguro que deseas volver al plan gratuito Tamon Chill?', async () => {
         try {
           const response = await fetch('/api/plans/change', {
             method: 'PUT',
@@ -648,7 +702,7 @@ function syncPlanButtons(user) {
         } catch (e) {
           alert('Error de conexión al cambiar de plan.');
         }
-      }
+      });
     };
 
     if (btnSelectChibi) {
@@ -696,8 +750,8 @@ function syncPlanButtons(user) {
       btnBeta.style.border = 'none';
       btnBeta.style.cursor = 'pointer';
       btnBeta.style.boxShadow = '0 4px 15px rgba(0, 242, 254, 0.3)';
-      btnBeta.onclick = async () => {
-        if (confirm('¿Deseas activar la Beta de Tamon Pro+ de forma gratuita?')) {
+      btnBeta.onclick = () => {
+        showTamonConfirm('¿Deseas activar la Beta de Tamon Pro+ de forma gratuita?', async () => {
           try {
             const response = await fetch('/api/plans/change', {
               method: 'PUT',
@@ -719,7 +773,7 @@ function syncPlanButtons(user) {
           } catch (e) {
             alert('Error de conexión al activar el plan Beta.');
           }
-        }
+        });
       };
     }
 
@@ -742,10 +796,13 @@ function syncPlanButtons(user) {
 
 
 const usuarioGuardado = localStorage.getItem('tamon_user');
-if (usuarioGuardado) {
+const tokenGuardado = localStorage.getItem('tamon_token');
+if (usuarioGuardado && tokenGuardado) {
   try { updateSidebarUser(JSON.parse(usuarioGuardado)); }
   catch (e) { updateSidebarUser(null); }
 } else {
+  localStorage.removeItem('tamon_user');
+  localStorage.removeItem('tamon_token');
   updateSidebarUser(null);
 }
 
