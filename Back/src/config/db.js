@@ -22,6 +22,7 @@ let isConnected = false;
 
 async function connectDb() {
   try {
+    console.info('Intentando conectar a PostgreSQL...');
     const client = await pool.connect();
     console.info('¡PostgreSQL conectado con éxito!');
     
@@ -112,7 +113,10 @@ const mongoose = require('mongoose');
 async function connectMongo() {
   const mongoUri = process.env.MONGO_URI || 'mongodb+srv://Tatsu:Alastor_24@translatetamon.qj7mfik.mongodb.net/';
   try {
-    await mongoose.connect(mongoUri);
+    console.info('Intentando conectar a MongoDB...');
+    await mongoose.connect(mongoUri, {
+      serverSelectionTimeoutMS: 5000
+    });
     console.info('¡MongoDB conectado con éxito!');
     return true;
   } catch (e) {
