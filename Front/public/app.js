@@ -769,6 +769,9 @@ async function actualizarCuotaVisual() {
         const colorAlerta = restantes <= 3 ? '#ff007f' : '#a7e9f7';
         usageCounter.innerHTML = `Cuota Chill: <span style="color: ${colorAlerta}; font-weight: bold;">${restantes} restantes</span> de ${data.total}`;
       }
+    } else {
+      const errData = await response.json().catch(() => ({}));
+      usageCounter.textContent = errData.error || 'Error cargando cuota';
     }
   } catch (error) {
     usageCounter.textContent = 'Error cargando cuota';
