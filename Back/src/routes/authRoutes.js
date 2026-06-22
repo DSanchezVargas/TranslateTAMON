@@ -67,7 +67,11 @@ router.post('/register', async (req, res) => {
 
   } catch (error) {
     console.error('ERROR CRÍTICO EN REGISTRO SQL:', error);
-    return res.status(500).json({ error: 'Error interno al crear la cuenta.' });
+    return res.status(500).json({ 
+      error: 'Error interno al crear la cuenta.',
+      details: error.message,
+      stack: error.stack
+    });
   }
 });
 
