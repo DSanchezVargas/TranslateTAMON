@@ -1,3 +1,64 @@
+function getOrCreateTamonDialog() {
+  let modal = document.getElementById('tamon-dialog-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'tamon-dialog-modal';
+    modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(27, 17, 25, 0.8); z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(4px); font-family: Arial, sans-serif;';
+    
+    modal.innerHTML = `
+      <div style="background: rgba(74, 45, 62, 0.9); padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1.5px solid #eaa8c1; color: #fff5fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h3 id="tamon-dialog-title" style="margin-top: 0; color: #eaa8c1; font-size: 1.4rem;">Tamon IA</h3>
+        <p id="tamon-dialog-message" style="margin: 15px 0 25px 0; color: #fff5fa; font-size: 1rem; line-height: 1.5;"></p>
+        <div style="display: flex; justify-content: center; gap: 15px;">
+          <button id="tamon-dialog-cancel-btn" style="display: none; background: transparent; border: 1px solid #eaa8c1; color: #eaa8c1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
+          <button id="tamon-dialog-confirm-btn" style="background: linear-gradient(135deg, #eaa8c1, #d983ab); color: #2d1221; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Aceptar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
+  return {
+    modal,
+    titleEl: document.getElementById('tamon-dialog-title'),
+    msgEl: document.getElementById('tamon-dialog-message'),
+    cancelBtn: document.getElementById('tamon-dialog-cancel-btn'),
+    confirmBtn: document.getElementById('tamon-dialog-confirm-btn')
+  };
+}
+
+window.alert = function(message, callback) {
+  const { modal, titleEl, msgEl, cancelBtn, confirmBtn } = getOrCreateTamonDialog();
+  if (titleEl) titleEl.textContent = 'Tamon IA';
+  if (msgEl) msgEl.textContent = message;
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  if (confirmBtn) {
+    confirmBtn.onclick = () => {
+      modal.style.display = 'none';
+      if (typeof callback === 'function') callback();
+    };
+  }
+  modal.style.display = 'flex';
+};
+
+function showTamonConfirm(message, onConfirm) {
+  const { modal, titleEl, msgEl, cancelBtn, confirmBtn } = getOrCreateTamonDialog();
+  if (titleEl) titleEl.textContent = 'Tamon IA';
+  if (msgEl) msgEl.textContent = message;
+  if (cancelBtn) {
+    cancelBtn.style.display = 'block';
+    cancelBtn.onclick = () => {
+      modal.style.display = 'none';
+    };
+  }
+  if (confirmBtn) {
+    confirmBtn.onclick = () => {
+      modal.style.display = 'none';
+      if (onConfirm) onConfirm();
+    };
+  }
+  modal.style.display = 'flex';
+}
+
 const user = JSON.parse(localStorage.getItem('tamon_user') || 'null');
 const token = localStorage.getItem('tamon_token');
 
@@ -9,8 +70,9 @@ function authHeaders(extra = {}) {
 
 function requireSession() {
   if (!user) {
-    alert('Debes iniciar sesión para ver tu perfil.');
-    window.location.href = '/';
+    alert('Debes iniciar sesión para ver tu perfil.', () => {
+      window.location.href = '/';
+    });
     return false;
   }
   return true;
@@ -30,10 +92,10 @@ async function loadProfile() {
     const data = await response.json();
     
     if (!response.ok) {
-      if (response.status === 401) {
+      if (response.status === 401 || response.status === 400 || (data.error && data.error.includes('Sesión'))) {
         localStorage.removeItem('tamon_user');
         localStorage.removeItem('tamon_token');
-        if (planEl) planEl.textContent = 'Sesión expirada. Redirigiendo...';
+        if (planEl) planEl.textContent = 'Sesión expirada o inválida. Redirigiendo...';
         setTimeout(() => window.location.href = '/', 2000);
         return;
       }
@@ -237,56 +299,7 @@ async function loadGlossary() {
 // =====================================================================
 // DIÁLOGOS Y ALERTAS PERSONALIZADOS (Estilo Tamon)
 // =====================================================================
-window.alert = function(message) {
-  const modal = document.getElementById('tamon-dialog-modal');
-  const titleEl = document.getElementById('tamon-dialog-title');
-  const msgEl = document.getElementById('tamon-dialog-message');
-  const cancelBtn = document.getElementById('tamon-dialog-cancel-btn');
-  const confirmBtn = document.getElementById('tamon-dialog-confirm-btn');
-
-  if (!modal || !titleEl || !msgEl || !confirmBtn) {
-    console.info("Tamon Alert Fallback:", message);
-    return;
-  }
-
-  titleEl.textContent = 'Tamon IA';
-  msgEl.textContent = message;
-  if (cancelBtn) cancelBtn.style.display = 'none';
-  
-  confirmBtn.onclick = () => {
-    modal.style.display = 'none';
-  };
-
-  modal.style.display = 'flex';
-};
-
-function showTamonConfirm(message, onConfirm) {
-  const modal = document.getElementById('tamon-dialog-modal');
-  const titleEl = document.getElementById('tamon-dialog-title');
-  const msgEl = document.getElementById('tamon-dialog-message');
-  const cancelBtn = document.getElementById('tamon-dialog-cancel-btn');
-  const confirmBtn = document.getElementById('tamon-dialog-confirm-btn');
-
-  if (!modal || !titleEl || !msgEl || !confirmBtn || !cancelBtn) {
-    if (window.confirm(message)) onConfirm();
-    return;
-  }
-
-  titleEl.textContent = 'Tamon IA';
-  msgEl.textContent = message;
-  cancelBtn.style.display = 'block';
-
-  confirmBtn.onclick = () => {
-    modal.style.display = 'none';
-    onConfirm();
-  };
-
-  cancelBtn.onclick = () => {
-    modal.style.display = 'none';
-  };
-
-  modal.style.display = 'flex';
-}
+// Diálogos y alertas personalizados removidos y movidos al inicio del archivo
 
 async function deleteGlossaryTerm(id) {
   showTamonConfirm('¿Estás seguro de eliminar este término físicamente de tu glosario?', async () => {
@@ -374,7 +387,7 @@ if (sidebarUser) {
     menu.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
     menu.style.background = '#2d2a32';
     menu.style.color = '#fff';
-    menu.style.border = '1.5px solid #7928ca';
+    menu.style.border = '1.5px solid var(--tamon-primary)';
     menu.style.borderRadius = '12px';
     menu.style.padding = '18px 20px 14px 20px';
     menu.style.zIndex = 2000;
@@ -396,9 +409,9 @@ if (sidebarUser) {
         <div style="font-weight: 700; font-size: 1.15rem; color: #fff; line-height: 1.2;">${username}</div>
         <div style="font-size: 0.85rem; margin-top: 4px; display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: 700; background: ${
           user.role === 'admin' 
-            ? 'linear-gradient(135deg, #7928ca, #ff007f)' 
-            : (user.plan === 'pro_plus' ? '#7928ca' : '#6c63ff')
-        }; color: #fff;">
+            ? 'linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary))' 
+            : (user.plan === 'pro_plus' ? 'var(--tamon-primary)' : 'rgba(255, 255, 255, 0.1)')
+        }; color: ${user.role === 'admin' || user.plan === 'pro_plus' ? '#2d1221' : '#fff'};">
           ${planText}
         </div>
       </div>
@@ -410,7 +423,7 @@ if (sidebarUser) {
       
       ${adminOptionHtml}
       
-      <button id="sidebar-logout-btn-float" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; color: #fff; padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: #ff007f; cursor: pointer; transition: all 0.2s; box-shadow: 0 4px 10px rgba(255, 0, 127, 0.2); margin-top: 4px;">
+      <button id="sidebar-logout-btn-float" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; color: #2d1221; padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: var(--tamon-secondary); cursor: pointer; transition: all 0.2s; margin-top: 4px;">
         <span>🚪</span> Cerrar Sesión
       </button>
     `;

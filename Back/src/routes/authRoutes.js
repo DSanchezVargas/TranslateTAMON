@@ -14,12 +14,15 @@ dns.setDefaultResultOrder('ipv4first');
 // -------------------------------------------------------------
 
 // Configuramos el enviador de correos con tus credenciales
+const smtpUser = (process.env.SMTP_USER || process.env.EMAIL_USER || '').trim();
+const smtpPass = (process.env.SMTP_PASS || process.env.EMAIL_PASS || '').trim();
+
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT || 465),
   secure: true,
-  auth: process.env.SMTP_USER && process.env.SMTP_PASS
-    ? { user: process.env.SMTP_USER, pass: process.env.SMTP_PASS }
+  auth: smtpUser && smtpPass
+    ? { user: smtpUser, pass: smtpPass }
     : undefined
 });
 
@@ -113,9 +116,9 @@ router.post('/register', async (req, res) => {
     console.info(`=== CÓDIGO OTP PARA REGISTRO DE ${correo} ES: ${code} ===`);
 
     try {
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      if (smtpUser && smtpPass) {
         await transporter.sendMail({
-          from: `"Tamon IA" <${process.env.SMTP_USER}>`,
+          from: `"Tamon IA" <${smtpUser}>`,
           to: correo,
           subject: 'Verifica tu cuenta de Tamon ✨',
           html: getTamonEmailHtml('Verifica tu cuenta', `
@@ -245,9 +248,9 @@ router.post('/resend-code', async (req, res) => {
     console.info(`=== CÓDIGO OTP RE-ENVIADO PARA ${correo} ES: ${code} ===`);
 
     try {
-      if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+      if (smtpUser && smtpPass) {
         await transporter.sendMail({
-          from: `"Tamon IA" <${process.env.SMTP_USER}>`,
+          from: `"Tamon IA" <${smtpUser}>`,
           to: correo,
           subject: 'Tu nuevo código de verificación - Tamon ✨',
           html: getTamonEmailHtml('Verifica tu cuenta', `
@@ -332,9 +335,9 @@ router.post('/login', async (req, res) => {
       console.info(`=== CÓDIGO OTP GENERADO POR LOGIN PENDIENTE PARA ${usuario.email} ES: ${code} ===`);
 
       try {
-        if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+        if (smtpUser && smtpPass) {
           await transporter.sendMail({
-            from: `"Tamon IA" <${process.env.SMTP_USER}>`,
+            from: `"Tamon IA" <${smtpUser}>`,
             to: usuario.email,
             subject: 'Verifica tu cuenta de Tamon ✨',
             html: getTamonEmailHtml('Verifica tu cuenta', `
@@ -412,9 +415,9 @@ router.post('/join-vip', async (req, res) => {
       return res.status(400).json({ error: 'No se encontró un correo válido.' });
     }
 
-    if (process.env.SMTP_USER && process.env.SMTP_PASS) {
+    if (smtpUser && smtpPass) {
       await transporter.sendMail({
-        from: `"Tamon IA VIP" <${process.env.SMTP_USER}>`,
+        from: `"Tamon IA VIP" <${smtpUser}>`,
         to: correo,
         subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
         html: getTamonEmailHtml('Fila VIP Tamon Pro+', `
@@ -441,7 +444,7 @@ router.post('/join-vip', async (req, res) => {
     }
     
     return res.status(200).json({
-      message: process.env.SMTP_USER && process.env.SMTP_PASS
+      message: (smtpUser && smtpPass)
         ? 'Correo VIP enviado con éxito'
         : 'Solicitud VIP registrada (SMTP no configurado)'
     });

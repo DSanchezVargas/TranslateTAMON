@@ -258,12 +258,12 @@
 }
 
 :root {
-  --tamon-primary: #ff007f;     /* neón fucsia */
-  --tamon-secondary: #7928ca;   /* neón violeta */
-  --tamon-accent: #00f2fe;      /* neón cyan */
-  --tamon-neutral: #f8f9fa;     /* texto claro */
-  --tamon-surface: #161421;     /* fondo de paneles violeta oscuro */
-  --tamon-soft: #08070b;        /* fondo general casi negro */
+  --tamon-primary: #eaa8c1;     /* Rosa pastel */
+  --tamon-secondary: #d983ab;   /* Violeta/rosa pastel */
+  --tamon-accent: #f2e4d2;      /* Crema pastel */
+  --tamon-neutral: #fff5fa;     /* Texto y fondo suave */
+  --tamon-surface: rgba(74, 45, 62, 0.7); /* Morado bayas oscuras glassmorphic */
+  --tamon-soft: #1b1119;        /* Fondo base bayas oscuro */
 }
 
 * {
@@ -274,7 +274,8 @@ body {
   margin: 0;
   font-family: Arial, sans-serif;
   color: var(--tamon-neutral);
-  background: radial-gradient(circle at top, #211438, var(--tamon-soft) 65%);
+  background: radial-gradient(circle at top, #f4bfd6, var(--tamon-soft) 58%);
+  background-attachment: fixed;
 }
 
 .app-shell {
@@ -505,12 +506,14 @@ textarea {
   top: 0;
   width: 220px;
   height: 100vh;
-  background: #2d2a32;
+  background: rgba(74, 45, 62, 0.85);
+  backdrop-filter: blur(12px);
+  border-right: 1.5px solid rgba(234, 168, 193, 0.15);
   display: flex;
   flex-direction: column;
   justify-content: space-between;
   z-index: 100;
-  box-shadow: 2px 0 16px rgba(0,0,0,0.12);
+  box-shadow: 4px 0 24px rgba(27, 17, 25, 0.4);
 }
 .sidebar-menu {
   display: flex;
@@ -525,38 +528,48 @@ textarea {
 .sidebar-btn {
   width: 170px;
   padding: 12px 0;
-  background: #1e1c22;
-  color: #e2e8f0;
-  border: none;
+  background: rgba(27, 17, 25, 0.5);
+  color: var(--tamon-neutral);
+  border: 1.5px solid rgba(234, 168, 193, 0.15);
   border-radius: 8px;
   font-weight: bold;
   font-size: 1rem;
   cursor: pointer;
   margin-bottom: 6px;
-  transition: background 0.2s;
+  transition: all 0.2s ease;
+  outline: none;
 }
-.sidebar-btn:hover, .sidebar-btn.active {
-  background: linear-gradient(90deg, #ff007f 0%, #7928ca 100%);
-  color: #fff;
+.sidebar-btn:hover, .sidebar-btn.active, .sidebar-btn:focus {
+  background: linear-gradient(90deg, var(--tamon-primary) 0%, var(--tamon-secondary) 100%);
+  color: #2d1221;
+  border-color: transparent;
+  box-shadow: 0 4px 12px rgba(234, 168, 193, 0.25);
+}
+.sidebar-btn:focus {
+  box-shadow: 0 0 0 2px var(--tamon-primary);
 }
 .sidebar-user {
   display: flex;
   align-items: center;
   gap: 12px;
-  background: #1e1c22;
+  background: rgba(27, 17, 25, 0.65);
+  border: 1px solid rgba(234, 168, 193, 0.15);
   padding: 18px 16px;
   border-radius: 12px 12px 0 0;
   margin: 0 10px 10px 10px;
+  box-shadow: 0 -4px 12px rgba(27, 17, 25, 0.2);
 }
 .user-icon {
-  font-size: 2rem;
-  background: #ff007f;
+  font-size: 1.4rem;
+  background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary));
+  color: #2d1221;
   border-radius: 50%;
   width: 38px;
   height: 38px;
   display: flex;
   align-items: center;
   justify-content: center;
+  box-shadow: 0 2px 8px rgba(234, 168, 193, 0.3);
 }
 #sidebar-username {
   font-weight: bold;
@@ -565,28 +578,6 @@ textarea {
 #sidebar-usertype {
   font-size: 0.95rem;
   font-weight: 600;
-}
-
-.sidebar-btn {
-  width: 170px;
-  padding: 12px 0;
-  background: #1e1c22;
-  color: #e2e8f0;
-  border: none;
-  border-radius: 8px;
-  font-weight: bold;
-  font-size: 1rem;
-  cursor: pointer;
-  margin-bottom: 6px;
-  transition: background 0.2s;
-  outline: none;
-}
-.sidebar-btn:hover, .sidebar-btn.active, .sidebar-btn:focus {
-  background: linear-gradient(90deg, #ff007f 0%, #7928ca 100%);
-  color: #fff;
-}
-.sidebar-btn:focus {
-  box-shadow: 0 0 0 2px #ff007f;
 }
 .main-content {
   margin-left: 240px;
@@ -677,9 +668,9 @@ textarea {
 }
 
 .action-btn:hover {
-  color: #7928ca;
+  color: var(--tamon-secondary);
   transform: scale(1.15);
-  background: rgba(121, 40, 202, 0.05);
+  background: rgba(217, 131, 171, 0.05);
 }
 
 /* Toast flotante (Estilo Tamon Integrado) */
@@ -689,13 +680,13 @@ textarea {
   left: 50%;
   transform: translateX(-50%);
   /* Fondo degradado acorde a la identidad visual de Tamon */
-  background: linear-gradient(135deg, rgba(255, 0, 127, 0.95), rgba(121, 40, 202, 0.95));
-  color: #ffffff; /* Texto blanco puro */
+  background: linear-gradient(135deg, rgba(234, 168, 193, 0.95), rgba(217, 131, 171, 0.95));
+  color: #2d1221; /* Texto oscuro para contrastar con el fondo claro */
   padding: 12px 24px;
   border-radius: 20px; /* Bordes más redondeados para que coincida con los botones */
   font-size: 0.95rem;
   font-weight: bold; /* Texto en negrita para mejor lectura */
-  box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4); /* Sombra fucsia suave */
+  box-shadow: 0 4px 15px rgba(234, 168, 193, 0.35); /* Sombra suave */
   border: 1px solid rgba(255, 255, 255, 0.2); /* Borde sutil */
   opacity: 0;
   visibility: hidden;
@@ -724,29 +715,29 @@ textarea {
   backdrop-filter: blur(4px);
 }
 .custom-modal-content {
-  background: #2d2a32; 
+  background: var(--tamon-surface); 
   padding: 25px; 
   border-radius: 12px; 
   width: 90%; 
   max-width: 450px;
-  border: 1px solid #ff007f; 
+  border: 1.5px solid var(--tamon-primary); 
   box-shadow: 0 10px 30px rgba(0,0,0,0.5);
 }
 /* ZONA DE DRAG & DROP Y COLA DE ARCHIVOS */
 .dropzone {
-    border: 2px dashed #7928ca;
+    border: 2px dashed var(--tamon-secondary);
     border-radius: 12px;
     padding: 35px 20px;
     text-align: center;
-    background: #1e1c22;
+    background: rgba(27, 17, 25, 0.5);
     color: #cbd5e1;
     cursor: pointer;
     transition: all 0.3s ease;
     margin-top: 5px;
 }
 .dropzone:hover, .dropzone.dragover {
-    background: rgba(121, 40, 202, 0.2);
-    border-color: #ff007f;
+    background: rgba(217, 131, 171, 0.15);
+    border-color: var(--tamon-primary);
     transform: scale(1.02);
 }
 .file-list {
@@ -756,18 +747,18 @@ textarea {
     gap: 8px;
 }
 .file-item {
-    background: #2d2a32;
+    background: rgba(27, 17, 25, 0.65);
     padding: 10px 15px;
     border-radius: 8px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    border-left: 4px solid #ff007f;
+    border-left: 4px solid var(--tamon-primary);
     font-size: 0.9rem;
     box-shadow: 0 4px 6px rgba(0,0,0,0.2);
 }
 .remove-file {
-    color: #ff007f;
+    color: var(--tamon-primary);
     cursor: pointer;
     font-weight: bold;
     padding: 5px;
@@ -915,10 +906,10 @@ textarea {
 }
 
 .dropdown-menu-item:hover {
-  background: linear-gradient(90deg, #ff007f 0%, #7928ca 100%);
-  color: #fff;
+  background: linear-gradient(90deg, var(--tamon-primary) 0%, var(--tamon-secondary) 100%);
+  color: #2d1221;
   border-color: transparent;
-  box-shadow: 0 4px 10px rgba(121, 40, 202, 0.25);
+  box-shadow: 0 4px 10px rgba(234, 168, 193, 0.25);
   transform: translateY(-1px);
 }
 
@@ -929,13 +920,14 @@ textarea {
 
 .plan-card:hover {
   transform: translateY(-5px);
-  box-shadow: 0 12px 30px rgba(121, 40, 202, 0.15) !important;
-  border-color: #7928ca !important;
+  box-shadow: 0 12px 30px rgba(234, 168, 193, 0.15) !important;
+  border-color: var(--tamon-secondary) !important;
 }
 
 #btn-select-pro:hover {
-  background: linear-gradient(135deg, #7928ca 0%, #ff007f 100%) !important;
-  box-shadow: 0 6px 20px rgba(255, 0, 127, 0.5) !important;
+  background: linear-gradient(135deg, var(--tamon-secondary) 0%, var(--tamon-primary) 100%) !important;
+  box-shadow: 0 6px 20px rgba(234, 168, 193, 0.4) !important;
+  color: #2d1221 !important;
   transform: translateY(-1px);
 }
 
@@ -1026,15 +1018,15 @@ textarea {
   position: absolute;
   bottom: -2px;
   right: -2px;
-  background: linear-gradient(135deg, #ff007f, #7928ca);
-  color: #fff;
+  background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary));
+  color: #2d1221;
   width: 34px;
   height: 34px;
   border-radius: 50%;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 2px solid #2d2a32;
+  border: 2px solid var(--tamon-soft);
   box-shadow: 0 4px 10px rgba(0,0,0,0.4);
   font-size: 0.9rem;
   pointer-events: none;
@@ -1050,31 +1042,31 @@ textarea {
   height: 100%;
   border-radius: 50%;
   object-fit: cover;
-  border: 3px solid #7928ca;
-  box-shadow: 0 0 15px rgba(121, 40, 202, 0.4);
+  border: 3px solid var(--tamon-secondary);
+  box-shadow: 0 0 15px rgba(217, 131, 171, 0.4);
 }
 
 .profile-initials-placeholder {
   width: 100%;
   height: 100%;
   border-radius: 50%;
-  background: linear-gradient(135deg, #ff007f, #7928ca);
-  color: #fff;
+  background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary));
+  color: #2d1221;
   font-size: 3.5rem;
   font-weight: bold;
   font-family: 'Outfit', sans-serif;
   display: flex;
   align-items: center;
   justify-content: center;
-  border: 3px solid #ff007f;
-  box-shadow: 0 0 20px rgba(255, 0, 127, 0.45);
-  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.3);
+  border: 3px solid var(--tamon-primary);
+  box-shadow: 0 0 20px rgba(234, 168, 193, 0.4);
+  text-shadow: 0 2px 4px rgba(0, 0, 0, 0.1);
   flex-shrink: 0;
 }
 
 .profile-grid input:focus {
-  border-color: #ff007f !important;
-  box-shadow: 0 0 10px rgba(255, 0, 127, 0.25) !important;
+  border-color: var(--tamon-primary) !important;
+  box-shadow: 0 0 10px rgba(234, 168, 193, 0.25) !important;
   outline: none;
 }
 
@@ -1108,8 +1100,8 @@ textarea {
 
 .glossary-arrow {
   font-size: 1.5rem;
-  color: #ff007f;
-  text-shadow: 0 0 10px #ff007f;
+  color: var(--tamon-primary);
+  text-shadow: 0 0 10px var(--tamon-primary);
 }
 
 .glossary-table {
@@ -1127,8 +1119,8 @@ textarea {
 
 .glossary-table th {
   font-weight: bold;
-  color: #ff007f;
-  border-bottom: 2px solid #ff007f;
+  color: var(--tamon-primary);
+  border-bottom: 2px solid var(--tamon-primary);
 }
 
 .btn-delete-term {
