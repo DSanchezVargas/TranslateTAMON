@@ -1,4 +1,4 @@
-FROM node:18-bullseye
+FROM node:20-bullseye
 
 # Instalar Python, pip y dependencias del sistema requeridas para OCR / PDF
 RUN apt-get update && apt-get install -y \
