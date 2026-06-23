@@ -192,6 +192,8 @@ function estimateEtaSeconds(startedAt, processedChunks, totalChunks) {
 }
 
 const { extractDocxRunsWithIndices } = require('../services/docxRunsExtractor');
+const { translatePdfBuffer } = require('../services/pdfTranslatorService');
+const { translateDocxWithRuns } = require('../services/docxTranslatorService');
 
 async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, project, domain, userId }) {
   job.status = 'processing';
@@ -211,20 +213,13 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
       job.progressPercent = 40;
       touchJob(job);
 
-      const tmpPath = path.join(__dirname, '../../uploads', `${Date.now()}-${file.originalname}`);
-      fs.writeFileSync(tmpPath, file.buffer);
-
-      const formData = new (require('form-data'))();
-      formData.append('file', fs.createReadStream(tmpPath));
-      formData.append('sourceLanguage', sourceLanguage);
-      formData.append('targetLanguage', targetLanguage);
-
-      const pyRes = await axios.post('http://localhost:5002/procesar-pdf-formato', formData, {
-        responseType: 'arraybuffer',
-        headers: formData.getHeaders()
-      });
-
-      try { fs.unlinkSync(tmpPath); } catch (e) {}
+      // Traducción PDF nativa en Node.js (sin microservicio Python)
+      const translatedPdfBuffer = await translatePdfBuffer(
+        file.buffer,
+        sourceLanguage,
+        targetLanguage,
+        (text, sl, tl) => require('../services/translator').translateText(text, sl, tl)
+      );
 
       const sourceTextHash = computeSourceHash(file.buffer);
       const previewId = crypto.randomUUID();
@@ -238,7 +233,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         domain,
         sourceTextHash,
         originalFileBuffer: file.buffer,
-        translatedFileBuffer: pyRes.data,
+        translatedFileBuffer: translatedPdfBuffer,
         fromCache: false,
         expiresAt: Date.now() + PREVIEW_TTL_MS
       });
@@ -503,31 +498,23 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
     const runs = extractDocxRunsWithIndices(tmpPath || file.path);
     return { docxRuns: runs, sourceTextHash: computeSourceHash(JSON.stringify(runs)), fromCache: false, originalFileBuffer: file.buffer };
   } else if (ext === '.pdf') {
-    const tmpPath = file.path || file.buffer && (() => {
-      const tmp = path.join(__dirname, '../../uploads', `${Date.now()}-${file.originalname}`);
-      fs.writeFileSync(tmp, file.buffer);
-      file.path = tmp;
-      return tmp;
-    })();
-
-    const formData = new (require('form-data'))();
-    formData.append('file', fs.createReadStream(tmpPath || file.path));
-    formData.append('sourceLanguage', sourceLanguage);
-    formData.append('targetLanguage', targetLanguage);
-
-    const pyRes = await axios.post('http://localhost:5002/procesar-pdf-formato', formData, {
-      responseType: 'arraybuffer',
-      headers: formData.getHeaders()
-    });
+    // Traducción PDF nativa en Node.js (sin microservicio Python)
+    const buf = file.buffer || fs.readFileSync(file.path);
+    const translatedPdfBuf = await translatePdfBuffer(
+      buf,
+      sourceLanguage,
+      targetLanguage,
+      (text, sl, tl) => require('../services/translator').translateText(text, sl, tl)
+    );
 
     if (file.path && fs.existsSync(file.path)) {
       try { fs.unlinkSync(file.path); } catch (e) {}
     }
 
     return {
-      originalFileBuffer: file.buffer,
-      translatedFileBuffer: pyRes.data,
-      sourceTextHash: computeSourceHash(file.buffer),
+      originalFileBuffer: buf,
+      translatedFileBuffer: translatedPdfBuf,
+      sourceTextHash: computeSourceHash(buf),
       fromCache: false
     };
   } else {
@@ -907,22 +894,58 @@ router.get('/translate/preview-pdf/:previewId', (req, res) => {
   return res.send(preview.translatedFileBuffer);
 });
 
-// DOCX: reenviar traducciones por índice a microservicio Python
 const axios = require('axios');
 
+// Genera un PDF simple a partir de texto traducido (fallback sin microservicio Python)
 async function createTranslatedPdfBuffer({ originalFileName, translatedText }) {
   try {
-    const title = `Traducción de ${originalFileName}`;
-    const pyRes = await axios.post('http://localhost:5002/convertir-texto-pdf', {
-      texto: translatedText,
-      titulo: title
-    }, { responseType: 'arraybuffer' });
-    return pyRes.data;
+    return await translatePdfBuffer(
+      null, // Sin buffer original — modo texto puro
+      null,
+      null,
+      async () => translatedText // Texto ya traducido, solo construir el PDF
+    );
   } catch (error) {
-    console.error("Error generating PDF via Python microservice:", error.message);
-    throw new Error("No se pudo generar el archivo PDF.");
+    // Fallback: intentar construir PDF mínimo con pdf-lib directamente
+    try {
+      const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+      const pdfDoc = await PDFDocument.create();
+      const font = await pdfDoc.embedFont(StandardFonts.Helvetica);
+      const pageWidth = 595, pageHeight = 842, margin = 52, fontSize = 10.5;
+      const lineHeight = fontSize * 1.55;
+      const maxW = pageWidth - 2 * margin;
+      let page = pdfDoc.addPage([pageWidth, pageHeight]);
+      let y = pageHeight - margin;
+
+      const lines = (translatedText || '').split('\n');
+      for (const rawLine of lines) {
+        const words = rawLine.split(' ');
+        let cur = '';
+        for (const word of words) {
+          const cand = cur ? `${cur} ${word}` : word;
+          if (font.widthOfTextAtSize(cand, fontSize) > maxW && cur) {
+            if (y < margin) { page = pdfDoc.addPage([pageWidth, pageHeight]); y = pageHeight - margin; }
+            page.drawText(cur, { x: margin, y, size: fontSize, font, color: rgb(0.08, 0.08, 0.08) });
+            y -= lineHeight; cur = word;
+          } else { cur = cand; }
+        }
+        if (cur) {
+          if (y < margin) { page = pdfDoc.addPage([pageWidth, pageHeight]); y = pageHeight - margin; }
+          page.drawText(cur, { x: margin, y, size: fontSize, font, color: rgb(0.08, 0.08, 0.08) });
+          y -= lineHeight;
+        }
+        y -= lineHeight * 0.2;
+      }
+
+      const pdfBytes = await pdfDoc.save();
+      return Buffer.from(pdfBytes);
+    } catch (e2) {
+      console.error("Error generating fallback PDF:", e2.message);
+      throw new Error("No se pudo generar el archivo PDF.");
+    }
   }
 }
+
 
 router.post('/translate/finalize', async (req, res, next) => {
   const startedAt = Date.now(); const traceId = crypto.randomUUID();
@@ -931,19 +954,13 @@ router.post('/translate/finalize', async (req, res, next) => {
     const preview = previewId ? previewStore.get(previewId) : null;
     if (previewId && !preview) return res.status(404).json({ error: 'Vista previa no encontrada o expirada.' });
 
-    // Si es DOCX con runs traducidos
+    // Si es DOCX con runs traducidos — procesado en Node.js (sin microservicio Python)
     if (docxRunsTranslated && Array.isArray(docxRunsTranslated)) {
-      // Recuperar archivo original
-      const tmpPath = path.join(__dirname, '../../uploads', `${Date.now()}-${originalFileName}`);
-      fs.writeFileSync(tmpPath, Buffer.from(preview?.originalFileBuffer || []));
-      // Llamar microservicio Python
-      const formData = new (require('form-data'))();
-      formData.append('file', fs.createReadStream(tmpPath));
-      formData.append('traducciones', JSON.stringify(docxRunsTranslated));
-      const pyRes = await axios.post('http://localhost:5001/procesar-docx', formData, { responseType: 'arraybuffer', headers: formData.getHeaders() });
+      const originalBuf = Buffer.from(preview?.originalFileBuffer || []);
+      const translatedDocxBuf = await translateDocxWithRuns(originalBuf, docxRunsTranslated);
       res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
       res.setHeader('Content-Disposition', `attachment; filename="${path.parse(originalFileName).name}-${targetLanguage}.docx"`);
-      return res.status(200).send(pyRes.data);
+      return res.status(200).send(translatedDocxBuf);
     }
 
     // Flujo clásico
