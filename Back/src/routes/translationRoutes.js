@@ -206,6 +206,73 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
 
     const ext = path.extname(file.originalname).toLowerCase();
     
+    if (ext === '.pdf') {
+      job.message = 'Traduciendo PDF y preservando formato...';
+      job.progressPercent = 40;
+      touchJob(job);
+
+      const tmpPath = path.join(__dirname, '../../uploads', `${Date.now()}-${file.originalname}`);
+      fs.writeFileSync(tmpPath, file.buffer);
+
+      const formData = new (require('form-data'))();
+      formData.append('file', fs.createReadStream(tmpPath));
+      formData.append('sourceLanguage', sourceLanguage);
+      formData.append('targetLanguage', targetLanguage);
+
+      const pyRes = await axios.post('http://localhost:5002/procesar-pdf-formato', formData, {
+        responseType: 'arraybuffer',
+        headers: formData.getHeaders()
+      });
+
+      try { fs.unlinkSync(tmpPath); } catch (e) {}
+
+      const sourceTextHash = computeSourceHash(file.buffer);
+      const previewId = crypto.randomUUID();
+      clearExpiredPreviews();
+
+      previewStore.set(previewId, {
+        originalFileName: file.originalname,
+        sourceLanguage,
+        targetLanguage,
+        project,
+        domain,
+        sourceTextHash,
+        originalFileBuffer: file.buffer,
+        translatedFileBuffer: pyRes.data,
+        fromCache: false,
+        expiresAt: Date.now() + PREVIEW_TTL_MS
+      });
+
+      job.status = 'completed';
+      job.progressPercent = 100;
+      job.etaSeconds = 0;
+      job.message = 'Procesamiento de PDF completado.';
+      job.previewId = previewId;
+      addJobHistory(job, 'PDF finalizado.');
+
+      const safeUserId = Number.isInteger(userId) ? userId : null;
+      await saveHistory({
+        userId: safeUserId,
+        originalFileName: file.originalname,
+        fileType: 'pdf',
+        sourceLanguage,
+        targetLanguage,
+        project,
+        domain,
+        sourceTextHash,
+        translatedTextCache: '',
+        sourceTextLength: 0,
+        translatedTextLength: 0,
+        status: 'success',
+        fileSizeBytes: file.size
+      });
+
+      if (file.path && fs.existsSync(file.path)) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+      }
+      return;
+    }
+    
     if (ext === '.docx') {
       job.message = 'Extrayendo runs de Word...';
       job.progressPercent = 30;
@@ -435,6 +502,34 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
     })();
     const runs = extractDocxRunsWithIndices(tmpPath || file.path);
     return { docxRuns: runs, sourceTextHash: computeSourceHash(JSON.stringify(runs)), fromCache: false, originalFileBuffer: file.buffer };
+  } else if (ext === '.pdf') {
+    const tmpPath = file.path || file.buffer && (() => {
+      const tmp = path.join(__dirname, '../../uploads', `${Date.now()}-${file.originalname}`);
+      fs.writeFileSync(tmp, file.buffer);
+      file.path = tmp;
+      return tmp;
+    })();
+
+    const formData = new (require('form-data'))();
+    formData.append('file', fs.createReadStream(tmpPath || file.path));
+    formData.append('sourceLanguage', sourceLanguage);
+    formData.append('targetLanguage', targetLanguage);
+
+    const pyRes = await axios.post('http://localhost:5002/procesar-pdf-formato', formData, {
+      responseType: 'arraybuffer',
+      headers: formData.getHeaders()
+    });
+
+    if (file.path && fs.existsSync(file.path)) {
+      try { fs.unlinkSync(file.path); } catch (e) {}
+    }
+
+    return {
+      originalFileBuffer: file.buffer,
+      translatedFileBuffer: pyRes.data,
+      sourceTextHash: computeSourceHash(file.buffer),
+      fromCache: false
+    };
   } else {
     const originalText = await extractTextByFile(file, sourceLanguage);
     const sourceTextHash = computeSourceHash(originalText);
@@ -582,9 +677,9 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
     const project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
     const domain = sanitizeString(req.body.domain || 'general', { required: true, maxLength: 120 });
 
-    const { originalText, translatedText, sourceTextHash, fromCache, docxRuns, originalFileBuffer } = await createPreviewFromFile({ file: req.file, sourceLanguage, targetLanguage, project, domain, userId });
+    const { originalText, translatedText, sourceTextHash, fromCache, docxRuns, originalFileBuffer, translatedFileBuffer } = await createPreviewFromFile({ file: req.file, sourceLanguage, targetLanguage, project, domain, userId });
     const previewId = crypto.randomUUID(); clearExpiredPreviews();
-    previewStore.set(previewId, { originalFileName: req.file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, docxRuns, originalFileBuffer, fromCache, expiresAt: Date.now() + PREVIEW_TTL_MS });
+    previewStore.set(previewId, { originalFileName: req.file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, docxRuns, originalFileBuffer, translatedFileBuffer, fromCache, expiresAt: Date.now() + PREVIEW_TTL_MS });
 
     const safeUserId = Number.isInteger(userId) ? userId : null;
 
@@ -802,6 +897,16 @@ router.get('/translate/preview-result/:previewId', (req, res) => {
   });
 });
 
+router.get('/translate/preview-pdf/:previewId', (req, res) => {
+  const preview = previewStore.get(req.params.previewId);
+  if (!preview || !preview.translatedFileBuffer) {
+    return res.status(404).json({ error: 'Vista previa de PDF no encontrada o expirada.' });
+  }
+  res.setHeader('Content-Type', 'application/pdf');
+  res.setHeader('Content-Disposition', 'inline');
+  return res.send(preview.translatedFileBuffer);
+});
+
 // DOCX: reenviar traducciones por índice a microservicio Python
 const axios = require('axios');
 
@@ -847,14 +952,17 @@ router.post('/translate/finalize', async (req, res, next) => {
     const finalTargetLanguage = targetLanguage || preview?.targetLanguage;
     const finalFileName = originalFileName || preview?.originalFileName || 'documento';
 
-    if (!finalText || !finalSourceLanguage || !finalTargetLanguage) return res.status(400).json({ error: 'Faltan datos.' });
+    if (!preview?.translatedFileBuffer && (!finalText || !finalSourceLanguage || !finalTargetLanguage)) return res.status(400).json({ error: 'Faltan datos.' });
 
     const ext = path.extname(finalFileName).toLowerCase();
     const userId = Number(req.user?.id || req.user?._id);
 
     if (ext === '.pdf') {
-      const translatedPdfBuffer = await createTranslatedPdfBuffer({ originalFileName: finalFileName, translatedText: finalText });
-      await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: finalText, status: 'success' });
+      let translatedPdfBuffer = preview?.translatedFileBuffer;
+      if (!translatedPdfBuffer) {
+        translatedPdfBuffer = await createTranslatedPdfBuffer({ originalFileName: finalFileName, translatedText: finalText || '' });
+      }
+      await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: finalText || '', status: 'success' });
       setExperienceHeaders(res, { traceId, status: 'finalized', processingMs: Date.now() - startedAt });
       res.setHeader('Content-Type', 'application/pdf');
       res.setHeader('Content-Disposition', `attachment; filename="${path.parse(finalFileName).name}-${finalTargetLanguage}.pdf"`);

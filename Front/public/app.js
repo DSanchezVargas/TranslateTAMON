@@ -404,43 +404,74 @@ async function requestPreview(event) {
     previewState = data;
     if (previewPanel) previewPanel.classList.remove('hidden');
 
-    if (data.docxRuns) {
-      const docxRunsContainer = document.getElementById('docxRunsContainer') || (() => {
-        const c = document.createElement('div');
-        c.id = 'docxRunsContainer';
-        c.style.maxHeight = '350px';
-        c.style.overflowY = 'auto';
-        c.style.margin = '12px 0';
-        previewPanel.insertBefore(c, previewPanel.firstChild);
-        return c;
-      })();
-      docxRunsContainer.innerHTML = '';
-      data.docxRuns.forEach((run, idx) => {
-        const input = document.createElement('input');
-        input.type = 'text';
-        input.value = run.texto;
-        input.style.width = '98%';
-        input.dataset.idx = idx;
-        input.oninput = e => data.docxRuns[idx].texto = e.target.value;
-        const label = document.createElement('label');
-        label.textContent = `P${run.paragraph} R${run.run}`;
-        label.style.fontSize = '0.8em';
-        label.style.opacity = '0.7';
-        const div = document.createElement('div');
-        div.style.marginBottom = '6px';
-        div.appendChild(label);
-        div.appendChild(input);
-        docxRunsContainer.appendChild(div);
-      });
-      if (translatedTextInput) translatedTextInput.style.display = 'none';
-      if (originalTextPreview) originalTextPreview.style.display = 'none';
-    } else {
-      if (translatedTextInput) translatedTextInput.value = data.translatedText;
-      if (originalTextPreview) originalTextPreview.value = data.originalText;
-      if (translatedTextInput) translatedTextInput.style.display = '';
-      if (originalTextPreview) originalTextPreview.style.display = '';
+    const ext = data.originalFileName ? data.originalFileName.split('.').pop().toLowerCase() : '';
+
+    if (ext === 'pdf') {
+      const textGrid = previewPanel.querySelector('.text-translation-grid');
+      if (textGrid) textGrid.style.display = 'none';
+
+      const pdfPreviewContainer = document.getElementById('pdfPreviewContainer');
+      const pdfPreviewIframe = document.getElementById('pdfPreviewIframe');
+      if (pdfPreviewContainer && pdfPreviewIframe) {
+        pdfPreviewContainer.style.display = 'block';
+        pdfPreviewIframe.src = getApiUrl('/api/translate/preview-pdf/' + data.previewId);
+      }
+
       const docxRunsContainer = document.getElementById('docxRunsContainer');
       if (docxRunsContainer) docxRunsContainer.remove();
+
+      if (finalizeBtn) finalizeBtn.textContent = '🚀 Finalizar y descargar PDF';
+    } else {
+      const textGrid = previewPanel.querySelector('.text-translation-grid');
+      if (textGrid) textGrid.style.display = '';
+
+      const pdfPreviewContainer = document.getElementById('pdfPreviewContainer');
+      if (pdfPreviewContainer) pdfPreviewContainer.style.display = 'none';
+
+      if (ext === 'docx') {
+        if (finalizeBtn) finalizeBtn.textContent = '🚀 Finalizar y descargar DOCX';
+      } else {
+        if (finalizeBtn) finalizeBtn.textContent = '🚀 Finalizar y descargar';
+      }
+
+      if (data.docxRuns) {
+        const docxRunsContainer = document.getElementById('docxRunsContainer') || (() => {
+          const c = document.createElement('div');
+          c.id = 'docxRunsContainer';
+          c.style.maxHeight = '350px';
+          c.style.overflowY = 'auto';
+          c.style.margin = '12px 0';
+          previewPanel.insertBefore(c, previewPanel.firstChild);
+          return c;
+        })();
+        docxRunsContainer.innerHTML = '';
+        data.docxRuns.forEach((run, idx) => {
+          const input = document.createElement('input');
+          input.type = 'text';
+          input.value = run.texto;
+          input.style.width = '98%';
+          input.dataset.idx = idx;
+          input.oninput = e => data.docxRuns[idx].texto = e.target.value;
+          const label = document.createElement('label');
+          label.textContent = `P${run.paragraph} R${run.run}`;
+          label.style.fontSize = '0.8em';
+          label.style.opacity = '0.7';
+          const div = document.createElement('div');
+          div.style.marginBottom = '6px';
+          div.appendChild(label);
+          div.appendChild(input);
+          docxRunsContainer.appendChild(div);
+        });
+        if (translatedTextInput) translatedTextInput.style.display = 'none';
+        if (originalTextPreview) originalTextPreview.style.display = 'none';
+      } else {
+        if (translatedTextInput) translatedTextInput.value = data.translatedText || '';
+        if (originalTextPreview) originalTextPreview.value = data.originalText || '';
+        if (translatedTextInput) translatedTextInput.style.display = '';
+        if (originalTextPreview) originalTextPreview.style.display = '';
+        const docxRunsContainer = document.getElementById('docxRunsContainer');
+        if (docxRunsContainer) docxRunsContainer.remove();
+      }
     }
     if (previewMeta) {
       previewMeta.textContent = `Trace: ${initData.jobId || previewId} · ` + (data.originalText ? UI_TEXT.fromModel : UI_TEXT.fromMemory);

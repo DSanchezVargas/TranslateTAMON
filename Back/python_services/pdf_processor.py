@@ -5,6 +5,8 @@ import fitz  # PyMuPDF
 from PIL import Image, ImageDraw, ImageFont
 import pytesseract
 import json
+import requests
+import urllib.parse
 
 app = Flask(__name__)
 
@@ -136,6 +138,76 @@ def convertir_texto_pdf():
         out_path = os.path.join(tmpdir, 'translated.pdf')
         doc.save(out_path)
         return send_file(out_path, as_attachment=True, download_name="translated.pdf")
+
+# --- Helper: Traducir texto individual en Python ---
+def traducir_texto_py(text, sl, tl):
+    if not text.strip():
+        return text
+    try:
+        url = f"https://translate.googleapis.com/translate_a/single?client=gtx&sl={sl}&tl={tl}&dt=t&q={urllib.parse.quote(text)}"
+        res = requests.get(url, timeout=12)
+        if res.status_code == 200:
+            data = res.json()
+            if data and data[0]:
+                translated = ''.join([item[0] for item in data[0] if item[0]])
+                return translated
+        return text
+    except Exception as e:
+        print("Error en traducción python:", e)
+        return text
+
+# --- Endpoint 4: Traducir PDF preservando formato ---
+@app.route('/procesar-pdf-formato', methods=['POST'])
+def procesar_pdf_formato():
+    file = request.files['file']
+    sl = request.form.get('sourceLanguage', 'en')
+    tl = request.form.get('targetLanguage', 'es')
+    
+    with tempfile.TemporaryDirectory() as tmpdir:
+        input_path = os.path.join(tmpdir, 'input.pdf')
+        output_path = os.path.join(tmpdir, 'output.pdf')
+        file.save(input_path)
+        
+        doc = fitz.open(input_path)
+        for page_num in range(len(doc)):
+            page = doc[page_num]
+            page_dict = page.get_text("dict")
+            for block in page_dict.get("blocks", []):
+                if block.get("type") == 0:  # text block
+                    bbox = block.get("bbox")
+                    rect = fitz.Rect(bbox[0], bbox[1], bbox[2], bbox[3])
+                    
+                    spans_info = []
+                    block_text = ""
+                    for line in block.get("lines", []):
+                        for span in line.get("spans", []):
+                            spans_info.append(span)
+                            block_text += span.get("text", "") + " "
+                    
+                    block_text = block_text.strip()
+                    if block_text:
+                        if spans_info:
+                            font_sizes = [s.get("size", 9) for s in spans_info]
+                            avg_font_size = sum(font_sizes) / len(font_sizes)
+                            font_size = max(min(avg_font_size, 24), 6)
+                            
+                            colors = [s.get("color", 0) for s in spans_info]
+                            color_int = max(set(colors), key=colors.count)
+                            
+                            r = ((color_int >> 16) & 255) / 255.0
+                            g = ((color_int >> 8) & 255) / 255.0
+                            b = (color_int & 255) / 255.0
+                            text_color = (r, g, b)
+                        else:
+                            font_size = 9
+                            text_color = (0, 0, 0)
+                            
+                        translated_text = traducir_texto_py(block_text, sl, tl)
+                        page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1), width=0)
+                        page.insert_textbox(rect, translated_text, fontsize=font_size, fontname="helv", color=text_color)
+                        
+        doc.save(output_path)
+        return send_file(output_path, as_attachment=True, download_name="output.pdf")
 
 # --- MAIN: Ejecutar en puerto 5002 si es script principal ---
 if __name__ == "__main__":
