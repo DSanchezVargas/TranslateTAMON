@@ -151,7 +151,7 @@ async function loadProfile() {
       }
     }
 
-    const rows = (data.translationHistory || []).map((item) => `
+    const buildRows = (items) => (items || []).map((item) => `
       <tr>
         <td>${item.original_file_name || '-'}</td>
         <td>${item.file_type || '-'}</td>
@@ -162,11 +162,25 @@ async function loadProfile() {
     `).join('');
 
     if (historyList) {
+      const textualRows = buildRows(data.translationHistoryTextual);
+      const archivosRows = buildRows(data.translationHistoryArchivos);
+
       historyList.innerHTML = `
-        <table class="simple-table">
-          <thead><tr><th>Archivo</th><th>Tipo</th><th>Idiomas</th><th>Estado</th><th>Fecha</th></tr></thead>
-          <tbody>${rows || '<tr><td colspan="5">Sin historial todavía.</td></tr>'}</tbody>
-        </table>
+        <div style="margin-bottom: 2rem;">
+          <h3 style="color: var(--tamon-primary); font-size: 1.15rem; margin-bottom: 10px; font-weight: bold; border-left: 3px solid var(--tamon-primary); padding-left: 8px;">🔤 Traducciones de Texto</h3>
+          <table class="simple-table">
+            <thead><tr><th>Texto</th><th>Tipo</th><th>Idiomas</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody>${textualRows || '<tr><td colspan="5" style="text-align: center; color: rgba(255,255,255,0.4);">No tienes traducciones de texto guardadas en tu historial.</td></tr>'}</tbody>
+          </table>
+        </div>
+        
+        <div>
+          <h3 style="color: var(--tamon-secondary); font-size: 1.15rem; margin-bottom: 10px; font-weight: bold; border-left: 3px solid var(--tamon-secondary); padding-left: 8px;">📄 Traducciones de Archivos</h3>
+          <table class="simple-table">
+            <thead><tr><th>Archivo</th><th>Tipo</th><th>Idiomas</th><th>Estado</th><th>Fecha</th></tr></thead>
+            <tbody>${archivosRows || '<tr><td colspan="5" style="text-align: center; color: rgba(255,255,255,0.4);">No tienes traducciones de archivos guardadas en tu historial.</td></tr>'}</tbody>
+          </table>
+        </div>
       `;
     }
 

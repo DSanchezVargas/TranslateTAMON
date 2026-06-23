@@ -1493,7 +1493,8 @@ async function performTextTranslation() {
     const response = await fetch('/api/assistant/translate-text', {
       method: 'POST',
       headers: {
-        'Content-Type': 'application/json'
+        'Content-Type': 'application/json',
+        'Authorization': 'Bearer ' + (localStorage.getItem('tamon_token') || '')
       },
       body: JSON.stringify({
         userName: userObj.nombre || 'usuario',

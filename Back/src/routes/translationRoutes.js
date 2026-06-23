@@ -995,6 +995,25 @@ router.post('/assistant/translate-text', async (req, res) => {
       ? text
       : await translateText(text, sourceLanguage, targetLanguage);
 
+    const userId = resolveUserId(req);
+    if (userId) {
+      await saveHistory({
+        userId,
+        originalFileName: 'Texto Plano',
+        fileType: 'text',
+        sourceLanguage,
+        targetLanguage,
+        project: 'default',
+        domain: 'general',
+        sourceTextHash: computeSourceHash(text),
+        translatedTextCache: translatedText,
+        sourceTextLength: text.length,
+        translatedTextLength: translatedText.length,
+        status: 'success',
+        fileSizeBytes: Buffer.byteLength(text, 'utf8')
+      });
+    }
+
     return res.json({
       userName,
       sourceLanguage,

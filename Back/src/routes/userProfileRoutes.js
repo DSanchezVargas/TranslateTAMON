@@ -102,10 +102,19 @@ router.get('/', requireAuth, async (req, res) => {
       };
     }
 
-    const historyResult = await pool.query(
+    const historyTextual = await pool.query(
       `SELECT id, original_file_name, file_type, source_language, target_language, status, created_at
        FROM translation_history
-       WHERE user_id = $1
+       WHERE user_id = $1 AND (file_type = 'text' OR original_file_name = 'Texto Plano')
+       ORDER BY created_at DESC
+       LIMIT 20`,
+      [req.authUserId]
+    );
+
+    const historyArchivos = await pool.query(
+      `SELECT id, original_file_name, file_type, source_language, target_language, status, created_at
+       FROM translation_history
+       WHERE user_id = $1 AND file_type <> 'text' AND original_file_name <> 'Texto Plano'
        ORDER BY created_at DESC
        LIMIT 20`,
       [req.authUserId]
@@ -123,7 +132,8 @@ router.get('/', requireAuth, async (req, res) => {
       chibisCount,
       planInfo,
       quota,
-      translationHistory: historyResult.rows
+      translationHistoryTextual: historyTextual.rows,
+      translationHistoryArchivos: historyArchivos.rows
     });
   } catch (error) {
     return res.status(500).json({ error: 'Error al obtener el perfil.', detail: error.message });
@@ -210,15 +220,27 @@ router.post('/avatar', requireAuth, avatarUpload.single('avatar'), async (req, r
 router.get('/history', requireAuth, async (req, res) => {
   if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
   try {
-    const history = await pool.query(
+    const historyTextual = await pool.query(
       `SELECT id, original_file_name, file_type, source_language, target_language, status, created_at
        FROM translation_history
-       WHERE user_id = $1
+       WHERE user_id = $1 AND (file_type = 'text' OR original_file_name = 'Texto Plano')
        ORDER BY created_at DESC
        LIMIT 100`,
       [req.authUserId]
     );
-    return res.json({ items: history.rows });
+
+    const historyArchivos = await pool.query(
+      `SELECT id, original_file_name, file_type, source_language, target_language, status, created_at
+       FROM translation_history
+       WHERE user_id = $1 AND file_type <> 'text' AND original_file_name <> 'Texto Plano'
+       ORDER BY created_at DESC
+       LIMIT 100`,
+      [req.authUserId]
+    );
+    return res.json({
+      textual: historyTextual.rows,
+      archivos: historyArchivos.rows
+    });
   } catch (error) {
     return res.status(500).json({ error: 'Error al obtener historial.', detail: error.message });
   }
