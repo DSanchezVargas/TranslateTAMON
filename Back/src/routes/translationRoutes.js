@@ -66,8 +66,22 @@ const { sanitizeString, isInvalidTranslatedText } = require('../utils/validation
 const { ASSISTANT_TAGLINE } = require('../config/appInfo');
 
 const uploadLimitMb = 5120; // 5 GB máximo global en el parser para permitir la subida de Pro+
+const storage = multer.diskStorage({
+  destination: function (req, file, cb) {
+    const uploadPath = path.join(__dirname, '../../uploads');
+    if (!fs.existsSync(uploadPath)) {
+      fs.mkdirSync(uploadPath);
+    }
+    cb(null, uploadPath);
+  },
+  filename: function (req, file, cb) {
+    const uniqueSuffix = Date.now() + '-' + Math.round(Math.random() * 1E9);
+    cb(null, uniqueSuffix + '-' + file.originalname);
+  }
+});
+
 const upload = multer({
-  storage: multer.memoryStorage(),
+  storage,
   limits: { fileSize: uploadLimitMb * 1024 * 1024 }
 });
 
@@ -177,58 +191,239 @@ function estimateEtaSeconds(startedAt, processedChunks, totalChunks) {
   return Math.min(Math.max(Math.ceil((totalChunks - processedChunks) * avgPerChunk), 0), 86399);
 }
 
-async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, project, domain }) {
-  job.status = 'processing'; job.message = 'Extrayendo texto...'; job.progressPercent = 5; addJobHistory(job, 'Extraccion iniciada.');
-  try {
-    const chunkWarnings = []; const originalText = await extractTextByFile(file, sourceLanguage); const sourceTextHash = computeSourceHash(originalText);
-    job.message = 'Buscando traduccion en memoria...'; job.progressPercent = 12; touchJob(job);
+const { extractDocxRunsWithIndices } = require('../services/docxRunsExtractor');
 
-    const cached = await findCachedTranslation({ sourceHash: sourceTextHash, sourceLanguage, targetLanguage, project, domain });
-    if (cached?.translatedTextCache) {
-      const previewId = crypto.randomUUID(); clearExpiredPreviews();
-      previewStore.set(previewId, { originalFileName: file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText: cached.translatedTextCache, expiresAt: Date.now() + PREVIEW_TTL_MS });
-      job.status = 'completed'; job.progressPercent = 100; job.etaSeconds = 0; job.message = 'Completado desde cache.'; job.previewId = previewId; job.translatedTextPartial = cached.translatedTextCache;
-      addJobHistory(job, 'Resultado desde cache.');
-      await saveHistory({ originalFileName: file.originalname, fileType: path.extname(file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: cached.translatedTextCache, sourceTextLength: originalText.length, translatedTextLength: cached.translatedTextCache.length, status: 'success' });
-      return;
+async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, project, domain, userId }) {
+  job.status = 'processing';
+  job.message = 'Iniciando procesamiento...';
+  job.progressPercent = 5;
+  addJobHistory(job, 'Procesamiento iniciado.');
+  
+  try {
+    if (!file.buffer && file.path) {
+      file.buffer = fs.readFileSync(file.path);
     }
 
-    job.message = 'Traduciendo...'; job.progressPercent = 20; addJobHistory(job, 'Traduccion iniciada.');
-    const memory = await getMemoryContext({ project, domain, sourceLanguage, targetLanguage });
+    const ext = path.extname(file.originalname).toLowerCase();
+    
+    if (ext === '.docx') {
+      job.message = 'Extrayendo runs de Word...';
+      job.progressPercent = 30;
+      touchJob(job);
+      
+      const runs = extractDocxRunsWithIndices(file.path);
+      const sourceTextHash = computeSourceHash(JSON.stringify(runs));
+      
+      const previewId = crypto.randomUUID();
+      clearExpiredPreviews();
+      
+      previewStore.set(previewId, {
+        originalFileName: file.originalname,
+        sourceLanguage,
+        targetLanguage,
+        project,
+        domain,
+        sourceTextHash,
+        docxRuns: runs,
+        originalFileBuffer: file.buffer,
+        expiresAt: Date.now() + PREVIEW_TTL_MS
+      });
+      
+      job.status = 'completed';
+      job.progressPercent = 100;
+      job.etaSeconds = 0;
+      job.message = 'Procesamiento de Word completado.';
+      job.previewId = previewId;
+      addJobHistory(job, 'Word finalizado.');
+      
+      const safeUserId = Number.isInteger(userId) ? userId : null;
+      await saveHistory({
+        userId: safeUserId,
+        originalFileName: file.originalname,
+        fileType: 'docx',
+        sourceLanguage,
+        targetLanguage,
+        project,
+        domain,
+        sourceTextHash,
+        translatedTextCache: '',
+        sourceTextLength: 0,
+        translatedTextLength: 0,
+        status: 'success',
+        fileSizeBytes: file.size
+      });
+      
+      if (file.path && fs.existsSync(file.path)) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+      }
+      return;
+    }
+    
+    job.message = 'Extrayendo texto del archivo...';
+    job.progressPercent = 10;
+    touchJob(job);
+    
+    const originalText = await extractTextByFile(file, sourceLanguage);
+    const sourceTextHash = computeSourceHash(originalText);
+    
+    job.message = 'Buscando traducción en memoria...';
+    job.progressPercent = 15;
+    touchJob(job);
+    
+    const cached = await findCachedTranslation({
+      sourceHash: sourceTextHash,
+      sourceLanguage,
+      targetLanguage,
+      project,
+      domain
+    });
+    
+    if (cached?.translatedTextCache) {
+      const previewId = crypto.randomUUID();
+      clearExpiredPreviews();
+      previewStore.set(previewId, {
+        originalFileName: file.originalname,
+        sourceLanguage,
+        targetLanguage,
+        project,
+        domain,
+        originalText,
+        sourceTextHash,
+        translatedText: cached.translatedTextCache,
+        originalFileBuffer: file.buffer,
+        expiresAt: Date.now() + PREVIEW_TTL_MS
+      });
+      
+      job.status = 'completed';
+      job.progressPercent = 100;
+      job.etaSeconds = 0;
+      job.message = 'Completado desde caché.';
+      job.previewId = previewId;
+      job.translatedTextPartial = cached.translatedTextCache;
+      addJobHistory(job, 'Resultado desde caché.');
+      
+      const safeUserId = Number.isInteger(userId) ? userId : null;
+      await saveHistory({
+        userId: safeUserId,
+        originalFileName: file.originalname,
+        fileType: ext.replace('.', ''),
+        sourceLanguage,
+        targetLanguage,
+        project,
+        domain,
+        sourceTextHash,
+        translatedTextCache: cached.translatedTextCache,
+        sourceTextLength: originalText.length,
+        translatedTextLength: cached.translatedTextCache.length,
+        status: 'success',
+        fileSizeBytes: file.size
+      });
+      
+      if (file.path && fs.existsSync(file.path)) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+      }
+      return;
+    }
+    
+    job.message = 'Iniciando traducción y reglas de memoria...';
+    job.progressPercent = 20;
+    addJobHistory(job, 'Traducción iniciada.');
+    
+    const memory = await getMemoryContext({ userId, project, domain, sourceLanguage, targetLanguage });
     const preRuledText = applyRules(originalText, memory.preRules);
     const { text: textWithPlaceholders, placeholders } = applyGlossaryPlaceholders(preRuledText, memory.glossary);
-
+    
+    const chunkWarnings = [];
     const translatedRaw = await translateTextWithProgress(textWithPlaceholders, sourceLanguage, targetLanguage, {
       onProgress: ({ processedChunks, totalChunks, translatedSoFar }) => {
         job.progressPercent = 20 + Math.round((processedChunks / totalChunks) * 70);
         job.etaSeconds = estimateEtaSeconds(job.startedAt, processedChunks, totalChunks);
-        job.message = `Traduciendo bloque ${processedChunks} de ${totalChunks}...`; job.translatedTextPartial = translatedSoFar; touchJob(job);
+        job.message = `Traduciendo bloque ${processedChunks} de ${totalChunks}...`;
+        job.translatedTextPartial = translatedSoFar;
+        touchJob(job);
       },
       fallbackToOriginalOnError: true,
-      onChunkError: ({ chunkIndex, totalChunks }) => { chunkWarnings.push({ chunkIndex, totalChunks }); }
+      onChunkError: ({ chunkIndex, totalChunks }) => {
+        chunkWarnings.push({ chunkIndex, totalChunks });
+      }
     });
-
-    let translatedText = applyCorrections(applyRules(restoreGlossaryPlaceholders(translatedRaw, placeholders), memory.postRules), memory.corrections);
-    if (isInvalidTranslatedText(translatedText)) throw new Error('Contenido invalido devuelto.');
-
-    const previewId = crypto.randomUUID(); clearExpiredPreviews();
-    previewStore.set(previewId, { originalFileName: file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, expiresAt: Date.now() + PREVIEW_TTL_MS });
-
-    await saveHistory({ originalFileName: file.originalname, fileType: path.extname(file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success' });
-
-    job.status = 'completed'; job.progressPercent = 100; job.etaSeconds = 0; job.message = 'Vista previa lista.'; job.previewId = previewId; job.translatedTextPartial = translatedText;
-    addJobHistory(job, 'Traduccion finalizada.');
+    
+    let translatedText = applyCorrections(
+      applyRules(restoreGlossaryPlaceholders(translatedRaw, placeholders), memory.postRules),
+      memory.corrections
+    );
+    
+    if (isInvalidTranslatedText(translatedText)) {
+      throw new Error('Contenido inválido devuelto por el servicio de traducción.');
+    }
+    
+    const previewId = crypto.randomUUID();
+    clearExpiredPreviews();
+    previewStore.set(previewId, {
+      originalFileName: file.originalname,
+      sourceLanguage,
+      targetLanguage,
+      project,
+      domain,
+      originalText,
+      sourceTextHash,
+      translatedText,
+      originalFileBuffer: file.buffer,
+      expiresAt: Date.now() + PREVIEW_TTL_MS
+    });
+    
+    const safeUserId = Number.isInteger(userId) ? userId : null;
+    await saveHistory({
+      userId: safeUserId,
+      originalFileName: file.originalname,
+      fileType: ext.replace('.', ''),
+      sourceLanguage,
+      targetLanguage,
+      project,
+      domain,
+      sourceTextHash,
+      translatedTextCache: translatedText,
+      sourceTextLength: originalText.length,
+      translatedTextLength: translatedText.length,
+      status: 'success',
+      fileSizeBytes: file.size
+    });
+    
+    job.status = 'completed';
+    job.progressPercent = 100;
+    job.etaSeconds = 0;
+    job.message = 'Vista previa lista.';
+    job.previewId = previewId;
+    job.translatedTextPartial = translatedText;
+    addJobHistory(job, 'Traducción finalizada.');
   } catch (error) {
-    job.status = 'failed'; job.progressPercent = 100; job.message = 'Error.'; job.error = error.message; addJobHistory(job, `Error: ${error.message}`);
-    await saveHistory({ originalFileName: file?.originalname, status: 'failed', errorMessage: error.message });
+    job.status = 'failed';
+    job.progressPercent = 100;
+    job.message = 'Error en el procesamiento.';
+    job.error = error.message;
+    addJobHistory(job, `Error: ${error.message}`);
+    
+    const safeUserId = Number.isInteger(userId) ? userId : null;
+    await saveHistory({
+      userId: safeUserId,
+      originalFileName: file?.originalname,
+      status: 'failed',
+      errorMessage: error.message,
+      fileSizeBytes: file ? file.size : 0
+    });
+  } finally {
+    if (file) {
+      delete file.buffer;
+      if (file.path && fs.existsSync(file.path)) {
+        try { fs.unlinkSync(file.path); } catch (e) {}
+      }
+    }
   }
 }
 
-const { extractDocxRunsWithIndices } = require('../services/docxRunsExtractor');
 async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, project, domain, userId }) {
   const ext = path.extname(file.originalname).toLowerCase();
   if (ext === '.docx') {
-    // Extraer runs con índices
     const tmpPath = file.path || file.buffer && (() => {
       const tmp = path.join(__dirname, '../../uploads', `${Date.now()}-${file.originalname}`);
       fs.writeFileSync(tmp, file.buffer);
@@ -236,7 +431,7 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
       return tmp;
     })();
     const runs = extractDocxRunsWithIndices(tmpPath || file.path);
-    return { docxRuns: runs, sourceTextHash: computeSourceHash(JSON.stringify(runs)), fromCache: false };
+    return { docxRuns: runs, sourceTextHash: computeSourceHash(JSON.stringify(runs)), fromCache: false, originalFileBuffer: file.buffer };
   } else {
     const originalText = await extractTextByFile(file, sourceLanguage);
     const sourceTextHash = computeSourceHash(originalText);
@@ -255,20 +450,17 @@ async function createPreviewFromFile({ file, sourceLanguage, targetLanguage, pro
 }
 
 async function processTranslationRequest(req, res, next, shouldReturnPreview = false) {
-
   const startedAt = Date.now();
   const traceId = crypto.randomUUID();
 
-  // --- NUEVA LÓGICA DE CUOTA POR TIPO Y VENTANA DE TIEMPO ---
   let isPro = false;
   let isAdmin = false;
   let userId = null;
+  let dbUser = null;
 
   if (isDbReady()) {
     try {
       userId = resolveUserId(req);
-      let dbUser = null;
-
       if (userId && Number.isInteger(userId)) {
         const userRes = await pool.query('SELECT id, plan, role, COALESCE(chibis_count, 0) AS chibis_count FROM users WHERE id = $1', [userId]);
         dbUser = userRes.rows[0];
@@ -283,7 +475,6 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
           const baseQuota = isPro ? 50 : 15;
           const limit = baseQuota + chibisCount * 10;
 
-          // Obtener las traducciones en cooldown (activas)
           const activeCooldownsRes = await pool.query(
             `SELECT *, 
                (created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) AS expires_at,
@@ -299,6 +490,9 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
           const usedQuota = activeTranslations.length;
 
           if (usedQuota >= limit) {
+            if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+              try { fs.unlinkSync(req.file.path); } catch (e) {}
+            }
             const earliestExpiry = activeTranslations[0];
             const sec = earliestExpiry.remaining_seconds || 0;
             const hours = Math.floor(sec / 3600);
@@ -318,14 +512,13 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
           }
         }
       } else {
-        // Invitado / Anónimo (basado en IP)
         const clientIp = req.ip || req.connection.remoteAddress;
         const ext = req.file ? path.extname(req.file.originalname).toLowerCase() : '';
         let tipo = 'text';
-        let limite = 10, ventanaMs = 30 * 60 * 1000; // texto: 10 por media hora
-        if (ext === '.pdf') { tipo = 'pdf'; limite = 15; ventanaMs = 60 * 60 * 1000; } // 15 por hora
-        else if (ext === '.docx') { tipo = 'docx'; limite = 20; ventanaMs = 2 * 60 * 60 * 1000; } // 20 por 2 horas
-        else if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) { tipo = 'image'; limite = 15; ventanaMs = 2 * 60 * 60 * 1000; } // 15 por 2 horas
+        let limite = 10, ventanaMs = 30 * 60 * 1000;
+        if (ext === '.pdf') { tipo = 'pdf'; limite = 15; ventanaMs = 60 * 60 * 1000; }
+        else if (ext === '.docx') { tipo = 'docx'; limite = 20; ventanaMs = 2 * 60 * 60 * 1000; }
+        else if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) { tipo = 'image'; limite = 15; ventanaMs = 2 * 60 * 60 * 1000; }
 
         await pool.query(`CREATE TABLE IF NOT EXISTS client_quotas_tipo (
           ip VARCHAR(50), tipo VARCHAR(20), count INT DEFAULT 0, last_used TIMESTAMP, PRIMARY KEY (ip, tipo)
@@ -338,6 +531,9 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
           await pool.query('INSERT INTO client_quotas_tipo (ip, tipo, count, last_used) VALUES ($1, $2, 1, $3) ON CONFLICT (ip, tipo) DO UPDATE SET count = 1, last_used = $3', [clientIp, tipo, now]);
         } else {
           if (quota.count >= limite) {
+            if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+              try { fs.unlinkSync(req.file.path); } catch (e) {}
+            }
             const msRestante = ventanaMs - (now - new Date(quota.last_used));
             const minutos = Math.ceil(msRestante / 60000);
             let tipoMsg = tipo;
@@ -361,22 +557,38 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
 
   if (!req.file) return res.status(400).json({ error: 'Debes enviar un archivo.' });
 
+  const userPlan = dbUser ? (dbUser.role === 'admin' ? 'admin' : (dbUser.plan || 'free')) : 'free';
+  const isProOrAdmin = isAdmin || isPro;
+  const maxFileSizeBytes = isProOrAdmin ? (500 * 1024 * 1024) : (150 * 1024 * 1024);
+
+  if (req.file.size > maxFileSizeBytes) {
+    if (req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    const displaySize = isProOrAdmin ? '500 MB' : '150 MB';
+    return res.status(400).json({ error: `El archivo supera el límite de ${displaySize} para tu tipo de usuario (${userPlan === 'free' ? 'Tamon Chill' : 'Tamon Pro+'}).` });
+  }
+
   try {
+    if (req.file && !req.file.buffer && req.file.path) {
+      req.file.buffer = fs.readFileSync(req.file.path);
+    }
+
     const sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });
     const targetLanguage = sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 });
     const project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
     const domain = sanitizeString(req.body.domain || 'general', { required: true, maxLength: 120 });
 
-    const { originalText, translatedText, sourceTextHash, fromCache } = await createPreviewFromFile({ file: req.file, sourceLanguage, targetLanguage, project, domain, userId });
+    const { originalText, translatedText, sourceTextHash, fromCache, docxRuns, originalFileBuffer } = await createPreviewFromFile({ file: req.file, sourceLanguage, targetLanguage, project, domain, userId });
     const previewId = crypto.randomUUID(); clearExpiredPreviews();
-    previewStore.set(previewId, { originalFileName: req.file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, expiresAt: Date.now() + PREVIEW_TTL_MS });
+    previewStore.set(previewId, { originalFileName: req.file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, docxRuns, originalFileBuffer, expiresAt: Date.now() + PREVIEW_TTL_MS });
 
     const safeUserId = Number.isInteger(userId) ? userId : null;
 
     if (shouldReturnPreview) {
       setExperienceHeaders(res, { traceId, status: 'preview_ready', processingMs: Date.now() - startedAt });
-      await saveHistory({ userId: safeUserId, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText, sourceTextLength: originalText.length, translatedTextLength: translatedText.length, status: 'success', fileSizeBytes: req.file.size });
-      return res.status(200).json({ previewId, traceId, originalFileName: req.file.originalname, sourceLanguage, targetLanguage, originalText, translatedText, experience: { status: 'preview_ready', estimatedCompletionSeconds: estimateTranslationSecondsByText(originalText), fromCache, assistantMessage: buildAssistantMessage('preview_ready') } });
+      await saveHistory({ userId: safeUserId, originalFileName: req.file.originalname, fileType: path.extname(req.file.originalname).replace('.', ''), sourceLanguage, targetLanguage, project, domain, sourceTextHash, translatedTextCache: translatedText || '', sourceTextLength: originalText ? originalText.length : 0, translatedTextLength: translatedText ? translatedText.length : 0, status: 'success', fileSizeBytes: req.file.size });
+      return res.status(200).json({ previewId, traceId, originalFileName: req.file.originalname, sourceLanguage, targetLanguage, originalText, translatedText, docxRuns, experience: { status: 'preview_ready', estimatedCompletionSeconds: estimateTranslationSecondsByText(originalText || ''), fromCache, assistantMessage: buildAssistantMessage('preview_ready') } });
     }
 
     const translatedDocxBuffer = await createTranslatedDocxBuffer({ originalFileName: req.file.originalname, sourceLanguage, targetLanguage, translatedText });
@@ -390,11 +602,201 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
     const safeUserId = Number.isInteger(userId) ? userId : null;
     await saveHistory({ userId: safeUserId, originalFileName: req.file?.originalname, status: 'failed', errorMessage: error.message, fileSizeBytes: req.file ? req.file.size : 0 });
     return next(error);
+  } finally {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
   }
 }
 
 router.post('/translate', upload.single('document'), async (req, res, next) => processTranslationRequest(req, res, next, false));
 router.post('/translate/preview', upload.single('document'), async (req, res, next) => processTranslationRequest(req, res, next, true));
+
+router.post('/translate/preview-async', upload.single('document'), async (req, res, next) => {
+  const startedAt = Date.now();
+  const traceId = crypto.randomUUID();
+
+  let isPro = false;
+  let isAdmin = false;
+  let userId = null;
+  let dbUser = null;
+
+  if (isDbReady()) {
+    try {
+      userId = resolveUserId(req);
+      if (userId && Number.isInteger(userId)) {
+        const userRes = await pool.query('SELECT id, plan, role, COALESCE(chibis_count, 0) AS chibis_count FROM users WHERE id = $1', [userId]);
+        dbUser = userRes.rows[0];
+      }
+
+      if (dbUser) {
+        if (dbUser.role === 'admin') {
+          isAdmin = true;
+        } else {
+          isPro = dbUser.plan === 'pro_plus' || dbUser.plan === 'pro';
+          const chibisCount = Number(dbUser.chibis_count || 0);
+          const baseQuota = isPro ? 50 : 15;
+          const limit = baseQuota + chibisCount * 10;
+
+          const activeCooldownsRes = await pool.query(
+            `SELECT *, 
+               (created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) AS expires_at,
+               EXTRACT(EPOCH FROM ((created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) - NOW()))::INT AS remaining_seconds
+             FROM translation_history
+             WHERE user_id = $1 AND status = 'success'
+               AND (created_at + (LEAST(1 + (COALESCE(file_size_bytes, 0) / 1048576.0 * 0.5), 24) * INTERVAL '1 hour')) > NOW()
+             ORDER BY expires_at ASC`,
+            [userId]
+          );
+          
+          const activeTranslations = activeCooldownsRes.rows;
+          const usedQuota = activeTranslations.length;
+
+          if (usedQuota >= limit) {
+            if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+              try { fs.unlinkSync(req.file.path); } catch (e) {}
+            }
+            const earliestExpiry = activeTranslations[0];
+            const sec = earliestExpiry.remaining_seconds || 0;
+            const hours = Math.floor(sec / 3600);
+            const minutes = Math.max(Math.ceil((sec % 3600) / 60), 1);
+            
+            let resetMsg = `${minutes} minutos`;
+            if (hours > 0) {
+              resetMsg = `${hours} horas y ${minutes} minutos`;
+            }
+
+            return res.status(403).json({
+              error: `⏳ Utilizaste tus cuotas que se restablecen en ${resetMsg}. Espera o usa un plan Chibi/actualiza a Pro+.`,
+              proPlus: true,
+              limitReached: true,
+              cooldownRemainingSeconds: sec
+            });
+          }
+        }
+      } else {
+        const clientIp = req.ip || req.connection.remoteAddress;
+        const ext = req.file ? path.extname(req.file.originalname).toLowerCase() : '';
+        let tipo = 'text';
+        let limite = 10, ventanaMs = 30 * 60 * 1000;
+        if (ext === '.pdf') { tipo = 'pdf'; limite = 15; ventanaMs = 60 * 60 * 1000; }
+        else if (ext === '.docx') { tipo = 'docx'; limite = 20; ventanaMs = 2 * 60 * 60 * 1000; }
+        else if ([".jpg", ".jpeg", ".png", ".webp"].includes(ext)) { tipo = 'image'; limite = 15; ventanaMs = 2 * 60 * 60 * 1000; }
+
+        await pool.query(`CREATE TABLE IF NOT EXISTS client_quotas_tipo (
+          ip VARCHAR(50), tipo VARCHAR(20), count INT DEFAULT 0, last_used TIMESTAMP, PRIMARY KEY (ip, tipo)
+        )`);
+        const now = new Date();
+        const resDB = await pool.query('SELECT * FROM client_quotas_tipo WHERE ip = $1 AND tipo = $2', [clientIp, tipo]);
+        let quota = resDB.rows[0];
+
+        if (!quota || (now - new Date(quota.last_used)) > ventanaMs) {
+          await pool.query('INSERT INTO client_quotas_tipo (ip, tipo, count, last_used) VALUES ($1, $2, 1, $3) ON CONFLICT (ip, tipo) DO UPDATE SET count = 1, last_used = $3', [clientIp, tipo, now]);
+        } else {
+          if (quota.count >= limite) {
+            if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+              try { fs.unlinkSync(req.file.path); } catch (e) {}
+            }
+            const msRestante = ventanaMs - (now - new Date(quota.last_used));
+            const minutos = Math.ceil(msRestante / 60000);
+            let tipoMsg = tipo;
+            if (tipo === 'docx') tipoMsg = 'documentos Word';
+            else if (tipo === 'pdf') tipoMsg = 'PDFs';
+            else if (tipo === 'image') tipoMsg = 'imágenes';
+            else if (tipo === 'text') tipoMsg = 'textos';
+            return res.status(403).json({
+              error: `⏳ Has alcanzado el límite de ${limite} ${tipoMsg} para invitados. Registra una cuenta o inicia sesión para obtener más cuota.`,
+              proPlus: true,
+              tipo,
+              minutosRestantes: minutos,
+              limite
+            });
+          }
+          await pool.query('UPDATE client_quotas_tipo SET count = count + 1, last_used = $3 WHERE ip = $1 AND tipo = $2', [clientIp, tipo, now]);
+        }
+      }
+    } catch (err) { console.error("Error cuota Postgres:", err); }
+  }
+
+  if (!req.file) return res.status(400).json({ error: 'Debes enviar un archivo.' });
+
+  const userPlan = dbUser ? (dbUser.role === 'admin' ? 'admin' : (dbUser.plan || 'free')) : 'free';
+  const isProOrAdmin = isAdmin || isPro;
+  const maxFileSizeBytes = isProOrAdmin ? (500 * 1024 * 1024) : (150 * 1024 * 1024);
+
+  if (req.file.size > maxFileSizeBytes) {
+    if (req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    const displaySize = isProOrAdmin ? '500 MB' : '150 MB';
+    return res.status(400).json({ error: `El archivo supera el límite de ${displaySize} para tu tipo de usuario (${userPlan === 'free' ? 'Tamon Chill' : 'Tamon Pro+'}).` });
+  }
+
+  try {
+    const sourceLanguage = sanitizeString(req.body.sourceLanguage, { required: true, maxLength: 20 });
+    const targetLanguage = sanitizeString(req.body.targetLanguage, { required: true, maxLength: 20 });
+    const project = sanitizeString(req.body.project || 'default', { required: true, maxLength: 120 });
+    const domain = sanitizeString(req.body.domain || 'general', { required: true, maxLength: 120 });
+
+    const job = createJob({
+      originalFileName: req.file.originalname,
+      sourceLanguage,
+      targetLanguage,
+      project,
+      domain
+    });
+
+    runPreviewJob(job, {
+      file: req.file,
+      sourceLanguage,
+      targetLanguage,
+      project,
+      domain,
+      userId
+    }).catch(err => {
+      console.error(`Error en segundo plano en runPreviewJob para el trabajo ${job.id}:`, err);
+    });
+
+    return res.status(202).json({ jobId: job.id, status: 'queued' });
+  } catch (error) {
+    if (req.file && req.file.path && fs.existsSync(req.file.path)) {
+      try { fs.unlinkSync(req.file.path); } catch (e) {}
+    }
+    return next(error);
+  }
+});
+
+router.get('/translate/job/:id', (req, res) => {
+  const job = translationJobs.get(req.params.id);
+  if (!job) {
+    return res.status(404).json({ error: 'Trabajo no encontrado o expirado.' });
+  }
+  return res.json({
+    id: job.id,
+    status: job.status,
+    progressPercent: job.progressPercent,
+    etaSeconds: job.etaSeconds,
+    message: job.message,
+    previewId: job.previewId,
+    error: job.error
+  });
+});
+
+router.get('/translate/preview-result/:previewId', (req, res) => {
+  const preview = previewStore.get(req.params.previewId);
+  if (!preview) {
+    return res.status(404).json({ error: 'Vista previa no encontrada o expirada.' });
+  }
+  return res.json({
+    previewId: req.params.previewId,
+    originalFileName: preview.originalFileName,
+    sourceLanguage: preview.sourceLanguage,
+    targetLanguage: preview.targetLanguage,
+    originalText: preview.originalText,
+    translatedText: preview.translatedText,
+    docxRuns: preview.docxRuns
+  });
+});
 
 // DOCX: reenviar traducciones por índice a microservicio Python
 const axios = require('axios');

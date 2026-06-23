@@ -52,7 +52,7 @@ router.post('/upload', upload.single('file'), async (req, res) => {
     originalName: req.file.originalname,
     extractedText: extracted.text,
     detectedType: extracted.type,
-    userType,
+    userPlan,
     maxSizeMB
   });
 });

@@ -1,6 +1,13 @@
 // =====================================================================
 // 0. DIÁLOGOS Y ALERTAS PERSONALIZADOS (Estilo Tamon)
 // =====================================================================
+const BASE_API_URL = window.location.hostname.includes('vercel.app') 
+  ? 'https://translatetamon.onrender.com' 
+  : '';
+
+function getApiUrl(path) {
+  return BASE_API_URL + path;
+}
 function getOrCreateTamonDialog() {
   let modal = document.getElementById('tamon-dialog-modal');
   if (!modal) {
@@ -298,6 +305,58 @@ function renderFileList() {
   }
 }
 
+function pollTranslationJob(jobId) {
+  return new Promise((resolve, reject) => {
+    const interval = setInterval(async () => {
+      try {
+        const headers = {};
+        const token = localStorage.getItem('tamon_token');
+        if (token) headers['Authorization'] = 'Bearer ' + token;
+
+        const response = await fetch(getApiUrl(`/api/translate/job/${jobId}`), { headers });
+        if (!response.ok) {
+          const data = await response.json();
+          throw new Error(data.error || 'Error al consultar el progreso del trabajo.');
+        }
+
+        const data = await response.json();
+
+        if (typeof data.progressPercent === 'number') {
+          setProcessProgress(data.progressPercent);
+        }
+
+        if (data.message) {
+          setStatus(data.message);
+        }
+
+        if (etaText) {
+          if (data.status === 'queued') {
+            etaText.textContent = 'En cola esperando procesamiento...';
+          } else if (typeof data.etaSeconds === 'number' && data.etaSeconds > 0) {
+            const minutes = Math.floor(data.etaSeconds / 60);
+            const seconds = data.etaSeconds % 60;
+            const timeStr = minutes > 0 ? `${minutes}m ${seconds}s` : `${seconds}s`;
+            etaText.textContent = `Tiempo estimado restante: ${timeStr}`;
+          } else {
+            etaText.textContent = '';
+          }
+        }
+
+        if (data.status === 'completed') {
+          clearInterval(interval);
+          resolve(data.previewId);
+        } else if (data.status === 'failed') {
+          clearInterval(interval);
+          reject(new Error(data.error || 'El procesamiento del archivo falló.'));
+        }
+      } catch (err) {
+        clearInterval(interval);
+        reject(err);
+      }
+    }, 2000);
+  });
+}
+
 async function requestPreview(event) {
   event.preventDefault();
 
@@ -318,24 +377,34 @@ async function requestPreview(event) {
 
   setStep('step-upload');
   setStatus(UI_TEXT.processing + ` (${fileToProcess.name})`);
-  startProcessTicker(Math.max(Math.ceil(fileToProcess.size / 8000), 60));
+  if (etaText) etaText.textContent = 'Iniciando subida y encolamiento...';
+  setProcessProgress(3);
 
   try {
     const headers = {};
     const token = localStorage.getItem('tamon_token');
     if (token) headers['Authorization'] = 'Bearer ' + token;
-    const response = await fetch('/api/translate/preview', { method: 'POST', headers, body: formData });
+    
+    const response = await fetch(getApiUrl('/api/translate/preview-async'), { method: 'POST', headers, body: formData });
     const rawBody = await response.text();
-    const data = rawBody ? JSON.parse(rawBody) : {};
+    const initData = rawBody ? JSON.parse(rawBody) : {};
 
-    if (!response.ok) throw new Error(data.error || UI_TEXT.previewError);
+    if (!response.ok) throw new Error(initData.error || UI_TEXT.previewError);
+    if (!initData.jobId) throw new Error('No se recibió el ID del trabajo asíncrono.');
+
+    const previewId = await pollTranslationJob(initData.jobId);
+
+    const resultRes = await fetch(getApiUrl(`/api/translate/preview-result/${previewId}`), { headers });
+    if (!resultRes.ok) {
+      const errData = await resultRes.json();
+      throw new Error(errData.error || 'No se pudo obtener el resultado de la traducción.');
+    }
+    const data = await resultRes.json();
 
     previewState = data;
     if (previewPanel) previewPanel.classList.remove('hidden');
 
-    // DOCX avanzado: mostrar runs para traducción
     if (data.docxRuns) {
-      // Renderiza cada run editable
       const docxRunsContainer = document.getElementById('docxRunsContainer') || (() => {
         const c = document.createElement('div');
         c.id = 'docxRunsContainer';
@@ -363,7 +432,6 @@ async function requestPreview(event) {
         div.appendChild(input);
         docxRunsContainer.appendChild(div);
       });
-      // Oculta los inputs de texto plano
       if (translatedTextInput) translatedTextInput.style.display = 'none';
       if (originalTextPreview) originalTextPreview.style.display = 'none';
     } else {
@@ -374,13 +442,14 @@ async function requestPreview(event) {
       const docxRunsContainer = document.getElementById('docxRunsContainer');
       if (docxRunsContainer) docxRunsContainer.remove();
     }
-    if (previewMeta) previewMeta.textContent = `Trace: ${data.traceId} · ${data.experience?.fromCache ? UI_TEXT.fromMemory : UI_TEXT.fromModel}`;
-    stopProcessTicker();
+    if (previewMeta) {
+      previewMeta.textContent = `Trace: ${initData.jobId || previewId} · ` + (data.originalText ? UI_TEXT.fromModel : UI_TEXT.fromMemory);
+    }
     setProcessProgress(100);
     setStep('step-preview');
-    setStatus(data.experience?.assistantMessage || UI_TEXT.previewReady);
+    setStatus(UI_TEXT.previewReady);
   } catch (error) {
-    stopProcessTicker();
+    if (etaText) etaText.textContent = '';
     setStatus(error.message);
   }
 }
@@ -405,7 +474,7 @@ async function finalizeTranslation() {
   }
 
   try {
-    const response = await fetch('/api/translate/finalize', {
+    const response = await fetch(getApiUrl('/api/translate/finalize'), {
       method: 'POST',
       headers: {
         'Content-Type': 'application/json',

@@ -68,41 +68,49 @@ async function translateTextWithProgress(text, sourceLanguage, targetLanguage, o
 
   const chunkSize = options.chunkSize || CHUNK_SIZE;
   const chunks = splitIntoChunks(text, chunkSize);
-  const translatedChunks = [];
   const totalChunks = chunks.length;
+  const translatedChunks = new Array(totalChunks);
   const fallbackToOriginalOnError = options.fallbackToOriginalOnError === true;
 
-  for (let index = 0; index < chunks.length; index += 1) {
-    const chunk = chunks[index];
-    try {
-      const translated = await translateChunk(chunk, sourceLanguage, targetLanguage);
-      translatedChunks.push(translated);
-    } catch (error) {
-      if (!fallbackToOriginalOnError) {
-        throw error;
-      }
-
-      translatedChunks.push(chunk); // Mantenemos el original si falla
-      if (typeof options.onChunkError === 'function') {
-        options.onChunkError({
-          chunkIndex: index,
-          totalChunks,
-          message: error.message
+  const batchSize = 3;
+  for (let i = 0; i < totalChunks; i += batchSize) {
+    const batch = chunks.slice(i, i + batchSize);
+    
+    const promises = batch.map((chunk, batchIdx) => {
+      const chunkIdx = i + batchIdx;
+      return translateChunk(chunk, sourceLanguage, targetLanguage)
+        .then(translated => ({ translated, chunkIdx }))
+        .catch(error => {
+          if (!fallbackToOriginalOnError) {
+            throw error;
+          }
+          if (typeof options.onChunkError === 'function') {
+            options.onChunkError({
+              chunkIndex: chunkIdx,
+              totalChunks,
+              message: error.message
+            });
+          }
+          return { translated: chunk, chunkIdx };
         });
-      }
+    });
+
+    const batchResults = await Promise.all(promises);
+    for (const res of batchResults) {
+      translatedChunks[res.chunkIdx] = res.translated;
     }
 
+    const processedChunks = Math.min(i + batchSize, totalChunks);
     if (typeof options.onProgress === 'function') {
       options.onProgress({
-        processedChunks: index + 1,
+        processedChunks,
         totalChunks,
-        translatedSoFar: translatedChunks.join(''),
-        percentage: Math.round(((index + 1) / totalChunks) * 100)
+        translatedSoFar: translatedChunks.slice(0, processedChunks).join(''),
+        percentage: Math.round((processedChunks / totalChunks) * 100)
       });
     }
 
-    // Retraso entre envíos para no ser bloqueados
-    if (index < chunks.length - 1) {
+    if (i + batchSize < totalChunks) {
       await delay(INTER_CHUNK_DELAY_MS);
     }
   }

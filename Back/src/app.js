@@ -21,6 +21,18 @@ const {
 const { isDbReady, pool } = require('./config/db'); // <-- Importamos isDbReady y el pool de Postgres
 
 const app = express();
+
+app.use((req, res, next) => {
+  res.setHeader('Access-Control-Allow-Origin', '*');
+  res.setHeader('Access-Control-Allow-Methods', 'GET, POST, PUT, DELETE, OPTIONS');
+  res.setHeader('Access-Control-Allow-Headers', 'Content-Type, Authorization, X-Tamon-Trace-Id');
+  res.setHeader('Access-Control-Expose-Headers', 'X-Tamon-Trace-Id, X-Tamon-Status, X-Tamon-Processing-Ms, X-Tamon-Assistant-Message');
+  if (req.method === 'OPTIONS') {
+    return res.sendStatus(200);
+  }
+  next();
+});
+
 const requestBodyLimit = process.env.REQUEST_BODY_LIMIT || '25mb';
 
 app.use(express.json({ limit: requestBodyLimit }));

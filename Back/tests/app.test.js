@@ -144,16 +144,26 @@ describe('app routes', () => {
     expect(response.status).toBe(401);
   });
 
-  test('POST /api/memory/rules rejects non-admin', async () => {
+  test('POST /api/translate/preview-async requires file', async () => {
     const response = await request(app)
-      .post('/api/memory/rules')
-      .send({
-        project: 'default',
-        domain: 'general',
-        findText: 'risk',
-        replaceText: 'exposure'
-      });
+      .post('/api/translate/preview-async')
+      .field('sourceLanguage', 'en')
+      .field('targetLanguage', 'es');
 
-    expect(response.status).toBe(403);
+    expect(response.status).toBe(400);
+  });
+
+  test('GET /api/translate/job/:id returns 404 for non-existent job', async () => {
+    const response = await request(app)
+      .get('/api/translate/job/non-existent-job-id');
+
+    expect(response.status).toBe(404);
+  });
+
+  test('GET /api/translate/preview-result/:previewId returns 404 for non-existent preview', async () => {
+    const response = await request(app)
+      .get('/api/translate/preview-result/non-existent-preview-id');
+
+    expect(response.status).toBe(404);
   });
 });
