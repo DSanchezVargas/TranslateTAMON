@@ -172,6 +172,9 @@ def procesar_pdf_formato():
         for page_num in range(len(doc)):
             page = doc[page_num]
             page_dict = page.get_text("dict")
+            
+            page_translations = []
+            
             for block in page_dict.get("blocks", []):
                 if block.get("type") == 0:  # text block
                     bbox = block.get("bbox")
@@ -203,8 +206,26 @@ def procesar_pdf_formato():
                             text_color = (0, 0, 0)
                             
                         translated_text = traducir_texto_py(block_text, sl, tl)
-                        page.draw_rect(rect, color=(1, 1, 1), fill=(1, 1, 1), width=0)
-                        page.insert_textbox(rect, translated_text, fontsize=font_size, fontname="helv", color=text_color)
+                        page_translations.append({
+                            "rect": rect,
+                            "translated_text": translated_text,
+                            "font_size": font_size,
+                            "text_color": text_color
+                        })
+                        
+                        annot = page.add_redact_annot(rect)
+                        annot.set_colors(stroke=None, fill=None)
+                        
+            page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
+            
+            for item in page_translations:
+                page.insert_textbox(
+                    item["rect"],
+                    item["translated_text"],
+                    fontsize=item["font_size"],
+                    fontname="helv",
+                    color=item["text_color"]
+                )
                         
         doc.save(output_path)
         return send_file(output_path, as_attachment=True, download_name="output.pdf")
