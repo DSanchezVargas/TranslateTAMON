@@ -1546,6 +1546,21 @@ function initRestructuredWorkspace() {
     };
   }
 
+  const btnCopyPreviewText = document.getElementById('btn-copy-preview-text');
+  if (btnCopyPreviewText && translatedTextInput) {
+    btnCopyPreviewText.onclick = () => {
+      navigator.clipboard.writeText(translatedTextInput.value).then(() => {
+        const originalHtml = btnCopyPreviewText.innerHTML;
+        btnCopyPreviewText.innerHTML = `✓`;
+        btnCopyPreviewText.style.color = '#10b981';
+        setTimeout(() => {
+          btnCopyPreviewText.innerHTML = originalHtml;
+          btnCopyPreviewText.style.color = '';
+        }, 2000);
+      });
+    };
+  }
+
   if (btnSwapLanguages && sourceLanguageSelect && targetLanguageSelect) {
     btnSwapLanguages.onclick = () => {
       const temp = sourceLanguageSelect.value;

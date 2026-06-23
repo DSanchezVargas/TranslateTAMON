@@ -226,6 +226,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         sourceTextHash,
         docxRuns: runs,
         originalFileBuffer: file.buffer,
+        fromCache: false,
         expiresAt: Date.now() + PREVIEW_TTL_MS
       });
       
@@ -291,6 +292,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         sourceTextHash,
         translatedText: cached.translatedTextCache,
         originalFileBuffer: file.buffer,
+        fromCache: true,
         expiresAt: Date.now() + PREVIEW_TTL_MS
       });
       
@@ -369,6 +371,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
       sourceTextHash,
       translatedText,
       originalFileBuffer: file.buffer,
+      fromCache: false,
       expiresAt: Date.now() + PREVIEW_TTL_MS
     });
     
@@ -581,7 +584,7 @@ async function processTranslationRequest(req, res, next, shouldReturnPreview = f
 
     const { originalText, translatedText, sourceTextHash, fromCache, docxRuns, originalFileBuffer } = await createPreviewFromFile({ file: req.file, sourceLanguage, targetLanguage, project, domain, userId });
     const previewId = crypto.randomUUID(); clearExpiredPreviews();
-    previewStore.set(previewId, { originalFileName: req.file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, docxRuns, originalFileBuffer, expiresAt: Date.now() + PREVIEW_TTL_MS });
+    previewStore.set(previewId, { originalFileName: req.file.originalname, sourceLanguage, targetLanguage, project, domain, originalText, sourceTextHash, translatedText, docxRuns, originalFileBuffer, fromCache, expiresAt: Date.now() + PREVIEW_TTL_MS });
 
     const safeUserId = Number.isInteger(userId) ? userId : null;
 
@@ -794,7 +797,8 @@ router.get('/translate/preview-result/:previewId', (req, res) => {
     targetLanguage: preview.targetLanguage,
     originalText: preview.originalText,
     translatedText: preview.translatedText,
-    docxRuns: preview.docxRuns
+    docxRuns: preview.docxRuns,
+    fromCache: preview.fromCache
   });
 });
 

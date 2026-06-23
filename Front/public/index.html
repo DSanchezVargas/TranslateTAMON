@@ -298,29 +298,58 @@
           </div>
         </section>
 
-        <section class="panel hidden" id="preview-panel">
-          <h2>3) Corrección guiada</h2>
-          <p class="meta" id="preview-meta"></p>
-          <div class="live-grid">
-            <label>Vista de traducción (origen)
-              <textarea id="originalTextPreview" rows="8" readonly></textarea>
-            </label>
-            <label>Texto traducido editable
-              <textarea id="translatedText" rows="8"></textarea>
-            </label>
+        <section class="panel hidden" id="preview-panel" style="background: rgba(45, 18, 33, 0.45); border: 1.5px solid rgba(234, 168, 193, 0.25); border-radius: 20px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.3); backdrop-filter: blur(10px);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1.5px solid rgba(234, 168, 193, 0.15); padding-bottom: 12px;">
+            <h2 style="margin: 0; color: var(--tamon-primary); font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
+              <span>📝</span> 3) Corrección y Vista Previa
+            </h2>
+            <div id="preview-meta" style="font-size: 0.85rem; color: rgba(255,255,255,0.7); background: rgba(234, 168, 193, 0.15); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(234, 168, 193, 0.25);">
+              Cargando metadatos...
+            </div>
           </div>
-          <button id="finalize-btn" class="btn-secondary">Finalizar y descargar DOCX</button>
-          <form id="feedback-form" style="margin-top: 18px; background: rgba(234, 168, 193, 0.1); padding: 14px 18px; border-radius: 10px; border: 1px solid rgba(234, 168, 193, 0.2);">
-            <label for="feedback-input" style="font-weight: bold; color: var(--tamon-primary);">¿Algún comentario o corrección para Tamon?</label>
-            <input id="feedback-input" type="text" maxlength="400" placeholder="Tu comentario o sugerencia..." style="width: 90%; margin: 8px 0; padding: 7px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.1); background: rgba(0,0,0,0.2); color: #fff;" required />
-            <select id="feedback-type" style="margin-left: 8px; background: var(--tamon-surface); color: var(--tamon-neutral); border: 1px solid var(--tamon-primary); padding: 5px; border-radius: 4px;">
-              <option value="sugerencia">Sugerencia</option>
-              <option value="error">Error</option>
-              <option value="mejora">Mejora</option>
-            </select>
-            <button type="submit" style="margin-left: 8px; background: var(--tamon-primary); color: #2d1221; border: none; border-radius: 6px; padding: 7px 14px; font-weight: bold; cursor: pointer;">Enviar</button>
-            <span id="feedback-status" style="margin-left: 12px; color: var(--tamon-primary); font-size: 0.95em;"></span>
-          </form>
+
+          <div class="text-translation-grid" style="margin-bottom: 24px;">
+            <div class="textarea-container" style="height: 320px;">
+              <div class="textarea-badge-floating" style="background: rgba(255, 255, 255, 0.08); border-color: rgba(255, 255, 255, 0.15); color: #cbd5e1;">Texto Original</div>
+              <textarea id="originalTextPreview" placeholder="Texto original extraído..." readonly style="font-size: 1rem; color: rgba(255, 255, 255, 0.7);"></textarea>
+              <div class="textarea-footer">
+                <span style="font-size: 0.8rem; opacity: 0.6;">Vista de origen (sólo lectura)</span>
+              </div>
+            </div>
+
+            <div class="textarea-container" style="height: 320px;">
+              <div class="textarea-badge-floating" style="background: rgba(234, 168, 193, 0.2); border-color: rgba(234, 168, 193, 0.4); color: var(--tamon-primary);">Texto Traducido</div>
+              <textarea id="translatedText" placeholder="Texto traducido editable..." style="font-size: 1rem; color: #fff;"></textarea>
+              <div class="textarea-footer justify-between" style="display: flex; width: 100%; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 0 15px;">
+                <span style="font-size: 0.8rem; opacity: 0.8; color: var(--tamon-primary);">✨ Editable - Corrige si lo deseas</span>
+                <button type="button" id="btn-copy-preview-text" class="btn-icon-action" title="Copiar traducción" style="background: transparent; border: none; color: var(--tamon-primary); cursor: pointer; display: flex; align-items: center; padding: 5px;">
+                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect width="14" height="14" x="8" y="8" rx="2" ry="2"></rect><path d="M4 16c-1.1 0-2-.9-2-2V4c0-1.1.9-2 2-2h10c1.1 0 2 .9 2 2"></path></svg>
+                </button>
+              </div>
+            </div>
+          </div>
+
+          <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
+            <button id="finalize-btn" class="btn-primary" style="padding: 14px 40px; font-size: 1.1rem; width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 8px 25px rgba(234, 168, 193, 0.4); transition: 0.2s;">
+              🚀 Finalizar y descargar DOCX
+            </button>
+            
+            <form id="feedback-form" style="width: 100%; background: rgba(27, 17, 25, 0.5); padding: 20px; border-radius: 16px; border: 1.5px solid rgba(234, 168, 193, 0.15); backdrop-filter: blur(8px); box-sizing: border-box;">
+              <label for="feedback-input" style="font-weight: bold; color: var(--tamon-primary); display: block; margin-bottom: 10px; font-size: 0.95rem; text-align: left;">
+                💡 ¿Algún comentario o corrección sobre la traducción de Tamon?
+              </label>
+              <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
+                <input id="feedback-input" type="text" maxlength="400" placeholder="Escribe tu sugerencia, corrección o comentario aquí..." style="flex: 1; padding: 12px; border-radius: 10px; border: 1px solid rgba(234, 168, 193, 0.2); background: rgba(0,0,0,0.3); color: #fff; outline: none; transition: 0.2s; box-sizing: border-box;" required />
+                <select id="feedback-type" style="background: rgba(27, 17, 25, 0.8); color: var(--tamon-neutral); border: 1.5px solid var(--tamon-primary); padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer; outline: none;">
+                  <option value="sugerencia">💡 Sugerencia</option>
+                  <option value="error">❌ Error</option>
+                  <option value="mejora">📈 Mejora</option>
+                </select>
+                <button type="submit" class="btn-primary" style="margin: 0; padding: 11px 25px; border-radius: 10px; font-size: 0.95rem; box-shadow: none;">Enviar</button>
+              </div>
+              <div id="feedback-status" style="margin-top: 8px; color: var(--tamon-primary); font-size: 0.9rem; text-align: left; font-weight: 500;"></div>
+            </form>
+          </div>
         </section>
 
       </section>
