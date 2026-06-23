@@ -127,21 +127,34 @@ async function loadDashboard() {
     document.getElementById('kpi-most-lang').textContent = stats.mostRequestedLanguage || '-';
     document.getElementById('kpi-most-file').textContent = stats.mostUsedFileType || '-';
 
+    // 1. Gráfico de Idiomas: Filtramos "unknown"
     const usageItems = usage.items || [];
+    const labelIdiomas = usageItems.map((item) => {
+      let lang = item.language || 'Desconocido';
+      if (lang.toLowerCase() === 'unknown') return 'Desconocido';
+      return lang;
+    });
+
     languageChart = renderChart(
       languageChart,
       'language-chart',
-      usageItems.map((item) => item.language || 'Desconocido'),
+      labelIdiomas,
       usageItems.map((item) => item.total),
       'bar'
     );
 
+    // 2. Gráfico de Archivos: Cambiamos "unknown" por "Texto Directo"
     const fileItems = fileTypes.items || [];
+    const labelArchivos = fileItems.map((item) => {
+      let fType = item.filetype || item.fileType || 'Desconocido';
+      if (fType.toLowerCase() === 'unknown') return 'Texto Directo';
+      return fType.toUpperCase(); // Lo ponemos en mayúsculas (PDF, DOCX) para que se vea mejor
+    });
+
     fileTypeChart = renderChart(
       fileTypeChart,
       'filetype-chart',
-      // ¡Solución aquí! Buscamos 'filetype' (minúscula de Postgres) y si está vacío ponemos 'Desconocido'
-      fileItems.map((item) => item.filetype || item.fileType || 'Desconocido'),
+      labelArchivos,
       fileItems.map((item) => item.total),
       'doughnut'
     );
