@@ -47,61 +47,107 @@ const token = localStorage.getItem('tamon_token');
 
 function adminFetch(path, options = {}) {
   const separator = path.includes('?') ? '&' : '?';
-  return fetch(`${path}${separator}admin=1`, options);
-}
+  const token = localStorage.getItem('tamon_token'); // Obtenemos tu sesión
 
+  const headers = options.headers || {};
+  if (token) {
+    headers['Authorization'] = `Bearer ${token}`; // ¡Llave de acceso maestra!
+  }
+
+  return fetch(`${path}${separator}admin=1`, {
+    ...options,
+    headers: {
+      'Content-Type': 'application/json',
+      ...headers
+    }
+  });
+} // <--- ¡AQUÍ ESTABA EL ERROR! Faltaba esta llave de cierre.
+
+// 2. Colores Tamon y Leyendas activadas
 function renderChart(instance, canvasId, labels, data, type = 'bar') {
   if (instance) instance.destroy();
   const context = document.getElementById(canvasId).getContext('2d');
+
+  // Paleta de colores estilo Tamon
+  const colores = [
+    'rgba(234, 168, 193, 0.8)', // Rosa pastel (Primary)
+    'rgba(217, 131, 171, 0.8)', // Morado suave (Secondary)
+    'rgba(242, 228, 210, 0.8)', // Crema (Accent)
+    'rgba(121, 40, 202, 0.8)',  // Morado intenso
+    'rgba(255, 0, 127, 0.8)'    // Rosa neón
+  ];
+
   return new Chart(context, {
     type,
     data: {
-      labels,
-      datasets: [{ data, borderWidth: 1 }]
+      labels: labels,
+      datasets: [{
+        label: 'Total',
+        data: data,
+        backgroundColor: colores,
+        borderWidth: 1,
+        borderColor: 'rgba(255, 245, 250, 0.2)'
+      }]
     },
     options: {
       responsive: true,
-      plugins: { legend: { display: false } }
+      plugins: {
+        legend: {
+          display: true, // ¡ESTO HACE QUE APAREZCAN LOS NOMBRES DE LOS COLORES!
+          position: 'bottom',
+          labels: { color: '#fff5fa', padding: 15 }
+        }
+      },
+      scales: type === 'bar' ? {
+        y: { beginAtZero: true, ticks: { color: '#fff5fa' } },
+        x: { ticks: { color: '#fff5fa' } }
+      } : {} // Los gráficos de dona no necesitan ejes
     }
   });
 }
 
+// 3. Arreglamos el error "unknown" de PostgreSQL
 async function loadDashboard() {
-  const [statsRes, usageRes, fileTypesRes, learningRes] = await Promise.all([
-    adminFetch('/api/admin/statistics'),
-    adminFetch('/api/admin/usage-by-language'),
-    adminFetch('/api/admin/file-types'),
-    adminFetch('/api/admin/learning-metrics')
-  ]);
+  try {
+    const [statsRes, usageRes, fileTypesRes, learningRes] = await Promise.all([
+      adminFetch('/api/admin/statistics'),
+      adminFetch('/api/admin/usage-by-language'),
+      adminFetch('/api/admin/file-types'),
+      adminFetch('/api/admin/learning-metrics')
+    ]);
 
-  const stats = await statsRes.json();
-  const usage = await usageRes.json();
-  const fileTypes = await fileTypesRes.json();
-  const learning = await learningRes.json();
+    const stats = await statsRes.json();
+    const usage = await usageRes.json();
+    const fileTypes = await fileTypesRes.json();
+    const learning = await learningRes.json();
 
-  document.getElementById('kpi-total-users').textContent = stats.totalUsers || 0;
-  document.getElementById('kpi-chill-users').textContent = stats.chillUsers || 0;
-  document.getElementById('kpi-proplus-users').textContent = stats.proPlusUsers || 0;
-  document.getElementById('kpi-most-lang').textContent = stats.mostRequestedLanguage || '-';
-  document.getElementById('kpi-most-file').textContent = stats.mostUsedFileType || '-';
+    document.getElementById('kpi-total-users').textContent = stats.totalUsers || 0;
+    document.getElementById('kpi-chill-users').textContent = stats.chillUsers || 0;
+    document.getElementById('kpi-proplus-users').textContent = stats.proPlusUsers || 0;
+    document.getElementById('kpi-most-lang').textContent = stats.mostRequestedLanguage || '-';
+    document.getElementById('kpi-most-file').textContent = stats.mostUsedFileType || '-';
 
-  const usageItems = usage.items || [];
-  languageChart = renderChart(
-    languageChart,
-    'language-chart',
-    usageItems.map((item) => item.language),
-    usageItems.map((item) => item.total),
-    'bar'
-  );
+    const usageItems = usage.items || [];
+    languageChart = renderChart(
+      languageChart,
+      'language-chart',
+      usageItems.map((item) => item.language || 'Desconocido'),
+      usageItems.map((item) => item.total),
+      'bar'
+    );
 
-  const fileItems = fileTypes.items || [];
-  fileTypeChart = renderChart(
-    fileTypeChart,
-    'filetype-chart',
-    fileItems.map((item) => item.fileType),
-    fileItems.map((item) => item.total),
-    'doughnut'
-  );
+    const fileItems = fileTypes.items || [];
+    fileTypeChart = renderChart(
+      fileTypeChart,
+      'filetype-chart',
+      // ¡Solución aquí! Buscamos 'filetype' (minúscula de Postgres) y si está vacío ponemos 'Desconocido'
+      fileItems.map((item) => item.filetype || item.fileType || 'Desconocido'),
+      fileItems.map((item) => item.total),
+      'doughnut'
+    );
+  } catch (error) {
+    console.error("Error al cargar el Dashboard:", error);
+  }
 }
 
 async function loadUsers(filters = {}) {
