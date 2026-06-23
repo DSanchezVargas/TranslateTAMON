@@ -235,14 +235,15 @@
               <div id="workspace-text" class="workspace-view">
                 <div class="text-translation-grid">
                   <div class="textarea-container source-container">
+                    <button type="button" id="btn-clear-text" class="btn-clear-float" title="Borrar texto" style="display: none;">✕</button>
                     <textarea id="text-input-source" placeholder="Escribe o pega el texto aquí para traducir con Tamon IA..." maxlength="5000"></textarea>
                     <div class="textarea-footer">
                       <span id="char-count">0 / 5000</span>
-                      <button type="button" id="btn-clear-text" class="btn-icon-action" title="Borrar texto" style="display: none;">✕</button>
                     </div>
                   </div>
 
                   <div class="textarea-container target-container">
+                    <div class="textarea-badge-floating">✨ Tamon IA</div>
                     <div id="text-output-loading" class="text-loading-overlay" style="display: none;">
                       <div class="spinner"></div>
                       <p>Moviendo engranajes de Tamon...</p>

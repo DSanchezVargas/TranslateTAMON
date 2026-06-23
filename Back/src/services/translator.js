@@ -1,4 +1,4 @@
-const { translate } = require('@vitalets/google-translate-api');
+const axios = require('axios');
 // Ajustamos el chunk size para que Google no rechace peticiones por ser muy largas.
 const CHUNK_SIZE = 4500; 
 // Un retraso pequeño para no saturar al servidor y evitar que bloquee la IP
@@ -28,20 +28,21 @@ function splitIntoChunks(text, size = CHUNK_SIZE) {
   return chunks;
 }
 
-// REEMPLAZA ESTA FUNCIÓN EN services/translator.js
 async function translateChunk(chunk, sourceLanguage, targetLanguage) {
-    try {
-        const res = await translate(chunk, { from: sourceLanguage, to: targetLanguage });
-        return res.text;
-    } catch (error) {
-        // Detectamos si Google nos bloqueó temporalmente por exceso de tráfico
-        if (error.name === 'TooManyRequestsError' || error.message.includes('429') || error.message.includes('Too Many Requests')) {
-            throw new Error('Tamon ha procesado demasiados documentos recientemente y el servidor gratuito necesita un breve respiro. Por favor, intenta de nuevo en unos minutos.');
-        }
-        
-        // Si es cualquier otro error, lo mostramos normal
-        throw new Error(`Error de traducción: ${error.message}`);
+  try {
+    const url = `https://translate.googleapis.com/translate_a/single?client=gtx&sl=${sourceLanguage}&tl=${targetLanguage}&dt=t&q=${encodeURIComponent(chunk)}`;
+    const response = await axios.get(url);
+    if (response.data && response.data[0]) {
+      const translated = response.data[0].map(item => item[0]).join('');
+      return translated;
     }
+    throw new Error('Respuesta inválida del servidor de traducción.');
+  } catch (error) {
+    if (error.response && error.response.status === 429) {
+      throw new Error('Tamon ha procesado demasiados documentos recientemente y el servidor gratuito necesita un breve respiro. Por favor, intenta de nuevo en unos minutos.');
+    }
+    throw new Error(`Error de traducción: ${error.message}`);
+  }
 }
 
 async function translateText(text, sourceLanguage, targetLanguage) {
