@@ -302,6 +302,32 @@ router.put('/users/:id', requireAdmin, async (req, res) => {
   }
 });
 
+// NUEVA RUTA: Eliminar Usuario
+router.delete('/users/:id', requireAdmin, async (req, res) => {
+  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
+  try {
+    const userId = Number(req.params.id);
+
+    if (!Number.isInteger(userId)) {
+      return res.status(400).json({ error: 'ID de usuario inválido.' });
+    }
+
+    // Ejecutamos el DELETE en Postgres y retornamos el ID para verificar
+    const result = await pool.query(
+      'DELETE FROM users WHERE id = $1 RETURNING id',
+      [userId]
+    );
+
+    if (!result.rows.length) {
+      return res.status(404).json({ error: 'Usuario no encontrado en la base de datos.' });
+    }
+
+    return res.json({ message: 'Usuario eliminado exitosamente.' });
+  } catch (error) {
+    return res.status(500).json({ error: 'Error interno al eliminar usuario.', detail: error.message });
+  }
+});
+
 // Subir nuevos ejemplos/correcciones
 router.post('/training-data', requireAdmin, async (req, res) => {
   try {

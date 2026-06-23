@@ -1,413 +1,288 @@
-const express = require('express');
-const router = express.Router();
-const { requireAdmin } = require('../middleware/auth');
-const CorrectionSuggestion = require('../models/CorrectionSuggestion');
-const DomainRule = require('../models/DomainRule');
-const GlossaryEntry = require('../models/GlossaryEntry');
-const { pool, isDbReady } = require('../config/db');
-const { normalizePlan } = require('../utils/planCatalog');
+function getOrCreateTamonDialog() {
+  let modal = document.getElementById('tamon-dialog-modal');
+  if (!modal) {
+    modal = document.createElement('div');
+    modal.id = 'tamon-dialog-modal';
+    modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(27, 17, 25, 0.8); z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(4px); font-family: Arial, sans-serif;';
 
-function normalizeUserRow(row) {
+    modal.innerHTML = `
+      <div style="background: rgba(74, 45, 62, 0.9); padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1.5px solid #eaa8c1; color: #fff5fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h3 id="tamon-dialog-title" style="margin-top: 0; color: #eaa8c1; font-size: 1.4rem;">Tamon IA</h3>
+        <p id="tamon-dialog-message" style="margin: 15px 0 25px 0; color: #fff5fa; font-size: 1rem; line-height: 1.5;"></p>
+        <div style="display: flex; justify-content: center; gap: 15px;">
+          <button id="tamon-dialog-cancel-btn" style="display: none; background: transparent; border: 1px solid #eaa8c1; color: #eaa8c1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
+          <button id="tamon-dialog-confirm-btn" style="background: linear-gradient(135deg, #eaa8c1, #d983ab); color: #2d1221; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Aceptar</button>
+        </div>
+      </div>
+    `;
+    document.body.appendChild(modal);
+  }
   return {
-    id: row.id,
-    nombre: row.nombre,
-    correo: row.email,
-    plan: normalizePlan(row.plan),
-    role: row.role,
-    status: row.user_status || 'active',
-    avatarUrl: row.avatar_url || null,
-    mensajesHoy: row.mensajes_hoy || 0,
-    ultimaFechaChat: row.ultima_fecha_chat || null
+    modal,
+    titleEl: document.getElementById('tamon-dialog-title'),
+    msgEl: document.getElementById('tamon-dialog-message'),
+    cancelBtn: document.getElementById('tamon-dialog-cancel-btn'),
+    confirmBtn: document.getElementById('tamon-dialog-confirm-btn')
   };
 }
 
-function parsePagination(req) {
-  const limit = Math.min(Math.max(Number(req.query.limit) || 20, 1), 100);
-  const page = Math.max(Number(req.query.page) || 1, 1);
-  const offset = (page - 1) * limit;
-  return { limit, page, offset };
+window.alert = function (message, callback) {
+  const { modal, titleEl, msgEl, cancelBtn, confirmBtn } = getOrCreateTamonDialog();
+  if (titleEl) titleEl.textContent = 'Tamon IA';
+  if (msgEl) msgEl.textContent = message;
+  if (cancelBtn) cancelBtn.style.display = 'none';
+  if (confirmBtn) {
+    confirmBtn.onclick = () => {
+      modal.style.display = 'none';
+      if (typeof callback === 'function') callback();
+    };
+  }
+  modal.style.display = 'flex';
+};
+
+let languageChart;
+let fileTypeChart;
+const user = JSON.parse(localStorage.getItem('tamon_user') || 'null');
+const token = localStorage.getItem('tamon_token');
+
+function adminFetch(path, options = {}) {
+  const separator = path.includes('?') ? '&' : '?';
+  return fetch(`${path}${separator}admin=1`, options);
 }
 
-router.get('/statistics', requireAdmin, async (_req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const [
-      translations,
-      languages,
-      fileTypes,
-      users,
-      totalUsersQuery,
-      chillUsersQuery,
-      proPlusUsersQuery,
-      topLanguageQuery,
-      topFileTypeQuery
-    ] = await Promise.all([
-      pool.query(`SELECT COUNT(*)::INT AS total FROM translation_history WHERE status = 'success'`),
-      pool.query(`
-        SELECT target_language AS language, COUNT(*)::INT AS total
-        FROM translation_history
-        WHERE target_language IS NOT NULL AND target_language <> ''
-        GROUP BY target_language
-        ORDER BY total DESC
-        LIMIT 10
-      `),
-      pool.query(`
-        SELECT LOWER(file_type) AS file_type, COUNT(*)::INT AS total
-        FROM translation_history
-        WHERE file_type IS NOT NULL AND file_type <> ''
-        GROUP BY LOWER(file_type)
-        ORDER BY total DESC
-      `),
-      pool.query(`SELECT COUNT(*)::INT AS total FROM users WHERE COALESCE(user_status, 'active') = 'active'`),
-      pool.query(`SELECT COUNT(*)::INT AS total FROM users`),
-      pool.query(`SELECT COUNT(*)::INT AS total FROM users WHERE plan IN ('free', 'chill', 'gratis')`),
-      pool.query(`SELECT COUNT(*)::INT AS total FROM users WHERE plan = 'pro_plus'`),
-      pool.query(`
-        SELECT target_language AS language, COUNT(*)::INT AS total
-        FROM translation_history
-        WHERE target_language IS NOT NULL AND target_language <> ''
-        GROUP BY target_language
-        ORDER BY total DESC
-        LIMIT 1
-      `),
-      pool.query(`
-        SELECT COALESCE(NULLIF(LOWER(file_type), ''), 'escribir') AS file_type, COUNT(*)::INT AS total
-        FROM translation_history
-        GROUP BY COALESCE(NULLIF(LOWER(file_type), ''), 'escribir')
-        ORDER BY total DESC
-        LIMIT 1
-      `)
-    ]);
+function renderChart(instance, canvasId, labels, data, type = 'bar') {
+  if (instance) instance.destroy();
+  const context = document.getElementById(canvasId).getContext('2d');
+  return new Chart(context, {
+    type,
+    data: {
+      labels,
+      datasets: [{ data, borderWidth: 1 }]
+    },
+    options: {
+      responsive: true,
+      plugins: { legend: { display: false } }
+    }
+  });
+}
 
-    const formatLang = (lang) => {
-      const mapping = { es: 'Español', en: 'English', pt: 'Português', fr: 'Français', de: 'Deutsch', it: 'Italiano', zh: '中文', ja: '日本語', ko: '한국어', ru: 'Русский', ar: 'العربية', hi: 'हिन्दी' };
-      return mapping[lang] || lang;
+async function loadDashboard() {
+  const [statsRes, usageRes, fileTypesRes, learningRes] = await Promise.all([
+    adminFetch('/api/admin/statistics'),
+    adminFetch('/api/admin/usage-by-language'),
+    adminFetch('/api/admin/file-types'),
+    adminFetch('/api/admin/learning-metrics')
+  ]);
+
+  const stats = await statsRes.json();
+  const usage = await usageRes.json();
+  const fileTypes = await fileTypesRes.json();
+  const learning = await learningRes.json();
+
+  document.getElementById('kpi-total-users').textContent = stats.totalUsers || 0;
+  document.getElementById('kpi-chill-users').textContent = stats.chillUsers || 0;
+  document.getElementById('kpi-proplus-users').textContent = stats.proPlusUsers || 0;
+  document.getElementById('kpi-most-lang').textContent = stats.mostRequestedLanguage || '-';
+  document.getElementById('kpi-most-file').textContent = stats.mostUsedFileType || '-';
+
+  const usageItems = usage.items || [];
+  languageChart = renderChart(
+    languageChart,
+    'language-chart',
+    usageItems.map((item) => item.language),
+    usageItems.map((item) => item.total),
+    'bar'
+  );
+
+  const fileItems = fileTypes.items || [];
+  fileTypeChart = renderChart(
+    fileTypeChart,
+    'filetype-chart',
+    fileItems.map((item) => item.fileType),
+    fileItems.map((item) => item.total),
+    'doughnut'
+  );
+}
+
+async function loadUsers(filters = {}) {
+  const params = new URLSearchParams(filters);
+  const response = await adminFetch(`/api/admin/users?${params.toString()}`);
+  const data = await response.json();
+  const items = data.items || [];
+
+  const rows = items.map((user) => `
+    <tr>
+      <td>${user.nombre || '-'}</td>
+      <td>${user.correo || '-'}</td>
+      <td>${user.plan}</td>
+      <td>${user.status}</td>
+      <td class="acciones-celda">
+        <select data-user-id="${user.id}" data-field="plan">
+          <option value="free" ${user.plan === 'free' ? 'selected' : ''}>free</option>
+          <option value="pro_plus" ${user.plan === 'pro_plus' ? 'selected' : ''}>pro_plus</option>
+        </select>
+        <select data-user-id="${user.id}" data-field="status">
+          <option value="active" ${user.status === 'active' ? 'selected' : ''}>active</option>
+          <option value="blocked" ${user.status === 'blocked' ? 'selected' : ''}>blocked</option>
+        </select>
+        <button data-user-id="${user.id}" class="btn-secondary save-user-btn">Guardar</button>
+        <button data-user-id="${user.id}" class="btn-eliminar delete-user-btn">Borrar</button>
+      </td>
+    </tr>
+  `).join('');
+
+  document.getElementById('users-table').innerHTML = `
+    <table class="simple-table">
+      <thead><tr><th>Nombre</th><th>Correo</th><th>Plan</th><th>Estado</th><th>Editar</th></tr></thead>
+      <tbody>${rows || '<tr><td colspan="5">Sin resultados</td></tr>'}</tbody>
+    </table>
+  `;
+
+  // Lógica de Guardar Usuario
+  document.querySelectorAll('.save-user-btn').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const userId = button.dataset.userId;
+      const plan = document.querySelector(`select[data-user-id="${userId}"][data-field="plan"]`).value;
+      const status = document.querySelector(`select[data-user-id="${userId}"][data-field="status"]`).value;
+      const updateResponse = await adminFetch(`/api/admin/users/${userId}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ plan, status })
+      });
+      const updateData = await updateResponse.json();
+      alert(updateData.message || updateData.error || 'Actualizado');
+      if (updateResponse.ok) loadUsers(filters);
+    });
+  });
+
+  // NUEVA Lógica de Eliminar Usuario
+  document.querySelectorAll('.delete-user-btn').forEach((button) => {
+    button.addEventListener('click', async () => {
+      const userId = button.dataset.userId;
+      const confirmar = confirm("¿Estás seguro de que deseas eliminar este usuario definitivamente? Esta acción no se puede deshacer.");
+
+      if (!confirmar) return;
+
+      try {
+        const deleteResponse = await adminFetch(`/api/admin/users/${userId}`, {
+          method: 'DELETE'
+        });
+        const deleteData = await deleteResponse.json();
+
+        if (deleteResponse.ok) {
+          alert("Usuario eliminado correctamente.");
+          loadUsers(filters); // Recargar la tabla
+        } else {
+          alert(`Error: ${deleteData.error || 'No se pudo eliminar el usuario'}`);
+        }
+      } catch (error) {
+        console.error("Error al eliminar usuario:", error);
+        alert("Ocurrió un error al intentar comunicar con el servidor.");
+      }
+    });
+  });
+}
+
+async function loadSuggestions() {
+  const response = await adminFetch('/api/admin/suggestions');
+  const data = await response.json();
+  const suggestions = Array.isArray(data) ? data : [];
+  const content = suggestions.length
+    ? suggestions.map((item) => `<p>• ${item.correctedText || item.comment || 'Sugerencia pendiente'}</p>`).join('')
+    : '<p>No hay sugerencias pendientes.</p>';
+  document.getElementById('suggestions-list').innerHTML = content;
+}
+
+document.getElementById('user-filters').addEventListener('submit', (event) => {
+  event.preventDefault();
+  loadUsers({
+    search: document.getElementById('filter-search').value.trim(),
+    plan: document.getElementById('filter-plan').value,
+    status: document.getElementById('filter-status').value
+  });
+});
+
+function initSidebar() {
+  if (!user || user.role !== 'admin') {
+    alert('Acceso denegado. Solo administradores.', () => {
+      window.location.href = '/';
+    });
+    return;
+  }
+
+  const sidebarUsername = document.getElementById('sidebar-username');
+  const sidebarUsertype = document.getElementById('sidebar-usertype');
+  if (sidebarUsername) sidebarUsername.textContent = user.nombre || user.username || 'Admin';
+  if (sidebarUsertype) {
+    sidebarUsertype.textContent = 'Admin';
+    sidebarUsertype.className = 'user-badge admin';
+  }
+
+  const sidebarUser = document.getElementById('sidebar-user');
+  if (sidebarUser) {
+    sidebarUser.onclick = (e) => {
+      e.stopPropagation();
+      let menu = document.getElementById('sidebar-user-float-menu');
+      if (menu) {
+        menu.remove();
+        return;
+      }
+      menu = document.createElement('div');
+      menu.id = 'sidebar-user-float-menu';
+      const rect = sidebarUser.getBoundingClientRect();
+      menu.style.position = 'fixed';
+      menu.style.left = rect.left + 'px';
+      menu.style.bottom = (window.innerHeight - rect.top + 10) + 'px';
+      menu.style.background = '#2d2a32';
+      menu.style.color = '#fff';
+      menu.style.border = '1.5px solid var(--tamon-primary)';
+      menu.style.borderRadius = '12px';
+      menu.style.padding = '18px 20px 14px 20px';
+      menu.style.zIndex = 2000;
+
+      menu.innerHTML = `
+        <div style="margin-bottom: 12px; padding: 0 4px;">
+          <div style="font-weight: 700; font-size: 1.15rem; color: #fff; line-height: 1.2;">${user.nombre || 'Admin'}</div>
+          <div style="font-size: 0.85rem; margin-top: 4px; display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: 700; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221;">
+            Administrador
+          </div>
+        </div>
+        <div style="height: 1px; background: rgba(255, 255, 255, 0.1); margin: 12px 0;"></div>
+        
+        <a href="/profile.html" class="dropdown-menu-item">
+          <span>👤</span> Mi Perfil
+        </a>
+        
+        <a href="/admin.html" class="dropdown-menu-item">
+          <span>🛠️</span> Admin Dashboard
+        </a>
+        
+        <button id="sidebar-logout-btn-float" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; color: #2d1221; padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: var(--tamon-secondary); cursor: pointer; transition: all 0.2s; margin-top: 4px;">
+          <span>🚪</span> Cerrar Sesión
+        </button>
+      `;
+      document.body.appendChild(menu);
+
+      document.getElementById('sidebar-logout-btn-float').onclick = () => {
+        localStorage.removeItem('tamon_user');
+        localStorage.removeItem('tamon_token');
+        window.location.href = '/';
+      };
+
+      setTimeout(() => {
+        const clickOutsideHandler = ev => {
+          if (!menu.contains(ev.target) && ev.target !== sidebarUser && !sidebarUser.contains(ev.target)) {
+            menu.remove();
+            document.removeEventListener('click', clickOutsideHandler);
+          }
+        };
+        document.addEventListener('click', clickOutsideHandler);
+      }, 100);
     };
-
-    const mostRequestedLanguage = topLanguageQuery.rows[0] ? formatLang(topLanguageQuery.rows[0].language) : '-';
-    const rawFileType = topFileTypeQuery.rows[0]?.file_type || '-';
-    const mostUsedFileType = rawFileType === 'escribir' ? 'Escribir (Texto Directo)' : rawFileType.toUpperCase();
-
-    return res.json({
-      totalTranslations: translations.rows[0]?.total || 0,
-      activeUsers: users.rows[0]?.total || 0,
-      mostUsedLanguages: languages.rows,
-      filesByType: fileTypes.rows,
-      // Nuevos KPIs:
-      totalUsers: totalUsersQuery.rows[0]?.total || 0,
-      chillUsers: chillUsersQuery.rows[0]?.total || 0,
-      proPlusUsers: proPlusUsersQuery.rows[0]?.total || 0,
-      mostRequestedLanguage,
-      mostUsedFileType
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error al cargar estadísticas.', detail: error.message });
   }
-});
+}
 
-router.get('/usage-by-language', requireAdmin, async (_req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const result = await pool.query(`
-      SELECT target_language AS language, COUNT(*)::INT AS total
-      FROM translation_history
-      WHERE target_language IS NOT NULL AND target_language <> ''
-      GROUP BY target_language
-      ORDER BY total DESC
-      LIMIT 10
-    `);
-    return res.json({ items: result.rows });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error al cargar uso por idioma.', detail: error.message });
-  }
-});
-
-router.get('/file-types', requireAdmin, async (_req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const result = await pool.query(`
-      SELECT LOWER(file_type) AS fileType, COUNT(*)::INT AS total
-      FROM translation_history
-      WHERE file_type IS NOT NULL AND file_type <> ''
-      GROUP BY LOWER(file_type)
-      ORDER BY total DESC
-    `);
-    return res.json({ items: result.rows });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error al cargar tipos de archivo.', detail: error.message });
-  }
-});
-
-router.get('/learning-metrics', requireAdmin, async (_req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const [translations, feedbacks] = await Promise.all([
-      pool.query(`
-        SELECT
-          COUNT(*)::INT AS total,
-          COUNT(*) FILTER (WHERE status = 'success')::INT AS successful,
-          COUNT(*) FILTER (WHERE status = 'failed')::INT AS failed
-        FROM translation_history
-      `),
-      pool.query(`
-        SELECT
-          (SELECT COUNT(*)::INT FROM tamon_feedback) AS userFeedback,
-          (SELECT COUNT(*)::INT FROM user_feedback) AS correctionSuggestions
-      `).catch(() => ({ rows: [{ userfeedback: 0, correctionsuggestions: 0 }] }))
-    ]);
-
-    const row = translations.rows[0] || { total: 0, successful: 0, failed: 0 };
-    const feedbackRow = feedbacks.rows[0] || {};
-    return res.json({
-      totalTranslations: row.total,
-      successfulTranslations: row.successful,
-      failedTranslations: row.failed,
-      learningProgressPercent: row.total > 0 ? Math.round((row.successful / row.total) * 100) : 0,
-      userFeedback: Number(feedbackRow.userfeedback || feedbackRow.userFeedback || 0),
-      correctionSuggestions: Number(feedbackRow.correctionsuggestions || feedbackRow.correctionSuggestions || 0)
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error al cargar métricas de aprendizaje.', detail: error.message });
-  }
-});
-
-router.get('/users', requireAdmin, async (req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const { page, limit, offset } = parsePagination(req);
-    const plan = req.query.plan ? normalizePlan(req.query.plan) : null;
-    const role = req.query.role ? String(req.query.role).toLowerCase() : null;
-    const status = req.query.status ? String(req.query.status).toLowerCase() : null;
-    const search = String(req.query.search || '').trim().toLowerCase();
-
-    const filters = [];
-    const params = [];
-    if (plan) {
-      params.push(plan);
-      filters.push(`(CASE WHEN users.plan IN ('chill','gratis') THEN 'free' WHEN users.plan IN ('pro','vip') THEN 'pro_plus' ELSE users.plan END) = $${params.length}`);
-    }
-    if (role) {
-      params.push(role);
-      filters.push(`LOWER(users.role) = $${params.length}`);
-    }
-    if (status) {
-      params.push(status);
-      filters.push(`LOWER(COALESCE(users.user_status, 'active')) = $${params.length}`);
-    }
-    if (search) {
-      params.push(`%${search}%`);
-      filters.push(`(LOWER(users.nombre) LIKE $${params.length} OR LOWER(users.email) LIKE $${params.length})`);
-    }
-
-    const whereClause = filters.length ? `WHERE ${filters.join(' AND ')}` : '';
-    const totalResult = await pool.query(`SELECT COUNT(*)::INT AS total FROM users ${whereClause}`, params);
-
-    params.push(limit);
-    params.push(offset);
-    const usersResult = await pool.query(
-      `SELECT id, nombre, email, plan, role, user_status, avatar_url, mensajes_hoy, ultima_fecha_chat
-       FROM users
-       ${whereClause}
-       ORDER BY id DESC
-       LIMIT $${params.length - 1} OFFSET $${params.length}`,
-      params
-    );
-
-    return res.json({
-      page,
-      limit,
-      total: totalResult.rows[0]?.total || 0,
-      items: usersResult.rows.map(normalizeUserRow)
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error al listar usuarios.', detail: error.message });
-  }
-});
-
-router.get('/users/:id', requireAdmin, async (req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const userId = Number(req.params.id);
-    if (!Number.isInteger(userId)) return res.status(400).json({ error: 'ID de usuario inválido.' });
-
-    const [userResult, historyResult] = await Promise.all([
-      pool.query(
-        `SELECT id, nombre, email, plan, role, user_status, avatar_url, mensajes_hoy, ultima_fecha_chat
-         FROM users WHERE id = $1`,
-        [userId]
-      ),
-      pool.query(
-        `SELECT id, original_file_name, file_type, source_language, target_language, status, created_at
-         FROM translation_history
-         WHERE user_id = $1
-         ORDER BY created_at DESC
-         LIMIT 100`,
-        [userId]
-      )
-    ]);
-
-    const user = userResult.rows[0];
-    if (!user) return res.status(404).json({ error: 'Usuario no encontrado.' });
-
-    return res.json({
-      user: normalizeUserRow(user),
-      history: historyResult.rows
-    });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error al consultar usuario.', detail: error.message });
-  }
-});
-
-router.put('/users/:id', requireAdmin, async (req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const userId = Number(req.params.id);
-    if (!Number.isInteger(userId)) return res.status(400).json({ error: 'ID de usuario inválido.' });
-
-    const nextPlan = req.body.plan ? normalizePlan(req.body.plan) : null;
-    const nextStatus = req.body.status ? String(req.body.status).toLowerCase() : null;
-    const nextRole = req.body.role ? String(req.body.role).toLowerCase() : null;
-
-    const updates = [];
-    const params = [];
-
-    if (nextPlan) {
-      params.push(nextPlan);
-      updates.push(`plan = $${params.length}`);
-    }
-    if (nextStatus) {
-      params.push(nextStatus);
-      updates.push(`user_status = $${params.length}`);
-    }
-    if (nextRole) {
-      params.push(nextRole);
-      updates.push(`role = $${params.length}`);
-    }
-
-    if (!updates.length) {
-      return res.status(400).json({ error: 'No se enviaron cambios válidos.' });
-    }
-
-    params.push(userId);
-    const result = await pool.query(
-      `UPDATE users SET ${updates.join(', ')} WHERE id = $${params.length}
-       RETURNING id, nombre, email, plan, role, user_status, avatar_url, mensajes_hoy, ultima_fecha_chat`,
-      params
-    );
-
-    if (!result.rows.length) return res.status(404).json({ error: 'Usuario no encontrado.' });
-    return res.json({ message: 'Usuario actualizado.', user: normalizeUserRow(result.rows[0]) });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error al actualizar usuario.', detail: error.message });
-  }
-});
-
-// NUEVA RUTA: Eliminar Usuario
-router.delete('/users/:id', requireAdmin, async (req, res) => {
-  if (!isDbReady()) return res.status(503).json({ error: 'Base de datos no disponible.' });
-  try {
-    const userId = Number(req.params.id);
-
-    if (!Number.isInteger(userId)) {
-      return res.status(400).json({ error: 'ID de usuario inválido.' });
-    }
-
-    // Ejecutamos el DELETE en Postgres y retornamos el ID para verificar
-    const result = await pool.query(
-      'DELETE FROM users WHERE id = $1 RETURNING id',
-      [userId]
-    );
-
-    if (!result.rows.length) {
-      return res.status(404).json({ error: 'Usuario no encontrado en la base de datos.' });
-    }
-
-    return res.json({ message: 'Usuario eliminado exitosamente.' });
-  } catch (error) {
-    return res.status(500).json({ error: 'Error interno al eliminar usuario.', detail: error.message });
-  }
-});
-
-// Subir nuevos ejemplos/correcciones
-router.post('/training-data', requireAdmin, async (req, res) => {
-  try {
-    const { type, data } = req.body;
-    let result;
-    switch (type) {
-      case 'correction':
-        result = await CorrectionSuggestion.create(data);
-        break;
-      case 'rule':
-        result = await DomainRule.create(data);
-        break;
-      case 'glossary':
-        result = await GlossaryEntry.create(data);
-        break;
-      default:
-        return res.status(400).json({ error: 'Tipo no soportado' });
-    }
-    res.status(201).json(result);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Listar sugerencias de la IA para revisión
-router.get('/suggestions', requireAdmin, async (_req, res) => {
-  try {
-    const suggestions = await CorrectionSuggestion.find({ status: 'pending' });
-    res.json(suggestions);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Aprobar sugerencia
-router.post('/suggestions/:id/approve', requireAdmin, async (req, res) => {
-  try {
-    const suggestion = await CorrectionSuggestion.findByIdAndUpdate(
-      req.params.id,
-      { status: 'approved' },
-      { new: true }
-    );
-    res.json(suggestion);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Rechazar sugerencia
-router.post('/suggestions/:id/reject', requireAdmin, async (req, res) => {
-  try {
-    const suggestion = await CorrectionSuggestion.findByIdAndUpdate(
-      req.params.id,
-      { status: 'rejected' },
-      { new: true }
-    );
-    res.json(suggestion);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Modificar una regla existente
-router.put('/rules/:id', requireAdmin, async (req, res) => {
-  try {
-    const rule = await DomainRule.findByIdAndUpdate(req.params.id, req.body, { new: true });
-    res.json(rule);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-// Agregar término al glosario
-router.post('/glossary', requireAdmin, async (req, res) => {
-  try {
-    const entry = await GlossaryEntry.create(req.body);
-    res.status(201).json(entry);
-  } catch (err) {
-    res.status(500).json({ error: err.message });
-  }
-});
-
-module.exports = router;
+initSidebar();
+loadDashboard();
+loadUsers();
+loadSuggestions();
