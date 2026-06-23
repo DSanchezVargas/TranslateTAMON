@@ -156,6 +156,19 @@ const targetLanguageSelect = getEl('#targetLanguage');
 const processProgress = getEl('#process-progress');
 const historyProgress = getEl('#history-progress');
 
+// Nuevos selectores para traducción de texto y pestañas
+const btnTabText = document.getElementById('btn-tab-text');
+const btnTabFile = document.getElementById('btn-tab-file');
+const workspaceText = document.getElementById('workspace-text');
+const workspaceFile = document.getElementById('workspace-file');
+const btnSwapLanguages = document.getElementById('btn-swap-languages');
+const textInputSource = document.getElementById('text-input-source');
+const textOutputTranslated = document.getElementById('text-output-translated');
+const textOutputLoading = document.getElementById('text-output-loading');
+const charCount = document.getElementById('char-count');
+const btnClearText = document.getElementById('btn-clear-text');
+const btnCopyText = document.getElementById('btn-copy-text');
+
 // =====================================================================
 // 3. FUNCIONES DE INTERFAZ Y PROGRESO
 // =====================================================================
@@ -287,6 +300,12 @@ function renderFileList() {
 
 async function requestPreview(event) {
   event.preventDefault();
+
+  const activeTab = document.querySelector('.translator-tab-btn.active');
+  if (activeTab && activeTab.id === 'btn-tab-text') {
+    performTextTranslation();
+    return;
+  }
 
   if (selectedFiles.length === 0) {
     alert("Por favor, arrastra o selecciona al menos un archivo.");
@@ -586,7 +605,7 @@ function updateSidebarUser(user) {
       usernameElem.style.fontSize = '0.95rem';
     }
     if (usertypeElem) usertypeElem.style.display = 'none';
-    if (servicesBtn) servicesBtn.style.display = 'none';
+    if (servicesBtn) servicesBtn.style.display = 'block';
 
     if (sidebarUser) {
       sidebarUser.onclick = () => {
@@ -1344,8 +1363,140 @@ function showCashPaymentForm(user, itemType = 'pro_plus') {
 if (form) form.addEventListener('submit', requestPreview);
 if (finalizeBtn) finalizeBtn.addEventListener('click', finalizeTranslation);
 
+let debounceTimeout;
+function debounceTranslate() {
+  clearTimeout(debounceTimeout);
+  debounceTimeout = setTimeout(performTextTranslation, 600);
+}
+
+async function performTextTranslation() {
+  if (!textInputSource) return;
+  const text = textInputSource.value.trim();
+  const sourceLang = sourceLanguageSelect ? sourceLanguageSelect.value : '';
+  const targetLang = targetLanguageSelect ? targetLanguageSelect.value : '';
+
+  if (!text) {
+    if (textOutputTranslated) textOutputTranslated.value = '';
+    if (btnClearText) btnClearText.style.display = 'none';
+    if (btnCopyText) btnCopyText.style.display = 'none';
+    return;
+  }
+
+  if (btnClearText) btnClearText.style.display = 'block';
+  if (textOutputLoading) textOutputLoading.style.display = 'flex';
+
+  try {
+    const userObj = JSON.parse(localStorage.getItem('tamon_user') || '{}');
+    const response = await fetch('/api/assistant/translate-text', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json'
+      },
+      body: JSON.stringify({
+        userName: userObj.nombre || 'usuario',
+        text: text,
+        sourceLanguage: sourceLang,
+        targetLanguage: targetLang
+      })
+    });
+
+    const data = await response.json();
+    if (response.ok) {
+      if (textOutputTranslated) {
+        textOutputTranslated.value = data.translatedText || '';
+      }
+      if (btnCopyText) btnCopyText.style.display = 'block';
+    } else {
+      if (textOutputTranslated) {
+        textOutputTranslated.value = `Error: ${data.error || 'No se pudo traducir.'}`;
+      }
+      if (btnCopyText) btnCopyText.style.display = 'none';
+    }
+  } catch (error) {
+    if (textOutputTranslated) {
+      textOutputTranslated.value = 'Error de conexión con Tamon IA.';
+    }
+    if (btnCopyText) btnCopyText.style.display = 'none';
+  } finally {
+    if (textOutputLoading) textOutputLoading.style.display = 'none';
+  }
+}
+
+function initRestructuredWorkspace() {
+  if (btnTabText && btnTabFile && workspaceText && workspaceFile) {
+    btnTabText.onclick = () => {
+      btnTabText.classList.add('active');
+      btnTabFile.classList.remove('active');
+      workspaceText.classList.remove('hidden');
+      workspaceFile.classList.add('hidden');
+      performTextTranslation();
+    };
+
+    btnTabFile.onclick = () => {
+      btnTabFile.classList.add('active');
+      btnTabText.classList.remove('active');
+      workspaceFile.classList.remove('hidden');
+      workspaceText.classList.add('hidden');
+    };
+  }
+
+  if (textInputSource) {
+    textInputSource.addEventListener('input', (e) => {
+      const len = e.target.value.length;
+      if (charCount) charCount.textContent = `${len} / 5000`;
+      if (len > 0) {
+        if (btnClearText) btnClearText.style.display = 'block';
+      } else {
+        if (btnClearText) btnClearText.style.display = 'none';
+      }
+      debounceTranslate();
+    });
+  }
+
+  if (btnClearText) {
+    btnClearText.onclick = () => {
+      if (textInputSource) textInputSource.value = '';
+      if (textOutputTranslated) textOutputTranslated.value = '';
+      if (charCount) charCount.textContent = '0 / 5000';
+      btnClearText.style.display = 'none';
+      if (btnCopyText) btnCopyText.style.display = 'none';
+    };
+  }
+
+  if (btnCopyText && textOutputTranslated) {
+    btnCopyText.onclick = () => {
+      navigator.clipboard.writeText(textOutputTranslated.value).then(() => {
+        const originalHtml = btnCopyText.innerHTML;
+        btnCopyText.innerHTML = `✓`;
+        btnCopyText.style.color = '#10b981';
+        setTimeout(() => {
+          btnCopyText.innerHTML = originalHtml;
+          btnCopyText.style.color = '';
+        }, 2000);
+      });
+    };
+  }
+
+  if (btnSwapLanguages && sourceLanguageSelect && targetLanguageSelect) {
+    btnSwapLanguages.onclick = () => {
+      const temp = sourceLanguageSelect.value;
+      sourceLanguageSelect.value = targetLanguageSelect.value;
+      targetLanguageSelect.value = temp;
+      debounceTranslate();
+    };
+  }
+
+  if (sourceLanguageSelect) {
+    sourceLanguageSelect.addEventListener('change', debounceTranslate);
+  }
+  if (targetLanguageSelect) {
+    targetLanguageSelect.addEventListener('change', debounceTranslate);
+  }
+}
+
 document.addEventListener('DOMContentLoaded', () => {
   populateLanguages();
+  initRestructuredWorkspace();
   showSection('menu');
 
   document.querySelectorAll('.faq-question').forEach(btn => {
