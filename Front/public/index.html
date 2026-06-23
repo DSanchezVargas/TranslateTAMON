@@ -21,6 +21,7 @@
     <button class="sidebar-btn" id="chat-btn">Conversación con Tamon</button>
     <button class="sidebar-btn" id="faq-btn">FAQ</button>
     <button class="sidebar-btn" id="services-btn" style="background: rgba(255, 255, 255, 0.03); border: 1px solid rgba(255, 255, 255, 0.08);">Nuestros planes y servicios</button>
+    <button class="sidebar-btn-rating" id="rating-open-btn" title="Valora tu experiencia con Tamon">⭐ Valorar Tamon</button>
   </div>
   
   <div class="sidebar-user" id="sidebar-user" style="cursor:pointer;">
@@ -41,7 +42,7 @@
         
         <!-- Menú de usuario eliminado de la barra superior. Ahora solo se gestiona desde la barra lateral. -->
 
-        <button id="btn-pro-plus" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
+        <button id="btn-pro-plus" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; border: none; padding: 8px 18px; border-radius: 20px; font-weight: bold; cursor: pointer; transition: transform 0.2s;">
           ✨ Obtener Tamon Pro+
         </button>
       </div>
@@ -93,7 +94,7 @@
         <p class="subtitle" style="color: #cbd5e1; margin-bottom: 25px;">Selecciona el plan ideal para tus necesidades en TranslateTAMON.</p>
         
         <!-- INTRODUCCIÓN CREATIVA DE TAMON -->
-        <div style="background: linear-gradient(135deg, rgba(234, 168, 193, 0.12), rgba(217, 131, 171, 0.12)); border: 1.5px solid rgba(234, 168, 193, 0.25); border-radius: 12px; padding: 22px; margin-bottom: 25px; text-align: left; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
+        <div style="background: linear-gradient(135deg, rgba(196, 168, 234, 0.12), rgba(168, 131, 217, 0.12)); border: 1.5px solid rgba(196, 168, 234, 0.25); border-radius: 12px; padding: 22px; margin-bottom: 25px; text-align: left; position: relative; overflow: hidden; box-shadow: 0 4px 20px rgba(0,0,0,0.15);">
           <div style="position: absolute; right: -25px; bottom: -30px; font-size: 7.5rem; font-weight: 900; opacity: 0.04; font-family: 'Outfit', sans-serif; pointer-events: none; user-select: none; color: #fff;">TAMON</div>
           <h4 style="margin: 0 0 10px 0; color: var(--tamon-primary); font-size: 1.15rem; display: flex; align-items: center; gap: 8px; font-family: 'Outfit', sans-serif; font-weight: 600;">
             🚀 ¿Qué es Tamon? El Corazón de tu Traducción Inteligente
@@ -127,8 +128,8 @@
           </div>
 
           <!-- PLAN PRO+ BETA (GRATIS EN BETA) -->
-          <div class="plan-card" style="background: rgba(234, 168, 193, 0.05); border: 2px solid var(--tamon-primary); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 8px 25px rgba(234, 168, 193, 0.2); position: relative;">
-            <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">BETA PÚBLICA</div>
+          <div class="plan-card" style="background: rgba(196, 168, 234, 0.05); border: 2px solid var(--tamon-primary); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 8px 25px rgba(196, 168, 234, 0.2); position: relative;">
+            <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">BETA PÚBLICA</div>
             <div>
               <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--tamon-primary); font-weight: bold; letter-spacing: 1px;">Prueba Gratis</div>
               <h3 style="font-size: 1.6rem; color: #fff; margin: 10px 0 5px 0;">Tamon Pro+ Beta</h3>
@@ -144,12 +145,12 @@
                 <li>✔️ Sin costo durante fase de prueba</li>
               </ul>
             </div>
-            <button id="btn-select-beta" style="width: 100%; padding: 12px; margin-top: 25px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(234, 168, 193, 0.25);">Activar Beta Gratis</button>
+            <button id="btn-select-beta" style="width: 100%; padding: 12px; margin-top: 25px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(196, 168, 234, 0.25);">Activar Beta Gratis</button>
           </div>
 
           <!-- PLAN PRO+ (PAGO OFICIAL) -->
-          <div class="plan-card" style="background: rgba(217, 131, 171, 0.05); border: 2px solid var(--tamon-secondary); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 8px 25px rgba(217, 131, 171, 0.2); position: relative;">
-            <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">RECOMENDADO</div>
+          <div class="plan-card" style="background: rgba(168, 131, 217, 0.05); border: 2px solid var(--tamon-secondary); border-radius: 16px; padding: 25px; display: flex; flex-direction: column; justify-content: space-between; min-height: 420px; box-shadow: 0 8px 25px rgba(168, 131, 217, 0.2); position: relative;">
+            <div style="position: absolute; top: -12px; right: 20px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; padding: 4px 12px; border-radius: 20px; font-size: 0.75rem; font-weight: bold;">RECOMENDADO</div>
             <div>
               <div style="font-size: 0.8rem; text-transform: uppercase; color: var(--tamon-primary); font-weight: bold; letter-spacing: 1px;">Plan Premium</div>
               <h3 style="font-size: 1.6rem; color: #fff; margin: 10px 0 5px 0;">Tamon Pro+</h3>
@@ -165,7 +166,7 @@
                 <li>✔️ Prioridad VIP y cero bloqueos</li>
               </ul>
             </div>
-            <button id="btn-select-pro" style="width: 100%; padding: 12px; margin-top: 25px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(234, 168, 193, 0.25);">Actualizar ahora</button>
+            <button id="btn-select-pro" style="width: 100%; padding: 12px; margin-top: 25px; background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 15px rgba(196, 168, 234, 0.25);">Actualizar ahora</button>
           </div>
 
           <!-- RECARGAS CHIBIS -->
@@ -184,7 +185,7 @@
                 <li style="opacity: 0.5;">❌ No incluye créditos para la IA</li>
               </ul>
             </div>
-            <button id="btn-select-chibi" style="width: 100%; padding: 12px; margin-top: 25px; background: var(--tamon-accent); color: #2d1221; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 12px rgba(242, 228, 210, 0.2);">Comprar Chibi</button>
+            <button id="btn-select-chibi" style="width: 100%; padding: 12px; margin-top: 25px; background: var(--tamon-accent); color: #1a1228; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; transition: 0.2s; box-shadow: 0 4px 12px rgba(242, 228, 210, 0.2);">Comprar Chibi</button>
           </div>
 
         </div>
@@ -298,12 +299,12 @@
           </div>
         </section>
 
-        <section class="panel hidden" id="preview-panel" style="background: rgba(45, 18, 33, 0.45); border: 1.5px solid rgba(234, 168, 193, 0.25); border-radius: 20px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.3); backdrop-filter: blur(10px);">
-          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1.5px solid rgba(234, 168, 193, 0.15); padding-bottom: 12px;">
+        <section class="panel hidden" id="preview-panel" style="background: rgba(45, 18, 33, 0.45); border: 1.5px solid rgba(196, 168, 234, 0.25); border-radius: 20px; padding: 25px; box-shadow: 0 12px 40px rgba(0,0,0,0.3); backdrop-filter: blur(10px);">
+          <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 18px; border-bottom: 1.5px solid rgba(196, 168, 234, 0.15); padding-bottom: 12px;">
             <h2 style="margin: 0; color: var(--tamon-primary); font-size: 1.5rem; display: flex; align-items: center; gap: 8px;">
               <span>📝</span> 3) Corrección y Vista Previa
             </h2>
-            <div id="preview-meta" style="font-size: 0.85rem; color: rgba(255,255,255,0.7); background: rgba(234, 168, 193, 0.15); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(234, 168, 193, 0.25);">
+            <div id="preview-meta" style="font-size: 0.85rem; color: rgba(255,255,255,0.7); background: rgba(196, 168, 234, 0.15); padding: 5px 12px; border-radius: 20px; border: 1px solid rgba(196, 168, 234, 0.25);">
               Cargando metadatos...
             </div>
           </div>
@@ -318,7 +319,7 @@
             </div>
 
             <div class="textarea-container" style="height: 320px;">
-              <div class="textarea-badge-floating" style="background: rgba(234, 168, 193, 0.2); border-color: rgba(234, 168, 193, 0.4); color: var(--tamon-primary);">Texto Traducido</div>
+              <div class="textarea-badge-floating" style="background: rgba(196, 168, 234, 0.2); border-color: rgba(196, 168, 234, 0.4); color: var(--tamon-primary);">Texto Traducido</div>
               <textarea id="translatedText" placeholder="Texto traducido editable..." style="font-size: 1rem; color: #fff;"></textarea>
               <div class="textarea-footer justify-between" style="display: flex; width: 100%; align-items: center; justify-content: space-between; box-sizing: border-box; padding: 0 15px;">
                 <span style="font-size: 0.8rem; opacity: 0.8; color: var(--tamon-primary);">✨ Editable - Corrige si lo deseas</span>
@@ -329,21 +330,21 @@
             </div>
           </div>
 
-          <div id="pdfPreviewContainer" style="display: none; margin-bottom: 24px; width: 100%; height: 500px; border-radius: 16px; overflow: hidden; border: 1.5px solid rgba(234, 168, 193, 0.25); box-shadow: 0 8px 32px rgba(0,0,0,0.25);">
+          <div id="pdfPreviewContainer" style="display: none; margin-bottom: 24px; width: 100%; height: 500px; border-radius: 16px; overflow: hidden; border: 1.5px solid rgba(196, 168, 234, 0.25); box-shadow: 0 8px 32px rgba(0,0,0,0.25);">
             <iframe id="pdfPreviewIframe" src="" style="width: 100%; height: 100%; border: none;"></iframe>
           </div>
 
           <div style="display: flex; flex-direction: column; gap: 20px; align-items: center;">
-            <button id="finalize-btn" class="btn-primary" style="padding: 14px 40px; font-size: 1.1rem; width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 8px 25px rgba(234, 168, 193, 0.4); transition: 0.2s;">
+            <button id="finalize-btn" class="btn-primary" style="padding: 14px 40px; font-size: 1.1rem; width: 100%; max-width: 400px; border-radius: 12px; box-shadow: 0 8px 25px rgba(196, 168, 234, 0.4); transition: 0.2s;">
               🚀 Finalizar y descargar DOCX
             </button>
             
-            <form id="feedback-form" style="width: 100%; background: rgba(27, 17, 25, 0.5); padding: 20px; border-radius: 16px; border: 1.5px solid rgba(234, 168, 193, 0.15); backdrop-filter: blur(8px); box-sizing: border-box;">
+            <form id="feedback-form" style="width: 100%; background: rgba(27, 17, 25, 0.5); padding: 20px; border-radius: 16px; border: 1.5px solid rgba(196, 168, 234, 0.15); backdrop-filter: blur(8px); box-sizing: border-box;">
               <label for="feedback-input" style="font-weight: bold; color: var(--tamon-primary); display: block; margin-bottom: 10px; font-size: 0.95rem; text-align: left;">
                 💡 ¿Algún comentario o corrección sobre la traducción de Tamon?
               </label>
               <div style="display: flex; gap: 12px; align-items: center; width: 100%;">
-                <input id="feedback-input" type="text" maxlength="400" placeholder="Escribe tu sugerencia, corrección o comentario aquí..." style="flex: 1; padding: 12px; border-radius: 10px; border: 1px solid rgba(234, 168, 193, 0.2); background: rgba(0,0,0,0.3); color: #fff; outline: none; transition: 0.2s; box-sizing: border-box;" required />
+                <input id="feedback-input" type="text" maxlength="400" placeholder="Escribe tu sugerencia, corrección o comentario aquí..." style="flex: 1; padding: 12px; border-radius: 10px; border: 1px solid rgba(196, 168, 234, 0.2); background: rgba(0,0,0,0.3); color: #fff; outline: none; transition: 0.2s; box-sizing: border-box;" required />
                 <select id="feedback-type" style="background: rgba(27, 17, 25, 0.8); color: var(--tamon-neutral); border: 1.5px solid var(--tamon-primary); padding: 10px; border-radius: 10px; font-weight: bold; cursor: pointer; outline: none;">
                   <option value="sugerencia">💡 Sugerencia</option>
                   <option value="error">❌ Error</option>
@@ -359,7 +360,7 @@
       </section>
     </main>
     <div id="pro-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(27, 17, 25, 0.8); z-index: 1000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-      <div id="pro-modal-box" style="background: rgba(74, 45, 62, 0.95); padding: 30px; border-radius: 15px; width: 95%; max-width: 450px; text-align: center; border: 1.5px solid var(--tamon-primary); color: #fff5fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+      <div id="pro-modal-box" style="background: rgba(74, 45, 62, 0.95); padding: 30px; border-radius: 15px; width: 95%; max-width: 450px; text-align: center; border: 1.5px solid var(--tamon-primary); color: #f7f5ff; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
         <div id="pro-modal-body">
           <h2 style="margin-top: 0; color: var(--tamon-primary); font-size: 1.8rem;">✨ Tamon Pro+</h2>
           <p style="color: #cbd5e1; margin-bottom: 20px;">Desbloquea el poder total del aprendizaje hiperautomatizado y olvídate de los límites diarios.</p>
@@ -372,13 +373,13 @@
           
           <div style="display: flex; justify-content: center; gap: 15px;">
             <button id="close-modal-btn" style="background: transparent; border: 1px solid var(--tamon-primary); color: var(--tamon-primary); padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Quizás luego</button>
-            <button id="btn-upgrade-now" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(234, 168, 193, 0.4);">Actualizar ahora</button>
+            <button id="btn-upgrade-now" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(196, 168, 234, 0.4);">Actualizar ahora</button>
           </div>
         </div>
       </div>
     </div>
     <div id="auth-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(27, 17, 25, 0.8); z-index: 1001; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-      <div style="background: rgba(74, 45, 62, 0.95); padding: 35px; border-radius: 15px; width: 320px; border: 1.5px solid var(--tamon-primary); color: #fff5fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+      <div style="background: rgba(74, 45, 62, 0.95); padding: 35px; border-radius: 15px; width: 320px; border: 1.5px solid var(--tamon-primary); color: #f7f5ff; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
         
         <!-- Sección de credenciales (Login / Registro) -->
         <div id="auth-credentials-section">
@@ -390,7 +391,7 @@
             <input type="email" id="auth-correo" placeholder="Correo electrónico" required style="padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
             <input type="password" id="auth-pass" placeholder="Contraseña" required style="padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
             
-            <button type="submit" id="auth-submit-btn" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px;">Entrar a Tamon</button>
+            <button type="submit" id="auth-submit-btn" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px;">Entrar a Tamon</button>
           </form>
  
           <p style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: #cbd5e1;">
@@ -409,7 +410,7 @@
           <form id="verification-form" style="display: flex; flex-direction: column; gap: 15px;">
             <input type="text" id="verification-code" placeholder="Código de 6 dígitos" maxlength="6" required style="padding: 12px; border-radius: 8px; text-align: center; font-size: 20px; font-weight: bold; letter-spacing: 4px; border: none; background: #1e1c22; color: white;" />
             
-            <button type="submit" id="verification-submit-btn" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #2d1221; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px;">Verificar Cuenta</button>
+            <button type="submit" id="verification-submit-btn" style="background: linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary)); color: #1a1228; border: none; padding: 12px; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 5px;">Verificar Cuenta</button>
           </form>
  
           <p style="text-align: center; margin-top: 20px; font-size: 0.9rem; color: #cbd5e1;">
@@ -441,13 +442,40 @@
 
     <!-- Modal de Confirmación y Alertas Custom de Tamon -->
     <div id="tamon-dialog-modal" style="display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.8); z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(4px);">
-      <div style="background: #251421; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1.5px solid #eaa8c1; color: #fff5fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-        <h3 id="tamon-dialog-title" style="margin-top: 0; color: #eaa8c1; font-size: 1.4rem;">Tamon IA</h3>
-        <p id="tamon-dialog-message" style="margin: 15px 0 25px 0; color: #fff5fa; font-size: 1rem; line-height: 1.5;"></p>
+      <div style="background: #1c1630; padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1.5px solid #c4a8ea; color: #f7f5ff; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h3 id="tamon-dialog-title" style="margin-top: 0; color: #c4a8ea; font-size: 1.4rem;">Tamon IA</h3>
+        <p id="tamon-dialog-message" style="margin: 15px 0 25px 0; color: #f7f5ff; font-size: 1rem; line-height: 1.5;"></p>
         <div style="display: flex; justify-content: center; gap: 15px;">
-          <button id="tamon-dialog-cancel-btn" style="display: none; background: transparent; border: 1px solid #eaa8c1; color: #eaa8c1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
-          <button id="tamon-dialog-confirm-btn" style="background: linear-gradient(135deg, #eaa8c1, #d983ab); color: #2d1221; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Aceptar</button>
+          <button id="tamon-dialog-cancel-btn" style="display: none; background: transparent; border: 1px solid #c4a8ea; color: #c4a8ea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
+          <button id="tamon-dialog-confirm-btn" style="background: linear-gradient(135deg, #c4a8ea, #a883d9); color: #1a1228; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Aceptar</button>
         </div>
+      </div>
+    </div>
+
+    <!-- Modal de Valoración con Estrellas -->
+    <div id="rating-modal">
+      <div class="rating-modal-box">
+        <button class="rating-modal-close" id="rating-modal-close" aria-label="Cerrar">✕</button>
+        <div class="rating-modal-title">⭐ Valora tu experiencia</div>
+        <div class="rating-modal-subtitle">Tu opinión ayuda a mejorar Tamon para todos</div>
+
+        <div class="stars-row" id="stars-row">
+          <button class="star-btn" data-value="1" aria-label="1 estrella">★</button>
+          <button class="star-btn" data-value="2" aria-label="2 estrellas">★</button>
+          <button class="star-btn" data-value="3" aria-label="3 estrellas">★</button>
+          <button class="star-btn" data-value="4" aria-label="4 estrellas">★</button>
+          <button class="star-btn" data-value="5" aria-label="5 estrellas">★</button>
+        </div>
+        <div class="rating-label" id="rating-label">Selecciona una puntuación</div>
+
+        <textarea
+          class="rating-textarea"
+          id="rating-comment"
+          rows="4"
+          placeholder="¿Tienes algún comentario, sugerencia o problema que reportar? (opcional)"
+        ></textarea>
+
+        <button class="rating-submit-btn" id="rating-submit-btn" disabled>Enviar valoración</button>
       </div>
     </div>
 

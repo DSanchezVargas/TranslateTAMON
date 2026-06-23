@@ -41,11 +41,11 @@ function getTamonEmailHtml(title, contentHtml) {
         <tr>
           <td align="center">
             <!-- Contenedor Principal (Estilo Glassmorphism Oscuro) -->
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #161421; border: 1px solid #2a2640; border-top: 4px solid #ff0080; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); overflow: hidden;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="max-width: 500px; background-color: #161421; border: 1px solid #2a2640; border-top: 4px solid #9b30ff; border-radius: 12px; box-shadow: 0 10px 30px rgba(0, 0, 0, 0.5); overflow: hidden;">
               <!-- Header / Logo -->
               <tr>
                 <td align="center" style="padding: 30px 20px 20px 20px;">
-                  <span style="font-size: 28px; font-weight: 800; letter-spacing: 2px; color: #ff0080; text-decoration: none;">
+                  <span style="font-size: 28px; font-weight: 800; letter-spacing: 2px; color: #9b30ff; text-decoration: none;">
                     TAMON <span style="color: #ffffff;">IA</span>
                   </span>
                 </td>
@@ -130,7 +130,7 @@ router.post('/register', async (req, res) => {
               <tr>
                 <td align="center">
                   <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #ff0080; letter-spacing: 8px; line-height: 1;">${code}</span>
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
                   </div>
                 </td>
               </tr>
@@ -262,7 +262,7 @@ router.post('/resend-code', async (req, res) => {
               <tr>
                 <td align="center">
                   <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #ff0080; letter-spacing: 8px; line-height: 1;">${code}</span>
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
                   </div>
                 </td>
               </tr>
@@ -349,7 +349,7 @@ router.post('/login', async (req, res) => {
                 <tr>
                   <td align="center">
                     <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                      <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #ff0080; letter-spacing: 8px; line-height: 1;">${code}</span>
+                      <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
                     </div>
                   </td>
                 </tr>

@@ -16,12 +16,12 @@ function getOrCreateTamonDialog() {
     modal.style.cssText = 'display: none; position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(27, 17, 25, 0.8); z-index: 3000; justify-content: center; align-items: center; backdrop-filter: blur(4px); font-family: Arial, sans-serif;';
     
     modal.innerHTML = `
-      <div style="background: rgba(74, 45, 62, 0.9); padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1.5px solid #eaa8c1; color: #fff5fa; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
-        <h3 id="tamon-dialog-title" style="margin-top: 0; color: #eaa8c1; font-size: 1.4rem;">Tamon IA</h3>
-        <p id="tamon-dialog-message" style="margin: 15px 0 25px 0; color: #fff5fa; font-size: 1rem; line-height: 1.5;"></p>
+      <div style="background: rgba(74, 45, 62, 0.9); padding: 25px; border-radius: 15px; width: 90%; max-width: 400px; text-align: center; border: 1.5px solid #c4a8ea; color: #f7f5ff; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+        <h3 id="tamon-dialog-title" style="margin-top: 0; color: #c4a8ea; font-size: 1.4rem;">Tamon IA</h3>
+        <p id="tamon-dialog-message" style="margin: 15px 0 25px 0; color: #f7f5ff; font-size: 1rem; line-height: 1.5;"></p>
         <div style="display: flex; justify-content: center; gap: 15px;">
-          <button id="tamon-dialog-cancel-btn" style="display: none; background: transparent; border: 1px solid #eaa8c1; color: #eaa8c1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
-          <button id="tamon-dialog-confirm-btn" style="background: linear-gradient(135deg, #eaa8c1, #d983ab); color: #2d1221; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Aceptar</button>
+          <button id="tamon-dialog-cancel-btn" style="display: none; background: transparent; border: 1px solid #c4a8ea; color: #c4a8ea; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Cancelar</button>
+          <button id="tamon-dialog-confirm-btn" style="background: linear-gradient(135deg, #c4a8ea, #a883d9); color: #1a1228; border: none; padding: 10px 25px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Aceptar</button>
         </div>
       </div>
     `;
@@ -667,7 +667,7 @@ function updateSidebarUser(user) {
             <div style="font-size: 0.85rem; margin-top: 4px; display: inline-block; padding: 3px 8px; border-radius: 6px; font-weight: 700; background: ${user.role === 'admin'
             ? 'linear-gradient(135deg, var(--tamon-primary), var(--tamon-secondary))'
             : (user.plan === 'pro_plus' ? 'var(--tamon-primary)' : 'rgba(255, 255, 255, 0.1)')
-          }; color: ${user.role === 'admin' || user.plan === 'pro_plus' ? '#2d1221' : '#fff'};">
+          }; color: ${user.role === 'admin' || user.plan === 'pro_plus' ? '#1a1228' : '#fff'};">
               ${user.role === 'admin' ? 'Administrador' : usertypeElem.textContent}
             </div>
           </div>
@@ -679,7 +679,7 @@ function updateSidebarUser(user) {
           
           ${adminOptionHtml}
           
-          <button id="sidebar-logout-btn-float" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; color: #2d1221; padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: var(--tamon-secondary); cursor: pointer; transition: all 0.2s; margin-top: 4px;">
+          <button id="sidebar-logout-btn-float" style="display: flex; align-items: center; gap: 8px; width: 100%; text-align: left; color: #1a1228; padding: 10px 14px; border: none; border-radius: 8px; font-weight: bold; font-size: 0.95rem; background: var(--tamon-secondary); cursor: pointer; transition: all 0.2s; margin-top: 4px;">
             <span>🚪</span> Cerrar Sesión
           </button>
         `;
@@ -743,11 +743,11 @@ function syncPlanButtons(user) {
 
     btnPro.disabled = false;
     btnPro.textContent = 'Actualizar ahora';
-    btnPro.style.background = 'linear-gradient(135deg, #ff007f, #7928ca)';
+    btnPro.style.background = 'linear-gradient(135deg, #9b30ff, #7928ca)';
     btnPro.style.color = '#fff';
     btnPro.style.border = 'none';
     btnPro.style.cursor = 'pointer';
-    btnPro.style.boxShadow = '0 4px 15px rgba(255, 0, 127, 0.3)';
+    btnPro.style.boxShadow = '0 4px 15px rgba(155, 48, 255, 0.3)';
     btnPro.onclick = () => {
       const authModal = document.getElementById('auth-modal');
       if (authModal) authModal.style.display = 'flex';
@@ -863,11 +863,11 @@ function syncPlanButtons(user) {
 
     btnPro.disabled = false;
     btnPro.textContent = 'Actualizar ahora';
-    btnPro.style.background = 'linear-gradient(135deg, #ff007f, #7928ca)';
+    btnPro.style.background = 'linear-gradient(135deg, #9b30ff, #7928ca)';
     btnPro.style.color = '#fff';
     btnPro.style.border = 'none';
     btnPro.style.cursor = 'pointer';
-    btnPro.style.boxShadow = '0 4px 15px rgba(255, 0, 127, 0.3)';
+    btnPro.style.boxShadow = '0 4px 15px rgba(155, 48, 255, 0.3)';
     btnPro.onclick = () => {
       showPaymentScreen(user, 'pro_plus');
       const proModal = document.getElementById('pro-modal');
@@ -1166,7 +1166,7 @@ function restoreModalBenefits(user) {
   if (!modalBody) return;
 
   modalBody.innerHTML = `
-    <h2 style="margin-top: 0; color: #ff007f; font-size: 1.8rem;">✨ Tamon Pro+</h2>
+    <h2 style="margin-top: 0; color: #9b30ff; font-size: 1.8rem;">✨ Tamon Pro+</h2>
     <p style="color: #cbd5e1; margin-bottom: 20px;">Desbloquea el poder total del aprendizaje hiperautomatizado y olvídate de los límites diarios.</p>
     
     <ul style="text-align: left; line-height: 1.8; margin-bottom: 25px; list-style: none; padding-left: 0;">
@@ -1177,7 +1177,7 @@ function restoreModalBenefits(user) {
     
     <div style="display: flex; justify-content: center; gap: 15px;">
       <button id="close-modal-btn-restore" style="background: transparent; border: 1px solid #cbd5e1; color: #cbd5e1; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; transition: 0.2s;">Quizás luego</button>
-      <button id="btn-upgrade-now" style="background: linear-gradient(135deg, #ff007f, #7928ca); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(255, 0, 127, 0.4);">Actualizar ahora</button>
+      <button id="btn-upgrade-now" style="background: linear-gradient(135deg, #9b30ff, #7928ca); color: white; border: none; padding: 10px 20px; border-radius: 8px; cursor: pointer; font-weight: bold; box-shadow: 0 4px 15px rgba(155, 48, 255, 0.4);">Actualizar ahora</button>
     </div>
   `;
 
@@ -1209,7 +1209,7 @@ function showPaymentScreen(user, itemType = 'pro_plus') {
     : 'Agrega +10 documentos a tu cuota diaria de traducciones hoy. Acumulable y aplicable a tu cuenta.';
 
   modalBody.innerHTML = `
-    <h2 style="margin-top: 0; color: #ff007f; font-size: 1.5rem;">💳 Método de Pago</h2>
+    <h2 style="margin-top: 0; color: #9b30ff; font-size: 1.5rem;">💳 Método de Pago</h2>
     <div style="background: rgba(255,255,255,0.03); padding: 12px; border-radius: 8px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 20px; text-align: left;">
       <div style="font-size: 0.8rem; color: #a894a3; text-transform: uppercase;">Producto seleccionado</div>
       <div style="font-weight: bold; font-size: 1.1rem; color: #fff; margin-top: 2px;">${itemName}</div>
@@ -1252,7 +1252,7 @@ function showCardPaymentForm(user, itemType = 'pro_plus') {
   const itemPrice = isProPlus ? 'S/ 17.80' : 'S/ 8.50';
 
   modalBody.innerHTML = `
-    <h2 style="margin-top: 0; color: #ff007f; font-size: 1.5rem;">💳 Tarjeta de Crédito / Débito</h2>
+    <h2 style="margin-top: 0; color: #9b30ff; font-size: 1.5rem;">💳 Tarjeta de Crédito / Débito</h2>
     <p style="color: #cbd5e1; margin-bottom: 15px; font-size: 0.85rem; line-height: 1.3;">Ingresa los datos de tu tarjeta para procesar el pago de forma segura.</p>
     
     <div style="background: rgba(255,255,255,0.03); padding: 8px 12px; border-radius: 6px; border: 1px solid rgba(255,255,255,0.08); margin-bottom: 12px; font-size: 0.85rem; text-align: left; display: flex; justify-content: space-between; align-items: center;">
@@ -1276,7 +1276,7 @@ function showCardPaymentForm(user, itemType = 'pro_plus') {
         <input type="text" id="card-name" placeholder="${user.nombre || 'Usuario'}" required style="width: 100%; padding: 8px; background: #1e1c22; border: 1px solid #7928ca; color:#fff;" />
       </label>
       
-      <button type="submit" id="btn-submit-payment" style="width: 100%; padding: 12px; margin-top: 15px; background: linear-gradient(135deg, #ff007f, #7928ca); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
+      <button type="submit" id="btn-submit-payment" style="width: 100%; padding: 12px; margin-top: 15px; background: linear-gradient(135deg, #9b30ff, #7928ca); color: #fff; border: none; border-radius: 8px; font-weight: bold; cursor: pointer;">
         Confirmar y Pagar ${itemPrice}
       </button>
     </form>
@@ -1316,7 +1316,7 @@ function showCardPaymentForm(user, itemType = 'pro_plus') {
           successMessage = `
             <h2 style="color: #7928ca; font-size: 1.8rem; margin-top: 0;">¡Pago Exitoso! 🎉</h2>
             <p style="color: #cbd5e1; margin-top: 15px;">Tu cuenta ha sido actualizada con éxito a <strong>Tamon Pro+</strong>.</p>
-            <p style="color: #ff007f; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">¡Tu límite diario ahora es de 50 documentos!</p>
+            <p style="color: #9b30ff; font-weight: bold; font-size: 1.1rem; margin-top: 10px;">¡Tu límite diario ahora es de 50 documentos!</p>
           `;
         } else {
           successMessage = `
@@ -1631,7 +1631,7 @@ document.addEventListener('DOMContentLoaded', () => {
     faqList.innerHTML = '';
     faqs.forEach((item, idx) => {
       const li = document.createElement('li');
-      li.innerHTML = `<b>${item.q}</b>: ${item.a} <button onclick="removeFaq(${idx})" style="margin-left:8px;color:#ff007f;">X</button>`;
+      li.innerHTML = `<b>${item.q}</b>: ${item.a} <button onclick="removeFaq(${idx})" style="margin-left:8px;color:#9b30ff;">X</button>`;
       faqList.appendChild(li);
     });
   }
@@ -1912,7 +1912,7 @@ async function loadReports() {
       div.style.background = '#1e1c22';
       div.style.padding = '15px';
       div.style.borderRadius = '8px';
-      div.style.borderLeft = '4px solid #ff007f';
+      div.style.borderLeft = '4px solid #9b30ff';
 
       const fecha = new Date(report.created_at).toLocaleString();
 
@@ -1922,12 +1922,12 @@ async function loadReports() {
         </div>
         <div style="margin-bottom: 10px;">
           <strong>🤖 Lo que dijo Tamon:</strong>
-          <div style="background: #2d2a32; padding: 8px; border-radius: 4px; font-size: 0.9rem; margin-top: 4px; color: #d983ab;">
+          <div style="background: #2d2a32; padding: 8px; border-radius: 4px; font-size: 0.9rem; margin-top: 4px; color: #a883d9;">
              "${report.bot_message}"
           </div>
         </div>
         <div>
-          <strong style="color: #ff007f;">😡 Comentario del Usuario:</strong>
+          <strong style="color: #9b30ff;">😡 Comentario del Usuario:</strong>
           <div style="background: #2d2a32; padding: 8px; border-radius: 4px; font-size: 0.9rem; margin-top: 4px; color: #fff;">
              "${report.user_comment}"
           </div>
@@ -1958,3 +1958,128 @@ if (btnSelectChibi) {
     if (proModal) proModal.style.display = 'flex';
   };
 }
+
+// =====================================================================
+// 12. MODAL DE VALORACIÓN CON ESTRELLAS
+// =====================================================================
+(function initRatingModal() {
+  const ratingModal    = document.getElementById('rating-modal');
+  const ratingClose    = document.getElementById('rating-modal-close');
+  const ratingOpenBtn  = document.getElementById('rating-open-btn');
+  const starsRow       = document.getElementById('stars-row');
+  const ratingLabel    = document.getElementById('rating-label');
+  const ratingComment  = document.getElementById('rating-comment');
+  const ratingSubmit   = document.getElementById('rating-submit-btn');
+
+  if (!ratingModal) return;
+
+  const LABELS = ['', '😞 Muy malo', '😕 Malo', '😐 Regular', '😊 Bueno', '🤩 ¡Excelente!'];
+  let selectedRating = 0;
+
+  // Abrir modal
+  if (ratingOpenBtn) {
+    ratingOpenBtn.addEventListener('click', () => {
+      resetRatingModal();
+      ratingModal.classList.add('show');
+    });
+  }
+
+  // Cerrar modal
+  function closeRatingModal() {
+    ratingModal.classList.remove('show');
+  }
+  if (ratingClose) ratingClose.addEventListener('click', closeRatingModal);
+  ratingModal.addEventListener('click', (e) => {
+    if (e.target === ratingModal) closeRatingModal();
+  });
+
+  // Reset estado
+  function resetRatingModal() {
+    selectedRating = 0;
+    if (ratingLabel)  ratingLabel.textContent = 'Selecciona una puntuación';
+    if (ratingComment) ratingComment.value = '';
+    if (ratingSubmit) ratingSubmit.disabled = true;
+    updateStars(0);
+  }
+
+  // Actualizar clases de estrellas
+  function updateStars(hoverVal) {
+    if (!starsRow) return;
+    const stars = starsRow.querySelectorAll('.star-btn');
+    stars.forEach((s, i) => {
+      const val = i + 1;
+      s.classList.remove('selected', 'hovered');
+      if (val <= selectedRating) s.classList.add('selected');
+      if (hoverVal > 0 && val <= hoverVal) s.classList.add('hovered');
+    });
+  }
+
+  // Eventos de estrellas
+  if (starsRow) {
+    const stars = starsRow.querySelectorAll('.star-btn');
+    stars.forEach((s) => {
+      const val = parseInt(s.dataset.value, 10);
+
+      s.addEventListener('mouseenter', () => {
+        if (ratingLabel) ratingLabel.textContent = LABELS[val];
+        updateStars(val);
+      });
+
+      s.addEventListener('mouseleave', () => {
+        if (ratingLabel) ratingLabel.textContent = selectedRating > 0 ? LABELS[selectedRating] : 'Selecciona una puntuación';
+        updateStars(0);
+      });
+
+      s.addEventListener('click', () => {
+        selectedRating = val;
+        if (ratingLabel) ratingLabel.textContent = LABELS[val];
+        if (ratingSubmit) ratingSubmit.disabled = false;
+        updateStars(0);
+      });
+    });
+  }
+
+  // Enviar valoración
+  if (ratingSubmit) {
+    ratingSubmit.addEventListener('click', async () => {
+      if (selectedRating === 0) return;
+
+      const userJson = localStorage.getItem('tamon_user');
+      const userId   = userJson ? JSON.parse(userJson).id : null;
+      const comentario = ratingComment ? ratingComment.value.trim() : '';
+
+      ratingSubmit.textContent = 'Enviando...';
+      ratingSubmit.disabled = true;
+
+      try {
+        const res = await fetch(getApiUrl('/api/user/rating'), {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ userId, estrellas: selectedRating, comentario })
+        });
+
+        if (res.ok) {
+          closeRatingModal();
+          // Reutilizamos el toast existente
+          const toast = document.getElementById('tamon-toast');
+          if (toast) {
+            toast.textContent = '¡Gracias por tu valoración! ⭐';
+            toast.classList.add('show');
+            setTimeout(() => {
+              toast.classList.remove('show');
+              toast.textContent = '¡Reporte enviado! Gracias por ayudarnos a mejorar.';
+            }, 3000);
+          }
+        } else {
+          const data = await res.json().catch(() => ({}));
+          alert(data.error || 'Error al enviar la valoración. Inténtalo de nuevo.');
+        }
+      } catch (err) {
+        alert('Error de conexión al enviar la valoración.');
+      } finally {
+        ratingSubmit.textContent = 'Enviar valoración';
+        ratingSubmit.disabled = false;
+      }
+    });
+  }
+})();

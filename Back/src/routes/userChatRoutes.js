@@ -161,5 +161,47 @@ router.get('/quota/:id', async (req, res) => {
   }
 });
 
+// --- RUTA PARA GUARDAR VALORACIÓN (⭐ ESTRELLAS) ---
+router.post('/rating', async (req, res) => {
+  try {
+    const { userId, estrellas, comentario } = req.body;
+
+    if (!estrellas || estrellas < 1 || estrellas > 5) {
+      return res.status(400).json({ error: 'La puntuación debe estar entre 1 y 5.' });
+    }
+
+    // Escudo anti-MongoDB
+    const safeUserId = parseInt(userId, 10);
+    const finalUserId = isNaN(safeUserId) ? null : safeUserId;
+
+    await pool.query(
+      `INSERT INTO user_ratings (user_id, estrellas, comentario) VALUES ($1, $2, $3)`,
+      [finalUserId, estrellas, comentario || null]
+    );
+
+    res.status(201).json({ success: true, mensaje: '¡Gracias por tu valoración!' });
+  } catch (error) {
+    console.error('Error guardando valoración:', error);
+    res.status(500).json({ error: 'No se pudo guardar la valoración.' });
+  }
+});
+
+// --- RUTA PARA QUE EL ADMIN VEA LAS VALORACIONES ---
+router.get('/ratings', async (req, res) => {
+  try {
+    const result = await pool.query(
+      `SELECT r.id, r.estrellas, r.comentario, r.created_at, u.nombre, u.email
+       FROM user_ratings r
+       LEFT JOIN users u ON r.user_id = u.id
+       ORDER BY r.created_at DESC
+       LIMIT 100`
+    );
+    res.json({ ratings: result.rows });
+  } catch (error) {
+    console.error('Error obteniendo valoraciones:', error);
+    res.status(500).json({ error: 'No se pudieron obtener las valoraciones.' });
+  }
+});
+
 module.exports = router;
 

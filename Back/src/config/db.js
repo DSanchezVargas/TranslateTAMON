@@ -105,6 +105,14 @@ async function connectDb() {
       ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS source_language VARCHAR(20);
       ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS target_language VARCHAR(20);
       ALTER TABLE glossary_entries ADD COLUMN IF NOT EXISTS created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP;
+
+      CREATE TABLE IF NOT EXISTS user_ratings (
+        id SERIAL PRIMARY KEY,
+        user_id INTEGER REFERENCES users(id) ON DELETE SET NULL,
+        estrellas SMALLINT NOT NULL CHECK (estrellas BETWEEN 1 AND 5),
+        comentario TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      );
     `);
     
     client.release(); 
