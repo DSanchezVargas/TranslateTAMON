@@ -1,129 +1,150 @@
 /**
  * docxTranslatorService.js
- * Traduce DOCX preservando formato usando la librería 'docx' (node.js puro).
- * Reemplaza la llamada a localhost:5001/procesar-docx.
+ * Traduce DOCX preservando el 100% del formato original.
  *
  * Estrategia:
- * - Usa mammoth para extraer texto raw + estructura básica
- * - Usa xml-js / xml parsing para editar runs directamente en el XML del DOCX
- * - Si no es posible, fallback a crear un nuevo DOCX con texto traducido
+ *  - Abre el DOCX como ZIP y lee word/document.xml
+ *  - Reemplaza el texto dentro de cada <w:t> con la traducción correspondiente
+ *  - Preserva TODA la estructura XML: <w:rPr> (negrita, cursiva, color, fuente,
+ *    tamaño), párrafos, tablas, imágenes, encabezados, pies de página, etc.
+ *  - Solo cambia el contenido de texto, NADA más.
  */
 
 const AdmZip = require('adm-zip');
-const { translateText } = require('./translator');
 
 /**
- * Aplica traducciones a los runs del XML word/document.xml
- * @param {string} xmlContent - Contenido XML del documento
- * @param {Array} docxRunsTranslated - Array [{paragraph, run, textoTraducido}]
- * @returns {string} XML modificado
+ * Aplica los runs ya traducidos al DOCX original, preservando formato.
+ *
+ * @param {Buffer} originalBuffer       - Buffer del DOCX original
+ * @param {Array}  docxRunsTranslated   - [{paragraph, run, texto | textoTraducido}]
+ * @returns {Buffer}                    - Buffer del DOCX traducido
  */
-function applyTranslationsToXml(xmlContent, docxRunsTranslated) {
-  // Construir mapa de traducciones: "pIdx-rIdx" => textoTraducido
-  const translationMap = {};
+async function translateDocxWithRuns(originalBuffer, docxRunsTranslated) {
+  if (!originalBuffer || !originalBuffer.length) {
+    throw new Error('El buffer del DOCX original está vacío.');
+  }
+
+  const zip = new AdmZip(originalBuffer);
+  const docXmlEntry = zip.getEntry('word/document.xml');
+  if (!docXmlEntry) throw new Error('No se encontró word/document.xml en el DOCX.');
+
+  let xml = docXmlEntry.getData().toString('utf8');
+
+  // Construir mapa de traducciones: "paraIdx-runIdx" => texto traducido
+  const translationMap = new Map();
   for (const item of docxRunsTranslated) {
-    if (item.textoTraducido !== undefined) {
-      translationMap[`${item.paragraph}-${item.run}`] = item.textoTraducido;
-    } else if (item.texto !== undefined) {
-      translationMap[`${item.paragraph}-${item.run}`] = item.texto;
+    const text = item.textoTraducido ?? item.translated ?? item.texto ?? '';
+    if (text !== undefined && item.paragraph !== undefined && item.run !== undefined) {
+      translationMap.set(`${item.paragraph}-${item.run}`, text);
     }
   }
 
-  let xml = xmlContent;
+  // Reemplazar texto en el XML, párrafo a párrafo, run a run
+  let paraIdx = 0;
 
-  // Encontrar todos los párrafos <w:p>
-  let pIdx = 0;
-  xml = xml.replace(/<w:p[ >]/g, (match) => `__PARA_${pIdx++}__${match}`);
+  xml = xml.replace(/<w:p[\s>][\s\S]*?<\/w:p>/g, (paraXml) => {
+    let runIdx = 0;
 
-  // Para cada párrafo encontrado, encontrar sus runs <w:r>
-  let rIdx = 0;
-  let currentPara = -1;
+    const modifiedPara = paraXml.replace(/<w:r[\s>][\s\S]*?<\/w:r>/g, (runXml) => {
+      const key = `${paraIdx}-${runIdx}`;
+      runIdx++;
 
-  xml = xml.replace(/__PARA_(\d+)__(<w:p[ >])/g, (match, pi, tag) => {
-    currentPara = parseInt(pi);
-    rIdx = 0;
-    return tag;
+      if (!translationMap.has(key)) return runXml;
+
+      const translatedText = translationMap.get(key);
+
+      // Reemplazar solo el contenido de <w:t> preservando todos los atributos del run
+      return runXml.replace(/<w:t([^>]*)>([^<]*)<\/w:t>/g, (_m, attrs, _original) => {
+        // Añadir xml:space="preserve" si el texto traducido tiene espacios al inicio/fin
+        const needsSpace = translatedText.startsWith(' ') || translatedText.endsWith(' ');
+        let finalAttrs = attrs;
+        if (needsSpace && !attrs.includes('xml:space')) {
+          finalAttrs = ` xml:space="preserve"${attrs}`;
+        }
+        return `<w:t${finalAttrs}>${escapeXml(translatedText)}</w:t>`;
+      });
+    });
+
+    paraIdx++;
+    return modifiedPara;
   });
 
-  // Reiniciar y hacer el reemplazo real de texto en runs
-  // Estrategia: regex para encontrar <w:r>...<w:t>texto</w:t>...</w:r>
-  pIdx = 0;
-  rIdx = 0;
-  let inPara = false;
-
-  // Dividir por párrafos para procesar runs en orden
-  const parts = xml.split(/(<w:p[ >\/])/);
-  let result = '';
-  let paraCounter = -1;
-  let runCounter = 0;
-
-  for (let i = 0; i < parts.length; i++) {
-    const part = parts[i];
-
-    // Detectar inicio de párrafo
-    if (part.match(/^<w:p[ >]/)) {
-      paraCounter++;
-      runCounter = 0;
-      result += part;
-      continue;
-    }
-
-    // Detectar fin de párrafo
-    if (part.includes('</w:p>')) {
-      result += part;
-      continue;
-    }
-
-    // Procesar runs dentro del párrafo actual
-    if (paraCounter >= 0) {
-      // Reemplazar <w:t>...</w:t> dentro de runs
-      const processed = part.replace(/(<w:r[ >][\s\S]*?<w:t[^>]*>)([\s\S]*?)(<\/w:t>)/g, 
-        (m, before, text, after) => {
-          const key = `${paraCounter}-${runCounter}`;
-          runCounter++;
-          if (translationMap[key] !== undefined) {
-            const translated = translationMap[key];
-            // Preservar espacio al inicio/fin para w:xml:space
-            const needsSpace = text.startsWith(' ') || text.endsWith(' ');
-            const spaceAttr = needsSpace ? ' xml:space="preserve"' : '';
-            return `${before.replace(/<w:t[^>]*>/, `<w:t${spaceAttr}>`) }${translated}${after}`;
-          }
-          return m;
-        }
-      );
-      result += processed;
-      continue;
-    }
-
-    result += part;
-  }
-
-  return result;
+  zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+  return zip.toBuffer();
 }
 
 /**
- * Traduce un DOCX preservando su formato original.
- * @param {Buffer} originalFileBuffer - Buffer del DOCX original
- * @param {Array} docxRunsTranslated - Runs traducidos [{paragraph, run, texto/textoTraducido}]
- * @returns {Buffer} Buffer del DOCX traducido
+ * Traduce un DOCX completo de forma automática (sin runs pre-traducidos).
+ * Extrae cada run, lo traduce, y lo aplica de vuelta al DOCX.
+ *
+ * @param {Buffer}   originalBuffer
+ * @param {string}   sourceLanguage
+ * @param {string}   targetLanguage
+ * @param {Function} translateFn     - async (text, sl, tl) => translatedText
+ * @returns {Buffer}
  */
-async function translateDocxWithRuns(originalFileBuffer, docxRunsTranslated) {
-  try {
-    const zip = new AdmZip(originalFileBuffer);
-    const docXmlEntry = zip.getEntry('word/document.xml');
+async function translateDocxBuffer(originalBuffer, sourceLanguage, targetLanguage, translateFn) {
+  const zip = new AdmZip(originalBuffer);
+  const docXmlEntry = zip.getEntry('word/document.xml');
+  if (!docXmlEntry) throw new Error('No se encontró word/document.xml en el DOCX.');
 
-    if (!docXmlEntry) {
-      throw new Error('No se encontró word/document.xml en el DOCX.');
+  let xml = docXmlEntry.getData().toString('utf8');
+
+  // 1. Recopilar todos los textos <w:t> únicos para traducción en lote
+  const textSegments = [];
+  const wtRegex = /<w:t(?:\s[^>]*)?>([^<]*)<\/w:t>/g;
+  let match;
+  while ((match = wtRegex.exec(xml)) !== null) {
+    if (match[1].trim()) {
+      textSegments.push({ original: match[1], index: textSegments.length });
     }
-
-    let xmlContent = docXmlEntry.getData().toString('utf8');
-    const modifiedXml = applyTranslationsToXml(xmlContent, docxRunsTranslated);
-
-    zip.updateFile('word/document.xml', Buffer.from(modifiedXml, 'utf8'));
-    return zip.toBuffer();
-  } catch (err) {
-    throw new Error('Error al procesar DOCX: ' + err.message);
   }
+
+  if (!textSegments.length) return originalBuffer;
+
+  // 2. Traducir en lotes de 10 en paralelo
+  const concurrency = 10;
+  const translated = new Array(textSegments.length);
+
+  for (let i = 0; i < textSegments.length; i += concurrency) {
+    const chunk = textSegments.slice(i, i + concurrency);
+    const results = await Promise.all(
+      chunk.map(async (seg) => {
+        try {
+          const t = await translateFn(seg.original, sourceLanguage, targetLanguage);
+          return (t && t.trim()) ? t : seg.original;
+        } catch (_) {
+          return seg.original;
+        }
+      })
+    );
+    results.forEach((t, j) => { translated[i + j] = t; });
+  }
+
+  // 3. Reemplazar cada <w:t> en orden
+  let idx = 0;
+  xml = xml.replace(/<w:t(\s[^>]*)?>([^<]*)<\/w:t>/g, (m, attrs = '', text) => {
+    if (!text.trim()) return m;
+    const translatedText = translated[idx++] ?? text;
+    const needsSpace = translatedText.startsWith(' ') || translatedText.endsWith(' ');
+    let finalAttrs = attrs;
+    if (needsSpace && !attrs.includes('xml:space')) {
+      finalAttrs = ` xml:space="preserve"${attrs}`;
+    }
+    return `<w:t${finalAttrs}>${escapeXml(translatedText)}</w:t>`;
+  });
+
+  zip.updateFile('word/document.xml', Buffer.from(xml, 'utf8'));
+  return zip.toBuffer();
 }
 
-module.exports = { translateDocxWithRuns };
+function escapeXml(str) {
+  return String(str)
+    .replace(/&/g, '&amp;')
+    .replace(/</g, '&lt;')
+    .replace(/>/g, '&gt;')
+    .replace(/"/g, '&quot;')
+    .replace(/'/g, '&apos;');
+}
+
+module.exports = { translateDocxWithRuns, translateDocxBuffer };

@@ -191,9 +191,9 @@ function estimateEtaSeconds(startedAt, processedChunks, totalChunks) {
   return Math.min(Math.max(Math.ceil((totalChunks - processedChunks) * avgPerChunk), 0), 86399);
 }
 
-const { extractDocxRunsWithIndices } = require('../services/docxRunsExtractor');
+const { extractDocxRunsWithIndices, extractDocxRunsFromBuffer } = require('../services/docxRunsExtractor');
 const { translatePdfBuffer } = require('../services/pdfTranslatorService');
-const { translateDocxWithRuns } = require('../services/docxTranslatorService');
+const { translateDocxWithRuns, translateDocxBuffer } = require('../services/docxTranslatorService');
 
 async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, project, domain, userId }) {
   job.status = 'processing';
@@ -269,16 +269,33 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
     }
     
     if (ext === '.docx') {
-      job.message = 'Extrayendo runs de Word...';
+      job.message = 'Traduciendo Word y preservando formato...';
       job.progressPercent = 30;
       touchJob(job);
-      
-      const runs = extractDocxRunsWithIndices(file.path);
-      const sourceTextHash = computeSourceHash(JSON.stringify(runs));
-      
+
+      const docxBuf = file.buffer || fs.readFileSync(file.path);
+
+      // Extraer runs para vista previa editable
+      const { extractDocxRunsFromBuffer: extractRuns } = require('../services/docxRunsExtractor');
+      const runs = extractRuns(docxBuf);
+      const sourceTextHash = computeSourceHash(docxBuf);
+
+      // Traducir el DOCX completo preservando formato
+      job.message = 'Traduciendo p\u00e1rrafo a p\u00e1rrafo...';
+      job.progressPercent = 50;
+      touchJob(job);
+
+      const { translateDocxBuffer: tdocx } = require('../services/docxTranslatorService');
+      const translatedDocxBuffer = await tdocx(
+        docxBuf,
+        sourceLanguage,
+        targetLanguage,
+        (text, sl, tl) => require('../services/translator').translateText(text, sl, tl)
+      );
+
       const previewId = crypto.randomUUID();
       clearExpiredPreviews();
-      
+
       previewStore.set(previewId, {
         originalFileName: file.originalname,
         sourceLanguage,
@@ -287,18 +304,19 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         domain,
         sourceTextHash,
         docxRuns: runs,
-        originalFileBuffer: file.buffer,
+        originalFileBuffer: docxBuf,
+        translatedFileBuffer: translatedDocxBuffer,
         fromCache: false,
         expiresAt: Date.now() + PREVIEW_TTL_MS
       });
-      
+
       job.status = 'completed';
       job.progressPercent = 100;
       job.etaSeconds = 0;
-      job.message = 'Procesamiento de Word completado.';
+      job.message = 'Word traducido y listo para descargar.';
       job.previewId = previewId;
       addJobHistory(job, 'Word finalizado.');
-      
+
       const safeUserId = Number.isInteger(userId) ? userId : null;
       await saveHistory({
         userId: safeUserId,
@@ -315,7 +333,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         status: 'success',
         fileSizeBytes: file.size
       });
-      
+
       if (file.path && fs.existsSync(file.path)) {
         try { fs.unlinkSync(file.path); } catch (e) {}
       }
@@ -986,10 +1004,21 @@ router.post('/translate/finalize', async (req, res, next) => {
       return res.status(200).send(translatedPdfBuffer);
     }
 
+    // DOCX: usar translatedFileBuffer (ya traducido con formato) si existe
+    if (ext === '.docx' && preview?.translatedFileBuffer) {
+      await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: '', status: 'success' });
+      setExperienceHeaders(res, { traceId, status: 'finalized', processingMs: Date.now() - startedAt });
+      res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
+      res.setHeader('Content-Disposition', `attachment; filename="${path.parse(finalFileName).name}-${finalTargetLanguage}.docx"`);
+      return res.status(200).send(preview.translatedFileBuffer);
+    }
+
+    // Fallback: crear DOCX simple con texto plano
     const translatedDocxBuffer = await createTranslatedDocxBuffer({ originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedText: finalText });
     await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: finalText, status: 'success' });
 
     setExperienceHeaders(res, { traceId, status: 'finalized', processingMs: Date.now() - startedAt });
+
     res.setHeader('Content-Type', 'application/vnd.openxmlformats-officedocument.wordprocessingml.document');
     res.setHeader('Content-Disposition', `attachment; filename="${path.parse(finalFileName).name}-${finalTargetLanguage}.docx"`);
     return res.status(200).send(translatedDocxBuffer);
