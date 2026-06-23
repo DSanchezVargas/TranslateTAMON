@@ -804,6 +804,21 @@ router.get('/translate/preview-result/:previewId', (req, res) => {
 
 // DOCX: reenviar traducciones por índice a microservicio Python
 const axios = require('axios');
+
+async function createTranslatedPdfBuffer({ originalFileName, translatedText }) {
+  try {
+    const title = `Traducción de ${originalFileName}`;
+    const pyRes = await axios.post('http://localhost:5002/convertir-texto-pdf', {
+      texto: translatedText,
+      titulo: title
+    }, { responseType: 'arraybuffer' });
+    return pyRes.data;
+  } catch (error) {
+    console.error("Error generating PDF via Python microservice:", error.message);
+    throw new Error("No se pudo generar el archivo PDF.");
+  }
+}
+
 router.post('/translate/finalize', async (req, res, next) => {
   const startedAt = Date.now(); const traceId = crypto.randomUUID();
   try {
@@ -834,8 +849,19 @@ router.post('/translate/finalize', async (req, res, next) => {
 
     if (!finalText || !finalSourceLanguage || !finalTargetLanguage) return res.status(400).json({ error: 'Faltan datos.' });
 
-    const translatedDocxBuffer = await createTranslatedDocxBuffer({ originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedText: finalText });
+    const ext = path.extname(finalFileName).toLowerCase();
     const userId = Number(req.user?.id || req.user?._id);
+
+    if (ext === '.pdf') {
+      const translatedPdfBuffer = await createTranslatedPdfBuffer({ originalFileName: finalFileName, translatedText: finalText });
+      await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: finalText, status: 'success' });
+      setExperienceHeaders(res, { traceId, status: 'finalized', processingMs: Date.now() - startedAt });
+      res.setHeader('Content-Type', 'application/pdf');
+      res.setHeader('Content-Disposition', `attachment; filename="${path.parse(finalFileName).name}-${finalTargetLanguage}.pdf"`);
+      return res.status(200).send(translatedPdfBuffer);
+    }
+
+    const translatedDocxBuffer = await createTranslatedDocxBuffer({ originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedText: finalText });
     await saveHistory({ userId: Number.isInteger(userId) ? userId : null, originalFileName: finalFileName, sourceLanguage: finalSourceLanguage, targetLanguage: finalTargetLanguage, translatedTextCache: finalText, status: 'success' });
 
     setExperienceHeaders(res, { traceId, status: 'finalized', processingMs: Date.now() - startedAt });

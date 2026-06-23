@@ -92,6 +92,51 @@ def insertar_textos_pdf():
         doc.save(output_path)
         return send_file(output_path, as_attachment=True, download_name="output.pdf")
 
+# --- Endpoint 3: Convertir texto traducido plano a PDF ---
+@app.route('/convertir-texto-pdf', methods=['POST'])
+def convertir_texto_pdf():
+    data = request.get_json() or {}
+    texto = data.get('texto', '')
+    titulo = data.get('titulo', 'Documento Traducido')
+    
+    doc = fitz.open()
+    page = doc.new_page()
+    
+    margin = 50
+    width = page.rect.width - (2 * margin)
+    
+    y = margin
+    page.insert_text((margin, y), titulo, fontsize=16, color=(0.917, 0.658, 0.756)) # primary color #eaa8c1
+    y += 40
+    
+    for paragraph in texto.split('\n'):
+        words = paragraph.split(' ')
+        line_words = []
+        for word in words:
+            test_line = ' '.join(line_words + [word])
+            approx_width = len(test_line) * 5.5
+            if approx_width > width:
+                if y > (page.rect.height - margin):
+                    page = doc.new_page()
+                    y = margin
+                page.insert_text((margin, y), ' '.join(line_words), fontsize=10)
+                y += 15
+                line_words = [word]
+            else:
+                line_words.append(word)
+        if line_words:
+            if y > (page.rect.height - margin):
+                page = doc.new_page()
+                y = margin
+            page.insert_text((margin, y), ' '.join(line_words), fontsize=10)
+            y += 15
+        y += 8
+        
+    with tempfile.TemporaryDirectory() as tmpdir:
+        out_path = os.path.join(tmpdir, 'translated.pdf')
+        doc.save(out_path)
+        return send_file(out_path, as_attachment=True, download_name="translated.pdf")
+
 # --- MAIN: Ejecutar en puerto 5002 si es script principal ---
 if __name__ == "__main__":
     app.run(port=5002)

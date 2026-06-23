@@ -492,7 +492,10 @@ async function finalizeTranslation() {
     const url = URL.createObjectURL(blob);
     const anchor = document.createElement('a');
     anchor.href = url;
-    anchor.download = `Tamon_${previewState.originalFileName || 'traduccion'}.docx`;
+    const origExt = previewState.originalFileName ? previewState.originalFileName.split('.').pop().toLowerCase() : 'docx';
+    const downloadExt = origExt === 'pdf' ? 'pdf' : 'docx';
+    const baseName = previewState.originalFileName ? previewState.originalFileName.split('.').slice(0, -1).join('.') : 'traduccion';
+    anchor.download = `Tamon_${baseName}.${downloadExt}`;
     document.body.appendChild(anchor);
     anchor.click();
     anchor.remove();
