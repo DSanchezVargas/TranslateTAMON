@@ -275,13 +275,13 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
 
       const docxBuf = file.buffer || fs.readFileSync(file.path);
 
-      // Extraer runs para vista previa editable
+      // Extraer runs originales para vista previa editable
       const { extractDocxRunsFromBuffer: extractRuns } = require('../services/docxRunsExtractor');
-      const runs = extractRuns(docxBuf);
+      const originalRuns = extractRuns(docxBuf);
       const sourceTextHash = computeSourceHash(docxBuf);
 
       // Traducir el DOCX completo preservando formato
-      job.message = 'Traduciendo p\u00e1rrafo a p\u00e1rrafo...';
+      job.message = 'Traduciendo párrafo a párrafo...';
       job.progressPercent = 50;
       touchJob(job);
 
@@ -293,6 +293,17 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         (text, sl, tl) => require('../services/translator').translateText(text, sl, tl)
       );
 
+      // Extraer runs del DOCX traducido para la vista previa
+      const translatedRuns = extractRuns(translatedDocxBuffer);
+
+      // Combinar: cada run tiene 'texto' (original) y 'textoTraducido'
+      const combinedRuns = originalRuns.map((run, idx) => ({
+        paragraph: run.paragraph,
+        run: run.run,
+        texto: run.texto,
+        textoTraducido: (translatedRuns[idx] && translatedRuns[idx].texto) || run.texto
+      }));
+
       const previewId = crypto.randomUUID();
       clearExpiredPreviews();
 
@@ -303,7 +314,7 @@ async function runPreviewJob(job, { file, sourceLanguage, targetLanguage, projec
         project,
         domain,
         sourceTextHash,
-        docxRuns: runs,
+        docxRuns: combinedRuns,
         originalFileBuffer: docxBuf,
         translatedFileBuffer: translatedDocxBuffer,
         fromCache: false,
