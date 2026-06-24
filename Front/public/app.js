@@ -969,17 +969,26 @@ if (authForm) {
     };
     if (!isLoginMode) payload.nombre = document.getElementById('auth-nombre').value.trim();
 
-    document.getElementById('auth-submit-btn').textContent = 'Procesando...';
+    const submitBtn = document.getElementById('auth-submit-btn');
+    submitBtn.textContent = 'Procesando...';
+    submitBtn.disabled = true;
+
+    // Timeout generoso para el cold start de Render (45s)
+    const controller = new AbortController();
+    const timeoutId = setTimeout(() => controller.abort(), 45000);
+
     try {
       const response = await fetch(endpoint, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(payload)
+        body: JSON.stringify(payload),
+        signal: controller.signal
       });
+      clearTimeout(timeoutId);
       const data = await response.json();
+
       if (response.ok) {
         if (data.requiereVerificacion) {
-          // Cambiar a la sección de verificación por código OTP
           document.getElementById('auth-credentials-section').style.display = 'none';
           document.getElementById('auth-verification-section').style.display = 'block';
           document.getElementById('verification-email-target').textContent = data.correo;
@@ -993,21 +1002,43 @@ if (authForm) {
         }
       } else {
         if (data.requiereVerificacion) {
-          // En caso de que el login retorne error porque la cuenta sigue pendiente
+          // Login retorna error porque la cuenta sigue pendiente → mostrar OTP
           document.getElementById('auth-credentials-section').style.display = 'none';
           document.getElementById('auth-verification-section').style.display = 'block';
           document.getElementById('verification-email-target').textContent = data.correo;
           document.getElementById('verification-code').value = '';
           document.getElementById('verification-code').focus();
           alert(data.error);
+        } else if (!isLoginMode && data.error && data.error.toLowerCase().includes('cuenta activa')) {
+          // El correo ya tiene cuenta activa → ofrecer ir a login automáticamente
+          alert(
+            '⚠️ Este correo ya está registrado y activo.\n\nTe cambiamos al modo de inicio de sesión. Solo ingresa tu contraseña.',
+            () => {
+              // Cambiar a modo login
+              isLoginMode = true;
+              document.getElementById('auth-title').textContent = 'Iniciar Sesión';
+              document.getElementById('auth-nombre').style.display = 'none';
+              document.getElementById('auth-nombre').required = false;
+              document.getElementById('auth-submit-btn').textContent = 'Entrar a Tamon';
+              document.getElementById('auth-toggle-text').textContent = '¿No tienes cuenta?';
+              const toggleBtn = document.getElementById('auth-toggle-btn');
+              if (toggleBtn) toggleBtn.textContent = 'Regístrate aquí';
+            }
+          );
         } else {
-          alert(data.error);
+          alert(data.error || 'Ocurrió un error. Inténtalo de nuevo.');
         }
       }
     } catch (err) {
-      alert('Error de conexión.');
+      clearTimeout(timeoutId);
+      if (err.name === 'AbortError') {
+        alert('El servidor está iniciando y tardó demasiado. Por favor, espera 30 segundos e inténtalo de nuevo.');
+      } else {
+        alert('Error de conexión. Verifica tu internet e inténtalo de nuevo.');
+      }
     } finally {
-      document.getElementById('auth-submit-btn').textContent = isLoginMode ? 'Entrar a Tamon' : 'Registrarse';
+      submitBtn.textContent = isLoginMode ? 'Entrar a Tamon' : 'Registrarse';
+      submitBtn.disabled = false;
     }
   });
 }
