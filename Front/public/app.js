@@ -1070,6 +1070,7 @@ if (authForm) {
       if (response.ok) {
         hideAuthServerStatus();
         if (data.requiereVerificacion) {
+          alert(data.mensaje || 'Se ha enviado un código de verificación a tu correo.');
           document.getElementById('auth-credentials-section').style.display = 'none';
           document.getElementById('auth-verification-section').style.display = 'block';
           document.getElementById('verification-email-target').textContent = data.correo;
