@@ -1017,8 +1017,8 @@ if (authForm) {
   authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Siempre usamos getApiUrl para que las peticiones vayan directo a Render sin el límite de 10s de Vercel
-    const endpoint = isLoginMode ? getApiUrl('/api/auth/login') : getApiUrl('/api/auth/register');
+    // Usamos rutas relativas para pasar a través del proxy de Vercel y evitar CORS por completo
+    const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
     const payload = {
       correo: document.getElementById('auth-correo').value.trim(),
       password: document.getElementById('auth-pass').value
@@ -1139,7 +1139,7 @@ if (verificationForm) {
     submitBtn.textContent = 'Verificando...';
     submitBtn.disabled = true;
     try {
-      const response = await fetch(getApiUrl('/api/auth/verify-code'), {
+      const response = await fetch('/api/auth/verify-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo, codigo: codigoInput.value.trim() })
@@ -1180,7 +1180,7 @@ if (verificationResendBtn) {
     verificationResendBtn.textContent = 'Enviando...';
     
     try {
-      const response = await fetch(getApiUrl('/api/auth/resend-code'), {
+      const response = await fetch('/api/auth/resend-code', {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo })
@@ -1221,8 +1221,8 @@ async function actualizarCuotaVisual() {
 
   const user = JSON.parse(userJson);
   try {
-    // Llamamos a la ruta que creamos en userChatRoutes.js con getApiUrl
-    const response = await fetch(getApiUrl(`/api/user/quota/${user.id || user._id}`));
+    // Llamamos a la ruta relativas a través del proxy de Vercel
+    const response = await fetch(`/api/user/quota/${user.id || user._id}`);
     if (response.ok) {
       const data = await response.json();
       const restantes = data.total - data.usados;
