@@ -32,11 +32,11 @@
     "pdf-parse": "^2.4.5",
     "pg": "^8.20.0",
     "qrcode": "^1.5.4",
-    "tesseract.js": "^7.0.0"
+    "tesseract.js": "^7.0.0",
+    "concurrently": "^8.2.2"
   },
   "devDependencies": {
     "@eslint/js": "^10.0.1",
-    "concurrently": "^8.2.2",
     "eslint": "^10.2.0",
     "globals": "^17.5.0",
     "jest": "^30.3.0",
