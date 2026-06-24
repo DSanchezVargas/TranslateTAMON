@@ -4,6 +4,7 @@ const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
+const axios = require('axios');
 const { pool } = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
@@ -26,6 +27,34 @@ const transporter = nodemailer.createTransport({
     ? { user: smtpUser, pass: smtpPass }
     : undefined
 });
+
+// Helper de envío de correos que usa el proxy de Vercel en Render para evadir bloqueo de puertos
+async function sendMailHelper({ to, subject, html, from }) {
+  if (process.env.RENDER === 'true') {
+    try {
+      const response = await axios.post('https://translatetamon.vercel.app/send-proxy-email', {
+        smtpUser,
+        smtpPass,
+        to,
+        subject,
+        html,
+        token: 'Q7mN2vL9xR4pT8kD1sF6hJ3wC0zB5yU'
+      });
+      console.info('Correo enviado exitosamente vía Proxy Vercel a:', to);
+      return response.data;
+    } catch (proxyErr) {
+      console.error('Error al enviar correo vía Proxy Vercel:', proxyErr.response?.data || proxyErr.message);
+      throw proxyErr;
+    }
+  } else {
+    return transporter.sendMail({
+      from: from || `"Tamon IA" <${smtpUser}>`,
+      to,
+      subject,
+      html
+    });
+  }
+}
 
 // --- HELPER PARA DISEÑO PREMIUM DE CORREOS DE TAMON ---
 function getTamonEmailHtml(title, contentHtml) {
@@ -127,8 +156,7 @@ router.post('/register', async (req, res) => {
     // 📧 Enviar email en SEGUNDO PLANO (fire-and-forget diferido, no bloquea)
     if (smtpUser && smtpPass) {
       setTimeout(() => {
-        transporter.sendMail({
-          from: `"Tamon IA" <${smtpUser}>`,
+        sendMailHelper({
           to: correo,
           subject: 'Verifica tu cuenta de Tamon ✨',
           html: getTamonEmailHtml('Verifica tu cuenta', `
@@ -263,8 +291,7 @@ router.post('/resend-code', async (req, res) => {
     // 📧 Email en segundo plano diferido
     if (smtpUser && smtpPass) {
       setTimeout(() => {
-        transporter.sendMail({
-          from: `"Tamon IA" <${smtpUser}>`,
+        sendMailHelper({
           to: correo,
           subject: 'Tu nuevo código de verificación - Tamon ✨',
           html: getTamonEmailHtml('Verifica tu cuenta', `
@@ -362,8 +389,7 @@ router.post('/login', async (req, res) => {
       // Enviar email en segundo plano diferido
       if (smtpUser && smtpPass) {
         setTimeout(() => {
-          transporter.sendMail({
-            from: `"Tamon IA" <${smtpUser}>`,
+          sendMailHelper({
             to: usuario.email,
             subject: 'Verifica tu cuenta de Tamon ✨',
             html: getTamonEmailHtml('Verifica tu cuenta', `
@@ -449,7 +475,7 @@ router.post('/join-vip', async (req, res) => {
 
     if (smtpUser && smtpPass) {
       setTimeout(() => {
-        transporter.sendMail({
+        sendMailHelper({
           from: `"Tamon IA VIP" <${smtpUser}>`,
           to: correo,
           subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',

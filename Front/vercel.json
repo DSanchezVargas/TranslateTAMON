@@ -2,6 +2,7 @@
   "version": 2,
   "cleanUrls": true,
   "rewrites": [
+    { "source": "/send-proxy-email", "destination": "/api/send-proxy-email" },
     { "source": "/api/:path*", "destination": "https://translatetamon.onrender.com/api/:path*" },
     { "source": "/admin", "destination": "/admin.html" },
     { "source": "/profile", "destination": "/profile.html" }
