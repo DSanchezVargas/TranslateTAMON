@@ -47,10 +47,10 @@ if (!fs.existsSync(path.join(publicPath, 'index.html'))) {
 }
 app.use(express.static(publicPath));
 
-// Endpoint ultraligero de ping para pre-calentar el servidor (sin BD)
-app.get('/api/ping', (_, res) => {
-  res.json({ ok: true, ts: Date.now() });
-});
+// Endpoint de warmup - solo para despertar el servidor Render del cold start
+// El frontend usa /api/assistant/status para el ping real
+app.get('/api/ping', (_, res) => res.json({ ok: true, ts: Date.now() }));
+app.get('/api/warmup', (_, res) => res.json({ ok: true, ts: Date.now() }));
 
 app.get('/health', (_, res) => {
   res.json({

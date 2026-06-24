@@ -20,14 +20,14 @@ async function pingServer() {
   serverWaking = true;
   try {
     const t0 = Date.now();
-    // URL relativa para pasar por el rewrite de Vercel → Render
-    // Cualquier respuesta HTTP (incluso 404) significa que el servidor está vivo
-    const res = await fetch('/api/ping', {
+    // getApiUrl() apunta directamente a Render (no pasa por caché de Vercel CDN)
+    // /api/assistant/status ya existe en el backend deployado
+    const res = await fetch(getApiUrl('/api/assistant/status'), {
       method: 'GET',
-      signal: AbortSignal.timeout(65000) // máx 65s para despertar
+      signal: AbortSignal.timeout(65000) // máx 65s — cold start de Render puede tomar ~60s
     });
     const ms = Date.now() - t0;
-    // Si el servidor respondió (cualquier código HTTP), está despierto
+    // Cualquier respuesta HTTP = servidor activo (2xx, 4xx, 5xx todos requieren proceso vivo)
     serverReady = true;
     serverWaking = false;
     console.info(`[Tamon] Servidor listo (${ms}ms, status=${res.status})`);
@@ -35,8 +35,8 @@ async function pingServer() {
     if (statusEl) statusEl.style.display = 'none';
     return true;
   } catch (e) {
-    // Solo falla si es un error de RED (AbortError = timeout, fetch error = sin conexión)
-    console.warn('[Tamon] Ping falló (red):', e.message);
+    // Solo falla si hay error de RED (AbortError=timeout, TypeError=sin conexión)
+    console.warn('[Tamon] Ping falló (error de red):', e.message);
   }
   serverWaking = false;
   return false;
