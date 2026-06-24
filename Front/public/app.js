@@ -1017,8 +1017,8 @@ if (authForm) {
   authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
 
-    // Siempre usamos URLs relativas para que Vercel las reescriba al backend
-    const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
+    // Siempre usamos getApiUrl para que las peticiones vayan directo a Render sin el límite de 10s de Vercel
+    const endpoint = isLoginMode ? getApiUrl('/api/auth/login') : getApiUrl('/api/auth/register');
     const payload = {
       correo: document.getElementById('auth-correo').value.trim(),
       password: document.getElementById('auth-pass').value
@@ -1053,9 +1053,9 @@ if (authForm) {
 
     submitBtn.textContent = 'Procesando...';
 
-    // Timeout de 30s para la petición real
+    // Timeout de 60s para la petición real (por si la DB de Render o nodemailer tardan en responder)
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 30000);
+    const timeoutId = setTimeout(() => controller.abort(), 60000);
 
     try {
       const response = await fetch(endpoint, {
@@ -1138,7 +1138,7 @@ if (verificationForm) {
     submitBtn.textContent = 'Verificando...';
     submitBtn.disabled = true;
     try {
-      const response = await fetch('/api/auth/verify-code', {
+      const response = await fetch(getApiUrl('/api/auth/verify-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo, codigo: codigoInput.value.trim() })
@@ -1179,7 +1179,7 @@ if (verificationResendBtn) {
     verificationResendBtn.textContent = 'Enviando...';
     
     try {
-      const response = await fetch('/api/auth/resend-code', {
+      const response = await fetch(getApiUrl('/api/auth/resend-code'), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ correo })
@@ -1220,8 +1220,8 @@ async function actualizarCuotaVisual() {
 
   const user = JSON.parse(userJson);
   try {
-    // Llamamos a la ruta que creamos en userChatRoutes.js
-    const response = await fetch(`/api/user/quota/${user.id || user._id}`);
+    // Llamamos a la ruta que creamos en userChatRoutes.js con getApiUrl
+    const response = await fetch(getApiUrl(`/api/user/quota/${user.id || user._id}`));
     if (response.ok) {
       const data = await response.json();
       const restantes = data.total - data.usados;
