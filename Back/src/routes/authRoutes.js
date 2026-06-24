@@ -86,14 +86,16 @@ router.post('/register', async (req, res) => {
     const code = Math.floor(100000 + Math.random() * 900000).toString();
     const expires = new Date(Date.now() + 15 * 60 * 1000); // 15 minutos
 
+    // saltRounds=8 es ~4x más rápido que 10 y sigue siendo criptográficamente seguro
+    const SALT_ROUNDS = 8;
+
     if (userExists.rows.length > 0) {
       const existingUser = userExists.rows[0];
       if (existingUser.user_status === 'active') {
         return res.status(400).json({ error: 'Este correo ya tiene una cuenta activa.' });
       } else {
         // Si la cuenta existe pero está 'pending', regeneramos los datos y el código
-        const salt = await bcrypt.genSalt(10);
-        const hashedPassword = await bcrypt.hash(password, salt);
+        const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
         const updateResult = await pool.query(
           `UPDATE users 
            SET nombre = $1, password = $2, verification_code = $3, verification_code_expires = $4 
@@ -103,8 +105,7 @@ router.post('/register', async (req, res) => {
         nuevoUsuario = updateResult.rows[0];
       }
     } else {
-      const salt = await bcrypt.genSalt(10);
-      const hashedPassword = await bcrypt.hash(password, salt);
+      const hashedPassword = await bcrypt.hash(password, SALT_ROUNDS);
       const insertResult = await pool.query(
         `INSERT INTO users (nombre, email, password, plan, role, user_status, verification_code, verification_code_expires) 
          VALUES ($1, $2, $3, $4, $5, 'pending', $6, $7) RETURNING id, nombre, email, plan, role, user_status`,
@@ -115,49 +116,51 @@ router.post('/register', async (req, res) => {
 
     console.info(`=== CÓDIGO OTP PARA REGISTRO DE ${correo} ES: ${code} ===`);
 
-    try {
-      if (smtpUser && smtpPass) {
-        await transporter.sendMail({
-          from: `"Tamon IA" <${smtpUser}>`,
-          to: correo,
-          subject: 'Verifica tu cuenta de Tamon ✨',
-          html: getTamonEmailHtml('Verifica tu cuenta', `
-            <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${nombre}! 👋</h2>
-            <p style="text-align: center; margin-bottom: 25px;">
-              Gracias por unirte a Tamon IA. Para activar tu cuenta y comenzar a traducir tus archivos de forma inteligente, usa el siguiente código de verificación de 6 dígitos:
-            </p>
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
-              <tr>
-                <td align="center">
-                  <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
-                  </div>
-                </td>
-              </tr>
-            </table>
-            <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
-              Este código es válido por <strong>15 minutos</strong>. Si no solicitaste este registro, puedes ignorar este mensaje con total seguridad.
-            </p>
-          `)
-        });
-      }
-    } catch (mailErr) {
-      console.error('Error enviando correo de registro:', mailErr);
-    }
-
-    return res.status(201).json({ 
+    // ⚡ Responder INMEDIATAMENTE al usuario (no esperar al email)
+    res.status(201).json({ 
       mensaje: 'Código enviado a tu correo.',
       requiereVerificacion: true,
       correo: nuevoUsuario.email
     });
 
+    // 📧 Enviar email en SEGUNDO PLANO (fire-and-forget, no bloquea)
+    if (smtpUser && smtpPass) {
+      transporter.sendMail({
+        from: `"Tamon IA" <${smtpUser}>`,
+        to: correo,
+        subject: 'Verifica tu cuenta de Tamon ✨',
+        html: getTamonEmailHtml('Verifica tu cuenta', `
+          <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${nombre}! 👋</h2>
+          <p style="text-align: center; margin-bottom: 25px;">
+            Gracias por unirte a Tamon IA. Para activar tu cuenta y comenzar a traducir tus archivos de forma inteligente, usa el siguiente código de verificación de 6 dígitos:
+          </p>
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+            <tr>
+              <td align="center">
+                <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
+                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
+                </div>
+              </td>
+            </tr>
+          </table>
+          <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
+            Este código es válido por <strong>15 minutos</strong>. Si no solicitaste este registro, puedes ignorar este mensaje con total seguridad.
+          </p>
+        `)
+      }).catch(mailErr => {
+        console.error('Error enviando correo de registro (background):', mailErr.message);
+      });
+    }
+
   } catch (error) {
     console.error('ERROR CRÍTICO EN REGISTRO SQL:', error);
-    return res.status(500).json({ 
-      error: 'Error interno al crear la cuenta.',
-      details: error.message,
-      stack: error.stack
-    });
+    // Solo responder si no se ha enviado ya la respuesta
+    if (!res.headersSent) {
+      return res.status(500).json({ 
+        error: 'Error interno al crear la cuenta.',
+        details: error.message
+      });
+    }
   }
 });
 
@@ -247,41 +250,43 @@ router.post('/resend-code', async (req, res) => {
 
     console.info(`=== CÓDIGO OTP RE-ENVIADO PARA ${correo} ES: ${code} ===`);
 
-    try {
-      if (smtpUser && smtpPass) {
-        await transporter.sendMail({
-          from: `"Tamon IA" <${smtpUser}>`,
-          to: correo,
-          subject: 'Tu nuevo código de verificación - Tamon ✨',
-          html: getTamonEmailHtml('Verifica tu cuenta', `
-            <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${usuario.nombre}! 👋</h2>
-            <p style="text-align: center; margin-bottom: 25px;">
-              Aquí tienes tu nuevo código de verificación de 6 dígitos para activar tu cuenta de Tamon:
-            </p>
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
-              <tr>
-                <td align="center">
-                  <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
-                  </div>
-                </td>
-              </tr>
-            </table>
-            <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
-              Este código es válido por <strong>15 minutos</strong>.
-            </p>
-          `)
-        });
-      }
-    } catch (mailErr) {
-      console.error('Error enviando correo de re-envío:', mailErr);
-    }
+    // ⚡ Responder INMEDIATAMENTE
+    res.status(200).json({ mensaje: 'Nuevo código enviado con éxito.' });
 
-    return res.status(200).json({ mensaje: 'Nuevo código enviado con éxito.' });
+    // 📧 Email en segundo plano
+    if (smtpUser && smtpPass) {
+      transporter.sendMail({
+        from: `"Tamon IA" <${smtpUser}>`,
+        to: correo,
+        subject: 'Tu nuevo código de verificación - Tamon ✨',
+        html: getTamonEmailHtml('Verifica tu cuenta', `
+          <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${usuario.nombre}! 👋</h2>
+          <p style="text-align: center; margin-bottom: 25px;">
+            Aquí tienes tu nuevo código de verificación de 6 dígitos para activar tu cuenta de Tamon:
+          </p>
+          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+            <tr>
+              <td align="center">
+                <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
+                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
+                </div>
+              </td>
+            </tr>
+          </table>
+          <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
+            Este código es válido por <strong>15 minutos</strong>.
+          </p>
+        `)
+      }).catch(mailErr => {
+        console.error('Error enviando correo de re-envío (background):', mailErr.message);
+      });
+    }
 
   } catch (error) {
     console.error("Error en re-envío de código:", error);
-    return res.status(500).json({ error: 'Error al re-enviar el código.' });
+    if (!res.headersSent) {
+      return res.status(500).json({ error: 'Error al re-enviar el código.' });
+    }
   }
 });
 
