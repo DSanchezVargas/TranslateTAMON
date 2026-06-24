@@ -20,24 +20,23 @@ async function pingServer() {
   serverWaking = true;
   try {
     const t0 = Date.now();
-    const res = await fetch(getApiUrl('/api/ping'), {
+    // URL relativa para pasar por el rewrite de Vercel → Render
+    // Cualquier respuesta HTTP (incluso 404) significa que el servidor está vivo
+    const res = await fetch('/api/ping', {
       method: 'GET',
-      signal: AbortSignal.timeout(60000) // máx 60s para despertar
+      signal: AbortSignal.timeout(65000) // máx 65s para despertar
     });
-    if (res.ok) {
-      const ms = Date.now() - t0;
-      serverReady = true;
-      serverWaking = false;
-      console.info(`[Tamon] Servidor listo (${ms}ms)`);
-      // Actualizar indicador de estado en el modal si está abierto
-      const statusEl = document.getElementById('auth-server-status');
-      if (statusEl) {
-        statusEl.style.display = 'none';
-      }
-      return true;
-    }
+    const ms = Date.now() - t0;
+    // Si el servidor respondió (cualquier código HTTP), está despierto
+    serverReady = true;
+    serverWaking = false;
+    console.info(`[Tamon] Servidor listo (${ms}ms, status=${res.status})`);
+    const statusEl = document.getElementById('auth-server-status');
+    if (statusEl) statusEl.style.display = 'none';
+    return true;
   } catch (e) {
-    console.warn('[Tamon] Ping falló:', e.message);
+    // Solo falla si es un error de RED (AbortError = timeout, fetch error = sin conexión)
+    console.warn('[Tamon] Ping falló (red):', e.message);
   }
   serverWaking = false;
   return false;
@@ -1125,6 +1124,11 @@ if (authForm) {
       submitBtn.disabled = false;
     }
   });
+}
+
+// --- MANEJADORES DE LA VERIFICACIÓN DE CÓDIGO (OTP) ---
+const verificationForm = document.getElementById('verification-form');
+if (verificationForm) {
   verificationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const submitBtn = document.getElementById('verification-submit-btn');
