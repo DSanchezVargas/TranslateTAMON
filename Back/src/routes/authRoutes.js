@@ -123,33 +123,35 @@ router.post('/register', async (req, res) => {
       correo: nuevoUsuario.email
     });
 
-    // 📧 Enviar email en SEGUNDO PLANO (fire-and-forget, no bloquea)
+    // 📧 Enviar email en SEGUNDO PLANO (fire-and-forget diferido, no bloquea)
     if (smtpUser && smtpPass) {
-      transporter.sendMail({
-        from: `"Tamon IA" <${smtpUser}>`,
-        to: correo,
-        subject: 'Verifica tu cuenta de Tamon ✨',
-        html: getTamonEmailHtml('Verifica tu cuenta', `
-          <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${nombre}! 👋</h2>
-          <p style="text-align: center; margin-bottom: 25px;">
-            Gracias por unirte a Tamon IA. Para activar tu cuenta y comenzar a traducir tus archivos de forma inteligente, usa el siguiente código de verificación de 6 dígitos:
-          </p>
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
-            <tr>
-              <td align="center">
-                <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
-                </div>
-              </td>
-            </tr>
-          </table>
-          <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
-            Este código es válido por <strong>15 minutos</strong>. Si no solicitaste este registro, puedes ignorar este mensaje con total seguridad.
-          </p>
-        `)
-      }).catch(mailErr => {
-        console.error('Error enviando correo de registro (background):', mailErr.message);
-      });
+      setTimeout(() => {
+        transporter.sendMail({
+          from: `"Tamon IA" <${smtpUser}>`,
+          to: correo,
+          subject: 'Verifica tu cuenta de Tamon ✨',
+          html: getTamonEmailHtml('Verifica tu cuenta', `
+            <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${nombre}! 👋</h2>
+            <p style="text-align: center; margin-bottom: 25px;">
+              Gracias por unirte a Tamon IA. Para activar tu cuenta y comenzar a traducir tus archivos de forma inteligente, usa el siguiente código de verificación de 6 dígitos:
+            </p>
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+              <tr>
+                <td align="center">
+                  <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
+              Este código es válido por <strong>15 minutos</strong>. Si no solicitaste este registro, puedes ignorar este mensaje con total seguridad.
+            </p>
+          `)
+        }).catch(mailErr => {
+          console.error('Error enviando correo de registro (background):', mailErr.message);
+        });
+      }, 100);
     }
 
   } catch (error) {
@@ -253,33 +255,35 @@ router.post('/resend-code', async (req, res) => {
     // ⚡ Responder INMEDIATAMENTE
     res.status(200).json({ mensaje: 'Nuevo código enviado con éxito.' });
 
-    // 📧 Email en segundo plano
+    // 📧 Email en segundo plano diferido
     if (smtpUser && smtpPass) {
-      transporter.sendMail({
-        from: `"Tamon IA" <${smtpUser}>`,
-        to: correo,
-        subject: 'Tu nuevo código de verificación - Tamon ✨',
-        html: getTamonEmailHtml('Verifica tu cuenta', `
-          <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${usuario.nombre}! 👋</h2>
-          <p style="text-align: center; margin-bottom: 25px;">
-            Aquí tienes tu nuevo código de verificación de 6 dígitos para activar tu cuenta de Tamon:
-          </p>
-          <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
-            <tr>
-              <td align="center">
-                <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                  <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
-                </div>
-              </td>
-            </tr>
-          </table>
-          <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
-            Este código es válido por <strong>15 minutos</strong>.
-          </p>
-        `)
-      }).catch(mailErr => {
-        console.error('Error enviando correo de re-envío (background):', mailErr.message);
-      });
+      setTimeout(() => {
+        transporter.sendMail({
+          from: `"Tamon IA" <${smtpUser}>`,
+          to: correo,
+          subject: 'Tu nuevo código de verificación - Tamon ✨',
+          html: getTamonEmailHtml('Verifica tu cuenta', `
+            <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${usuario.nombre}! 👋</h2>
+            <p style="text-align: center; margin-bottom: 25px;">
+              Aquí tienes tu nuevo código de verificación de 6 dígitos para activar tu cuenta de Tamon:
+            </p>
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+              <tr>
+                <td align="center">
+                  <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
+                  </div>
+                </td>
+              </tr>
+            </table>
+            <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
+              Este código es válido por <strong>15 minutos</strong>.
+            </p>
+          `)
+        }).catch(mailErr => {
+          console.error('Error enviando correo de re-envío (background):', mailErr.message);
+        });
+      }, 100);
     }
 
   } catch (error) {
@@ -339,9 +343,17 @@ router.post('/login', async (req, res) => {
 
       console.info(`=== CÓDIGO OTP GENERADO POR LOGIN PENDIENTE PARA ${usuario.email} ES: ${code} ===`);
 
-      try {
-        if (smtpUser && smtpPass) {
-          await transporter.sendMail({
+      // Responder inmediatamente al cliente
+      res.status(400).json({ 
+        error: 'Debes verificar tu cuenta primero. Te hemos enviado un nuevo código a tu correo.',
+        requiereVerificacion: true,
+        correo: usuario.email
+      });
+
+      // Enviar email en segundo plano diferido
+      if (smtpUser && smtpPass) {
+        setTimeout(() => {
+          transporter.sendMail({
             from: `"Tamon IA" <${smtpUser}>`,
             to: usuario.email,
             subject: 'Verifica tu cuenta de Tamon ✨',
@@ -363,17 +375,12 @@ router.post('/login', async (req, res) => {
                 Este código es válido por <strong>15 minutos</strong>.
               </p>
             `)
+          }).catch(mailErr => {
+            console.error('Error enviando correo de verificación en login (background):', mailErr);
           });
-        }
-      } catch (mailErr) {
-        console.error('Error enviando correo de verificación en login:', mailErr);
+        }, 100);
       }
-
-      return res.status(400).json({ 
-        error: 'Debes verificar tu cuenta primero. Te hemos enviado un nuevo código a tu correo.',
-        requiereVerificacion: true,
-        correo: usuario.email
-      });
+      return;
     }
 
     const token = jwt.sign({ id: usuario.id, role: usuario.role, nombre: usuario.nombre }, JWT_SECRET, { expiresIn: '2h' });
@@ -420,39 +427,45 @@ router.post('/join-vip', async (req, res) => {
       return res.status(400).json({ error: 'No se encontró un correo válido.' });
     }
 
-    if (smtpUser && smtpPass) {
-      await transporter.sendMail({
-        from: `"Tamon IA VIP" <${smtpUser}>`,
-        to: correo,
-        subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
-        html: getTamonEmailHtml('Fila VIP Tamon Pro+', `
-          <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Bienvenido al futuro de la traducción! 🚀</h2>
-          <p style="text-align: center; margin-bottom: 20px;">
-            Hola, <strong>${nombre || 'viajero del futuro'}</strong>. Hemos reservado con éxito tu acceso a la fila VIP para la fase Beta privada de <strong>Tamon Pro+</strong>.
-          </p>
-          
-          <p style="text-align: center; margin-bottom: 25px; color: #a7e9f7; font-weight: 600; font-size: 16px;">
-            ¡Ya eres un miembro VIP! 👑
-          </p>
-
-          <div style="background-color: #12101a; border-left: 4px solid #7928ca; padding: 15px; border-radius: 4px; margin-bottom: 25px;">
-            <p style="margin: 0; font-size: 14px; color: #d1cfe2; line-height: 1.5;">
-              Nuestra pasarela de pagos oficial está en proceso de integración. En cuanto esté lista, te avisaremos de inmediato a este correo para que seas uno de los primeros en probar las capacidades premium de Tamon Pro+ con un beneficio exclusivo.
-            </p>
-          </div>
-
-          <p style="text-align: center; font-size: 14px; margin-bottom: 0; color: #d1cfe2;">
-            Prepárate para experimentar traducción instantánea sin límites, memorias de traducción dedicadas y soporte prioritario.
-          </p>
-        `)
-      });
-    }
-    
-    return res.status(200).json({
+    // Responder inmediatamente
+    res.status(200).json({
       message: (smtpUser && smtpPass)
         ? 'Correo VIP enviado con éxito'
         : 'Solicitud VIP registrada (SMTP no configurado)'
     });
+
+    if (smtpUser && smtpPass) {
+      setTimeout(() => {
+        transporter.sendMail({
+          from: `"Tamon IA VIP" <${smtpUser}>`,
+          to: correo,
+          subject: '¡Estás en la lista VIP de Tamon Pro+! ✨',
+          html: getTamonEmailHtml('Fila VIP Tamon Pro+', `
+            <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Bienvenido al futuro de la traducción! 🚀</h2>
+            <p style="text-align: center; margin-bottom: 20px;">
+              Hola, <strong>${nombre || 'viajero del futuro'}</strong>. Hemos reservado con éxito tu acceso a la fila VIP para la fase Beta privada de <strong>Tamon Pro+</strong>.
+            </p>
+            
+            <p style="text-align: center; margin-bottom: 25px; color: #a7e9f7; font-weight: 600; font-size: 16px;">
+              ¡Ya eres un miembro VIP! 👑
+            </p>
+
+            <div style="background-color: #12101a; border-left: 4px solid #7928ca; padding: 15px; border-radius: 4px; margin-bottom: 25px;">
+              <p style="margin: 0; font-size: 14px; color: #d1cfe2; line-height: 1.5;">
+                Nuestra pasarela de pagos oficial está en proceso de integración. En cuanto esté lista, te avisaremos de inmediato a este correo para que seas uno de los primeros en probar las capacidades premium de Tamon Pro+ con un beneficio exclusivo.
+              </p>
+            </div>
+
+            <p style="text-align: center; font-size: 14px; margin-bottom: 0; color: #d1cfe2;">
+              Prepárate para experimentar traducción instantánea sin límites, memorias de traducción dedicadas y soporte prioritario.
+            </p>
+          `)
+        }).catch(error => {
+          console.error('Error enviando correo VIP (background):', error);
+        });
+      }, 100);
+    }
+    return;
 
   } catch (error) {
     console.error('Error enviando correo VIP:', error);
