@@ -1,10 +1,10 @@
 const express = require('express');
 const router = express.Router();
-const bcrypt = require('bcrypt'); 
+const bcrypt = require('bcrypt');
 const jwt = require('jsonwebtoken');
 const QRCode = require('qrcode');
 const nodemailer = require('nodemailer');
-const { pool } = require('../config/db'); 
+const { pool } = require('../config/db');
 
 const JWT_SECRET = process.env.JWT_SECRET || 'supersecret';
 
@@ -117,7 +117,7 @@ router.post('/register', async (req, res) => {
     console.info(`=== CÓDIGO OTP PARA REGISTRO DE ${correo} ES: ${code} ===`);
 
     // ⚡ Responder INMEDIATAMENTE al usuario (no esperar al email)
-    res.status(201).json({ 
+    res.status(201).json({
       mensaje: 'Código enviado a tu correo.',
       requiereVerificacion: true,
       correo: nuevoUsuario.email
@@ -133,19 +133,23 @@ router.post('/register', async (req, res) => {
           html: getTamonEmailHtml('Verifica tu cuenta', `
             <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${nombre}! 👋</h2>
             <p style="text-align: center; margin-bottom: 25px;">
-              Gracias por unirte a Tamon IA. Para activar tu cuenta y comenzar a traducir tus archivos de forma inteligente, usa el siguiente código de verificación de 6 dígitos:
+              Gracias por unirte a Tamon IA. Para activar tu cuenta, haz clic en el siguiente enlace de activación o introduce el código manual de 6 dígitos:
             </p>
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 25px 0;">
               <tr>
                 <td align="center">
-                  <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
+                  <a href="https://translatetamon.onrender.com/api/auth/activate?email=${encodeURIComponent(correo.toLowerCase())}&code=${code}" style="background: linear-gradient(135deg, #c4a8ea, #a883d9); color: #1a1228; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 15px rgba(196,168,234,0.3);">
+                    Activar mi cuenta 🎉
+                  </a>
+                  <div style="margin-top: 20px; font-size: 14px; color: #a29fb8;">
+                    Código manual de verificación: <br>
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: bold; color: #9b30ff; letter-spacing: 4px; line-height: 2;">${code}</span>
                   </div>
                 </td>
               </tr>
             </table>
             <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
-              Este código es válido por <strong>15 minutos</strong>. Si no solicitaste este registro, puedes ignorar este mensaje con total seguridad.
+              Este código y enlace son válidos por <strong>15 minutos</strong>. Si no solicitaste este registro, puedes ignorar este mensaje con total seguridad.
             </p>
           `)
         }).catch(mailErr => {
@@ -158,7 +162,7 @@ router.post('/register', async (req, res) => {
     console.error('ERROR CRÍTICO EN REGISTRO SQL:', error);
     // Solo responder si no se ha enviado ya la respuesta
     if (!res.headersSent) {
-      return res.status(500).json({ 
+      return res.status(500).json({
         error: 'Error interno al crear la cuenta.',
         details: error.message
       });
@@ -265,19 +269,23 @@ router.post('/resend-code', async (req, res) => {
           html: getTamonEmailHtml('Verifica tu cuenta', `
             <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${usuario.nombre}! 👋</h2>
             <p style="text-align: center; margin-bottom: 25px;">
-              Aquí tienes tu nuevo código de verificación de 6 dígitos para activar tu cuenta de Tamon:
+              Aquí tienes tu nuevo enlace y código para activar tu cuenta de Tamon:
             </p>
-            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+            <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 25px 0;">
               <tr>
                 <td align="center">
-                  <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
+                  <a href="https://translatetamon.onrender.com/api/auth/activate?email=${encodeURIComponent(correo.toLowerCase())}&code=${code}" style="background: linear-gradient(135deg, #c4a8ea, #a883d9); color: #1a1228; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 15px rgba(196,168,234,0.3);">
+                    Activar mi cuenta 🎉
+                  </a>
+                  <div style="margin-top: 20px; font-size: 14px; color: #a29fb8;">
+                    Código manual de verificación: <br>
+                    <span style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: bold; color: #9b30ff; letter-spacing: 4px; line-height: 2;">${code}</span>
                   </div>
                 </td>
               </tr>
             </table>
             <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
-              Este código es válido por <strong>15 minutos</strong>.
+              Este código y enlace son válidos por <strong>15 minutos</strong>.
             </p>
           `)
         }).catch(mailErr => {
@@ -307,30 +315,30 @@ router.post('/login', async (req, res) => {
       } catch (e) {
         return res.status(400).json({ error: 'QR inválido o expirado.' });
       }
-      
+
       const resDB = await pool.query("SELECT * FROM users WHERE email = $1 AND role = 'admin'", [decoded.correo]);
       usuario = resDB.rows[0];
-      
+
       if (!usuario) {
         return res.status(400).json({ error: 'Solo los administradores pueden iniciar sesión con QR.' });
       }
-    } 
+    }
     else {
       if (!correo) return res.status(400).json({ error: 'Falta el correo.' });
-      
+
       const resDB = await pool.query("SELECT * FROM users WHERE email = $1", [correo.toLowerCase()]);
       usuario = resDB.rows[0];
-      
+
       if (!usuario) {
         return res.status(400).json({ error: 'Usuario no encontrado. Asegúrate de registrarte primero.' });
       }
-      
+
       const esValido = await bcrypt.compare(password, usuario.password);
       if (!esValido) {
         return res.status(400).json({ error: 'Contraseña incorrecta.' });
       }
     }
-    
+
     // Si la cuenta está 'pending', generamos un código nuevo y retornamos error informando el estado
     if (usuario.user_status === 'pending') {
       const code = Math.floor(100000 + Math.random() * 900000).toString();
@@ -344,7 +352,7 @@ router.post('/login', async (req, res) => {
       console.info(`=== CÓDIGO OTP GENERADO POR LOGIN PENDIENTE PARA ${usuario.email} ES: ${code} ===`);
 
       // Responder inmediatamente al cliente
-      res.status(400).json({ 
+      res.status(400).json({
         error: 'Debes verificar tu cuenta primero. Te hemos enviado un nuevo código a tu correo.',
         requiereVerificacion: true,
         correo: usuario.email
@@ -360,19 +368,23 @@ router.post('/login', async (req, res) => {
             html: getTamonEmailHtml('Verifica tu cuenta', `
               <h2 style="color: #ffffff; margin-top: 0; font-size: 22px; font-weight: 700; text-align: center;">¡Hola, ${usuario.nombre}! 👋</h2>
               <p style="text-align: center; margin-bottom: 25px;">
-                Tu cuenta aún no está activa. Para completarla y comenzar a traducir tus archivos de forma inteligente, usa el siguiente código de verificación de 6 dígitos:
+                Tu cuenta aún no está activa. Para activarla, haz clic en el siguiente enlace o introduce el código manual de 6 dígitos:
               </p>
-              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 20px 0;">
+              <table border="0" cellpadding="0" cellspacing="0" width="100%" style="margin: 25px 0;">
                 <tr>
                   <td align="center">
-                    <div style="background-color: #1f1d33; border: 1px solid #7928ca; border-radius: 8px; padding: 15px 30px; display: inline-block;">
-                      <span style="font-family: 'Courier New', Courier, monospace; font-size: 32px; font-weight: bold; color: #9b30ff; letter-spacing: 8px; line-height: 1;">${code}</span>
+                    <a href="https://translatetamon.onrender.com/api/auth/activate?email=${encodeURIComponent(usuario.email.toLowerCase())}&code=${code}" style="background: linear-gradient(135deg, #c4a8ea, #a883d9); color: #1a1228; text-decoration: none; padding: 12px 30px; border-radius: 8px; font-weight: bold; display: inline-block; box-shadow: 0 4px 15px rgba(196,168,234,0.3);">
+                      Activar mi cuenta 🎉
+                    </a>
+                    <div style="margin-top: 20px; font-size: 14px; color: #a29fb8;">
+                      Código manual de verificación: <br>
+                      <span style="font-family: 'Courier New', Courier, monospace; font-size: 26px; font-weight: bold; color: #9b30ff; letter-spacing: 4px; line-height: 2;">${code}</span>
                     </div>
                   </td>
                 </tr>
               </table>
               <p style="text-align: center; font-size: 13px; color: #a29fb8; margin-top: 25px;">
-                Este código es válido por <strong>15 minutos</strong>.
+                Este código y enlace son válidos por <strong>15 minutos</strong>.
               </p>
             `)
           }).catch(mailErr => {
@@ -384,7 +396,7 @@ router.post('/login', async (req, res) => {
     }
 
     const token = jwt.sign({ id: usuario.id, role: usuario.role, nombre: usuario.nombre }, JWT_SECRET, { expiresIn: '2h' });
-    
+
     res.status(200).json({
       mensaje: 'Login exitoso',
       usuario: { id: usuario.id, nombre: usuario.nombre, correo: usuario.email, role: usuario.role, plan: usuario.plan },
@@ -392,7 +404,7 @@ router.post('/login', async (req, res) => {
     });
   } catch (error) {
     console.error("Error en login:", error);
-    res.status(500).json({ 
+    res.status(500).json({
       error: 'Error al iniciar sesión.',
       details: error.message,
       stack: error.stack
@@ -406,7 +418,7 @@ router.post('/admin/generate-login-qr', async (req, res) => {
     const { correo } = req.body;
     const resDB = await pool.query("SELECT * FROM users WHERE email = $1 AND role = 'admin'", [correo.toLowerCase()]);
     const usuario = resDB.rows[0];
-    
+
     if (!usuario) {
       return res.status(400).json({ error: 'Solo admins pueden usar QR.' });
     }
@@ -470,6 +482,107 @@ router.post('/join-vip', async (req, res) => {
   } catch (error) {
     console.error('Error enviando correo VIP:', error);
     return res.status(500).json({ error: 'Hubo un error al intentar enviar el correo. Verifica tu contraseña de aplicación de Gmail.' });
+  }
+});
+
+// --- NUEVO: RUTA DE ACTIVACIÓN POR ENLACE DE CORREO ---
+router.get('/activate', async (req, res) => {
+  try {
+    const { email, code } = req.query;
+
+    if (!email || !code) {
+      return res.status(400).send(`
+        <html>
+        <head><title>Error de Activación</title></head>
+        <body style="background-color: #0d0c15; color: #fff; font-family: sans-serif; text-align: center; padding: 50px;">
+          <h2 style="color: #ff4a4a;">⚠️ Enlace inválido</h2>
+          <p>Falta el correo o el código de activación.</p>
+        </body>
+        </html>
+      `);
+    }
+
+    const resDB = await pool.query("SELECT * FROM users WHERE email = $1", [email.toLowerCase()]);
+    const usuario = resDB.rows[0];
+
+    if (!usuario) {
+      return res.status(404).send(`
+        <html>
+        <head><title>Error de Activación</title></head>
+        <body style="background-color: #0d0c15; color: #fff; font-family: sans-serif; text-align: center; padding: 50px;">
+          <h2 style="color: #ff4a4a;">⚠️ Usuario no encontrado</h2>
+          <p>La cuenta asociada a este enlace no existe.</p>
+        </body>
+        </html>
+      `);
+    }
+
+    if (usuario.user_status === 'active') {
+      return res.send(`
+        <html>
+        <head><title>Cuenta Activa</title></head>
+        <body style="background-color: #0d0c15; color: #fff; font-family: sans-serif; text-align: center; padding: 50px; border-top: 4px solid #9b30ff;">
+          <h2 style="color: #c4a8ea;">✨ Tu cuenta ya está activa</h2>
+          <p>Puedes volver a TranslateTAMON e iniciar sesión sin problemas.</p>
+          <a href="https://translatetamon.vercel.app" style="display: inline-block; margin-top: 20px; background: linear-gradient(135deg, #c4a8ea, #a883d9); color: #1a1228; padding: 12px 25px; border-radius: 8px; text-decoration: none; font-weight: bold;">Ir a TranslateTAMON</a>
+        </body>
+        </html>
+      `);
+    }
+
+    if (usuario.verification_code !== code.trim()) {
+      return res.status(400).send(`
+        <html>
+        <head><title>Código Incorrecto</title></head>
+        <body style="background-color: #0d0c15; color: #fff; font-family: sans-serif; text-align: center; padding: 50px;">
+          <h2 style="color: #ff4a4a;">⚠️ Código de activación incorrecto</h2>
+          <p>El código provisto en el enlace es inválido o caducó.</p>
+        </body>
+        </html>
+      `);
+    }
+
+    if (new Date(usuario.verification_code_expires) < new Date()) {
+      return res.status(400).send(`
+        <html>
+        <head><title>Código Expirado</title></head>
+        <body style="background-color: #0d0c15; color: #fff; font-family: sans-serif; text-align: center; padding: 50px;">
+          <h2 style="color: #ff4a4a;">⚠️ El enlace ha expirado</h2>
+          <p>Los enlaces de activación tienen una vigencia de 15 minutos. Por favor solicita un nuevo código desde la web.</p>
+        </body>
+        </html>
+      `);
+    }
+
+    // Activar al usuario
+    await pool.query(
+      "UPDATE users SET user_status = 'active', verification_code = NULL, verification_code_expires = NULL WHERE id = $1",
+      [usuario.id]
+    );
+
+    return res.send(`
+      <html>
+      <head>
+        <title>Cuenta Activada 🎉</title>
+        <meta charset="utf-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+      </head>
+      <body style="background-color: #0d0c15; color: #fff; font-family: 'Segoe UI', Roboto, sans-serif; text-align: center; padding: 50px; margin: 0; display: flex; flex-direction: column; align-items: center; justify-content: center; min-height: 80vh;">
+        <div style="background-color: #161421; padding: 40px; border-radius: 12px; border: 1px solid #2a2640; border-top: 4px solid #9b30ff; max-width: 450px; box-shadow: 0 10px 30px rgba(0,0,0,0.5);">
+          <span style="font-size: 50px;">🎉</span>
+          <h2 style="color: #c4a8ea; margin-top: 20px;">¡Cuenta activada con éxito!</h2>
+          <p style="color: #cbd5e1; line-height: 1.6; margin-top: 15px;">
+            Tu cuenta ha sido activada y verificada de manera segura. Ya puedes volver a la pestaña de TranslateTAMON e iniciar sesión para comenzar.
+          </p>
+          <a href="https://translatetamon.vercel.app" style="display: inline-block; margin-top: 25px; background: linear-gradient(135deg, #c4a8ea, #a883d9); color: #1a1228; padding: 12px 30px; border-radius: 8px; text-decoration: none; font-weight: bold; transition: 0.2s; box-shadow: 0 4px 15px rgba(196,168,234,0.25);">Entrar a TranslateTAMON</a>
+        </div>
+      </body>
+      </html>
+    `);
+
+  } catch (error) {
+    console.error("Error en activación por enlace:", error);
+    return res.status(500).send("Error interno al activar la cuenta.");
   }
 });
 
