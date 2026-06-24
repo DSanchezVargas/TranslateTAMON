@@ -434,6 +434,22 @@ async function requestPreview(event) {
   if (etaText) etaText.textContent = 'Iniciando subida y encolamiento...';
   setProcessProgress(3);
 
+  // Mixpanel Tracking - upload_document & start_translation
+  if (typeof mixpanel !== 'undefined') {
+    const ext = fileToProcess.name.split('.').pop().toLowerCase();
+    mixpanel.track('upload_document', {
+      fileName: fileToProcess.name,
+      fileSize: fileToProcess.size,
+      fileType: ext
+    });
+    mixpanel.track('start_translation', {
+      fileName: fileToProcess.name,
+      fileType: ext,
+      sourceLanguage: document.getElementById('source-language')?.value || 'en',
+      targetLanguage: document.getElementById('target-language')?.value || 'es'
+    });
+  }
+
   try {
     const headers = {};
     const token = localStorage.getItem('tamon_token');
@@ -587,6 +603,19 @@ async function finalizeTranslation() {
 
     setProcessProgress(100);
     setStep('step-download');
+
+    // Mixpanel Tracking - translation_completed & download_translation
+    if (typeof mixpanel !== 'undefined') {
+      mixpanel.track('translation_completed', {
+        fileName: previewState.originalFileName,
+        fileType: downloadExt,
+        wasCorrected: !!previewState.docxRuns
+      });
+      mixpanel.track('download_translation', {
+        fileName: previewState.originalFileName,
+        fileType: downloadExt
+      });
+    }
 
     // Magia de la Cola: Eliminamos el archivo que ya se terminó con éxito
     window.removeFile(0);
@@ -1081,6 +1110,22 @@ if (authForm) {
           if (data.token) localStorage.setItem('tamon_token', data.token);
           authModal.style.display = 'none';
           updateSidebarUser(data.usuario);
+
+          // Mixpanel Tracking - login (successful login without verification)
+          if (typeof mixpanel !== 'undefined') {
+            mixpanel.identify(data.usuario.id || data.usuario._id);
+            mixpanel.people.set({
+              '$email': data.usuario.correo,
+              '$name': data.usuario.nombre || '',
+              'role': data.usuario.rol || 'Traductor',
+              'plan': data.usuario.plan || 'chill'
+            });
+            mixpanel.track('login', {
+              id: data.usuario.id || data.usuario._id || '',
+              email: data.usuario.correo,
+              role: data.usuario.rol || 'Traductor'
+            });
+          }
         }
       } else {
         if (data.requiereVerificacion) {
@@ -1146,6 +1191,23 @@ if (verificationForm) {
       });
       const data = await response.json();
       if (response.ok) {
+        // Mixpanel Tracking - sign_up (completed registration via OTP code verification)
+        if (typeof mixpanel !== 'undefined') {
+          mixpanel.identify(data.usuario.id || data.usuario._id);
+          mixpanel.people.set({
+            '$email': data.usuario.correo,
+            '$name': data.usuario.nombre || '',
+            'role': data.usuario.rol || 'Traductor',
+            'plan': data.usuario.plan || 'chill',
+            '$created': new Date().toISOString()
+          });
+          mixpanel.track('sign_up', {
+            id: data.usuario.id || data.usuario._id || '',
+            email: data.usuario.correo,
+            role: data.usuario.rol || 'Traductor'
+          });
+        }
+
         alert(data.mensaje || '¡Cuenta verificada con éxito!');
         localStorage.setItem('tamon_user', JSON.stringify(data.usuario));
         if (data.token) localStorage.setItem('tamon_token', data.token);

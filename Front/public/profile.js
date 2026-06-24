@@ -102,6 +102,13 @@ async function loadProfile() {
       throw new Error(data.error || 'No se pudo cargar el perfil.');
     }
 
+    // Mixpanel Tracking - view_history (revisar historial)
+    if (typeof mixpanel !== 'undefined') {
+      mixpanel.track('view_history', {
+        email: data.correo || ''
+      });
+    }
+
     document.getElementById('profile-name').value = data.nombre || '';
     document.getElementById('profile-email').value = data.correo || '';
     
