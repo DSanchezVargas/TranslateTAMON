@@ -47,6 +47,11 @@ if (!fs.existsSync(path.join(publicPath, 'index.html'))) {
 }
 app.use(express.static(publicPath));
 
+// Endpoint ultraligero de ping para pre-calentar el servidor (sin BD)
+app.get('/api/ping', (_, res) => {
+  res.json({ ok: true, ts: Date.now() });
+});
+
 app.get('/health', (_, res) => {
   res.json({
     status: 'ok',

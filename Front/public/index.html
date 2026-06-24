@@ -386,6 +386,9 @@
         <div id="auth-credentials-section">
           <h2 id="auth-title" style="margin-top: 0; color: var(--tamon-primary); text-align: center; font-size: 1.6rem;">Iniciar Sesión</h2>
           
+          <!-- Indicador de estado del servidor -->
+          <div id="auth-server-status" style="display:none; font-size:0.82rem; text-align:center; padding:8px 12px; background:rgba(196,168,234,0.08); border:1px solid rgba(196,168,234,0.2); border-radius:8px; margin-bottom:10px; animation: pulse-status 1.5s ease-in-out infinite;"></div>
+
           <form id="auth-form" style="display: flex; flex-direction: column; gap: 15px; margin-top: 20px;">
             <input type="text" id="auth-nombre" placeholder="Tu Nombre (ej. Tatsu)" style="display: none; padding: 12px; border-radius: 8px; border: none; background: #1e1c22; color: white;" />
             

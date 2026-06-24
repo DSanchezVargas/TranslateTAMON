@@ -8,6 +8,61 @@ const BASE_API_URL = window.location.hostname.includes('vercel.app')
 function getApiUrl(path) {
   return BASE_API_URL + path;
 }
+
+// =====================================================================
+// PRE-CALENTAMIENTO DEL SERVIDOR (Anti Cold-Start de Render)
+// =====================================================================
+let serverReady = false;
+let serverWaking = false;
+
+async function pingServer() {
+  if (serverReady) return true;
+  serverWaking = true;
+  try {
+    const t0 = Date.now();
+    const res = await fetch(getApiUrl('/api/ping'), {
+      method: 'GET',
+      signal: AbortSignal.timeout(60000) // máx 60s para despertar
+    });
+    if (res.ok) {
+      const ms = Date.now() - t0;
+      serverReady = true;
+      serverWaking = false;
+      console.info(`[Tamon] Servidor listo (${ms}ms)`);
+      // Actualizar indicador de estado en el modal si está abierto
+      const statusEl = document.getElementById('auth-server-status');
+      if (statusEl) {
+        statusEl.style.display = 'none';
+      }
+      return true;
+    }
+  } catch (e) {
+    console.warn('[Tamon] Ping falló:', e.message);
+  }
+  serverWaking = false;
+  return false;
+}
+
+// Ping silencioso al cargar la página
+window.addEventListener('load', () => {
+  // Pequeño delay para no bloquear el render inicial de la página
+  setTimeout(() => pingServer(), 800);
+});
+
+// Mostrar advertencia de velocidad en el modal de auth si el servidor está tardando
+function showAuthServerStatus(msg, color) {
+  const statusEl = document.getElementById('auth-server-status');
+  if (!statusEl) return;
+  statusEl.textContent = msg;
+  statusEl.style.color = color || '#c4a8ea';
+  statusEl.style.display = 'block';
+}
+
+function hideAuthServerStatus() {
+  const statusEl = document.getElementById('auth-server-status');
+  if (statusEl) statusEl.style.display = 'none';
+}
+
 function getOrCreateTamonDialog() {
   let modal = document.getElementById('tamon-dialog-modal');
   if (!modal) {
@@ -962,6 +1017,8 @@ if (authModal) {
 if (authForm) {
   authForm.addEventListener('submit', async (e) => {
     e.preventDefault();
+
+    // Siempre usamos URLs relativas para que Vercel las reescriba al backend
     const endpoint = isLoginMode ? '/api/auth/login' : '/api/auth/register';
     const payload = {
       correo: document.getElementById('auth-correo').value.trim(),
@@ -970,12 +1027,36 @@ if (authForm) {
     if (!isLoginMode) payload.nombre = document.getElementById('auth-nombre').value.trim();
 
     const submitBtn = document.getElementById('auth-submit-btn');
-    submitBtn.textContent = 'Procesando...';
     submitBtn.disabled = true;
 
-    // Timeout generoso para el cold start de Render (45s)
+    // Si el servidor aún no está listo, mostrar estado y esperar el ping
+    if (!serverReady) {
+      submitBtn.textContent = '⏳ Conectando servidor...';
+      showAuthServerStatus('🔄 El servidor se está iniciando, por favor espera...', '#c4a8ea');
+      // Lanzar ping si no está en curso
+      if (!serverWaking) pingServer();
+      // Esperar máx 50s a que despierte
+      let waited = 0;
+      while (!serverReady && waited < 50000) {
+        await new Promise(r => setTimeout(r, 1000));
+        waited += 1000;
+        const segs = Math.floor(waited / 1000);
+        submitBtn.textContent = `⏳ Iniciando servidor (${segs}s)...`;
+      }
+      if (!serverReady) {
+        showAuthServerStatus('⚠️ El servidor tardó demasiado. Inténtalo de nuevo en unos segundos.', '#f87171');
+        submitBtn.textContent = isLoginMode ? 'Entrar a Tamon' : 'Registrarse';
+        submitBtn.disabled = false;
+        return;
+      }
+      hideAuthServerStatus();
+    }
+
+    submitBtn.textContent = 'Procesando...';
+
+    // Timeout de 30s para la petición real
     const controller = new AbortController();
-    const timeoutId = setTimeout(() => controller.abort(), 45000);
+    const timeoutId = setTimeout(() => controller.abort(), 30000);
 
     try {
       const response = await fetch(endpoint, {
@@ -988,6 +1069,7 @@ if (authForm) {
       const data = await response.json();
 
       if (response.ok) {
+        hideAuthServerStatus();
         if (data.requiereVerificacion) {
           document.getElementById('auth-credentials-section').style.display = 'none';
           document.getElementById('auth-verification-section').style.display = 'block';
@@ -1012,7 +1094,7 @@ if (authForm) {
         } else if (!isLoginMode && data.error && data.error.toLowerCase().includes('cuenta activa')) {
           // El correo ya tiene cuenta activa → ofrecer ir a login automáticamente
           alert(
-            '⚠️ Este correo ya está registrado y activo.\n\nTe cambiamos al modo de inicio de sesión. Solo ingresa tu contraseña.',
+            '⚠️ Este correo ya está registrado.\n\nTe cambiamos al modo de inicio de sesión.',
             () => {
               // Cambiar a modo login
               isLoginMode = true;
@@ -1031,8 +1113,10 @@ if (authForm) {
       }
     } catch (err) {
       clearTimeout(timeoutId);
+      serverReady = false; // Marcar como no listo para forzar re-ping la próxima vez
       if (err.name === 'AbortError') {
-        alert('El servidor está iniciando y tardó demasiado. Por favor, espera 30 segundos e inténtalo de nuevo.');
+        showAuthServerStatus('⚠️ La conexión tardó demasiado. Reintentando al próximo clic...', '#fbbf24');
+        alert('La conexión tardó demasiado. El servidor puede estar iniciando.\n\nPor favor, inténtalo de nuevo en unos segundos.');
       } else {
         alert('Error de conexión. Verifica tu internet e inténtalo de nuevo.');
       }
@@ -1041,11 +1125,6 @@ if (authForm) {
       submitBtn.disabled = false;
     }
   });
-}
-
-// --- MANEJADORES DE LA VERIFICACIÓN DE CÓDIGO (OTP) ---
-const verificationForm = document.getElementById('verification-form');
-if (verificationForm) {
   verificationForm.addEventListener('submit', async (e) => {
     e.preventDefault();
     const submitBtn = document.getElementById('verification-submit-btn');
