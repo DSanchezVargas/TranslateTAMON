@@ -21,6 +21,7 @@ const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST || 'smtp.gmail.com',
   port: Number(process.env.SMTP_PORT || 465),
   secure: true,
+  family: 4, // <-- OBLIGA A NODEMAILER A USAR IPv4 (Evita ENETUNREACH/IPv6 en Render)
   auth: smtpUser && smtpPass
     ? { user: smtpUser, pass: smtpPass }
     : undefined

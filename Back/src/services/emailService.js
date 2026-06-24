@@ -4,6 +4,7 @@ const nodemailer = require('nodemailer');
 // Nota: Usaremos Gmail como ejemplo, pero necesitas una "Contraseña de aplicación", no tu clave normal.
 const transporter = nodemailer.createTransport({
     service: 'gmail', 
+    family: 4, // <-- OBLIGA A USAR IPv4 (Evita ENETUNREACH/IPv6 en Render)
     auth: {
         user: 'tu_correo_de_prueba@gmail.com', // Pon aquí tu correo de desarrollo
         pass: 'tu_contraseña_de_aplicacion'   // Tu contraseña especial para apps
