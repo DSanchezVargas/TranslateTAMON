@@ -16,6 +16,8 @@
 
 const pdfParse = require('pdf-parse');
 const { PDFDocument, rgb, StandardFonts } = require('pdf-lib');
+const axios = require('axios');
+const FormData = require('form-data');
 
 // ─── Extractor de texto compatible con pdf-parse v1 Y v2 ─────────────────────
 
@@ -114,7 +116,29 @@ async function translatePdfBuffer(fileBuffer, sourceLanguage, targetLanguage, tr
     return buildPlainTextPdf(text || '');
   }
 
-  // ── 1. Extraer texto por página ──
+  // ── 1. Intentar la traducción de alta fidelidad vía Python ──
+  try {
+    const form = new FormData();
+    form.append('file', fileBuffer, { filename: 'input.pdf' });
+    form.append('sourceLanguage', sourceLanguage);
+    form.append('targetLanguage', targetLanguage);
+
+    console.info('[PDF] Intentando traducción con formato mediante microservicio Python...');
+    const response = await axios.post('http://localhost:5002/procesar-pdf-formato', form, {
+      headers: form.getHeaders(),
+      responseType: 'arraybuffer',
+      timeout: 90000 // 90 segundos
+    });
+
+    if (response.status === 200 && response.data) {
+      console.info('[PDF] Traducción premium completada con éxito.');
+      return Buffer.from(response.data);
+    }
+  } catch (err) {
+    console.warn('[PDF Warning] Microservicio Python no disponible. Usando fallback nativo:', err.message);
+  }
+
+  // ── 2. Extraer texto por página ──
   let pageTexts, fullText, numPagesExtracted;
   try {
     ({ pageTexts, fullText, numPages: numPagesExtracted } = await extractTextPerPage(fileBuffer));
@@ -159,10 +183,13 @@ async function translatePdfBuffer(fileBuffer, sourceLanguage, targetLanguage, tr
     const pageText = (pageTexts[i] || '').trim();
     if (!pageText) continue;
 
+    // Limpiar cabecera de Google si existía
+    const pageTextClean = pageText.replace(/Machine\s+Translated\s+by\s+Google/gi, 'Translated by Tamon');
+
     // Traducir el texto de esta página
     let translated;
     try {
-      translated = await translateFn(pageText, sourceLanguage, targetLanguage);
+      translated = await translateFn(pageTextClean, sourceLanguage, targetLanguage);
     } catch (_) {
       continue; // Si falla la traducción de esta página, saltarla
     }

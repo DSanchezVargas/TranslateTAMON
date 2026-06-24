@@ -205,16 +205,28 @@ def procesar_pdf_formato():
                             font_size = 9
                             text_color = (0, 0, 0)
                             
-                        translated_text = traducir_texto_py(block_text, sl, tl)
+                        # Limpiar cabecera de Google si existía
+                        import re
+                        block_text_clean = re.sub(r'(?i)machine\s+translated\s+by\s+google', 'Translated by Tamon', block_text)
+                        
+                        translated_text = traducir_texto_py(block_text_clean, sl, tl)
+                        
+                        # Ajustar tamaño de fuente dinámicamente si la traducción es más larga para evitar desbordes y encabalgamiento
+                        ratio = len(translated_text) / max(len(block_text_clean), 1)
+                        adjusted_font_size = font_size
+                        if ratio > 1.0:
+                            adjusted_font_size = max(font_size / (ratio ** 0.5), 5.5)
+                        
                         page_translations.append({
                             "rect": rect,
                             "translated_text": translated_text,
-                            "font_size": font_size,
+                            "font_size": adjusted_font_size,
                             "text_color": text_color
                         })
                         
+                        # Redactar bloque con fondo blanco para ocultar completamente el texto original y evitar que se mezclen
                         annot = page.add_redact_annot(rect)
-                        annot.set_colors(stroke=None, fill=None)
+                        annot.set_colors(stroke=None, fill=(1, 1, 1))
                         
             page.apply_redactions(images=fitz.PDF_REDACT_IMAGE_NONE)
             
