@@ -81,6 +81,19 @@ app.get('/api/test-db', async (_, res) => {
   }
 });
 
+app.get('/api/test-python', async (req, res) => {
+  try {
+    const axios = require('axios');
+    const response = await axios.post('http://localhost:5002/convertir-texto-pdf', {
+      texto: 'test',
+      titulo: 'Test'
+    }, { responseType: 'arraybuffer', timeout: 5000 });
+    res.json({ status: 'online', bytes: response.data.length });
+  } catch (err) {
+    res.status(500).json({ status: 'offline', error: err.message, stack: err.stack });
+  }
+});
+
 app.get('/api/assistant/status', async (req, res, next) => {
   try {
     let totalTranslations = 0;
