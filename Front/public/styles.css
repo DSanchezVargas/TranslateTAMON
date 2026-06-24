@@ -358,9 +358,7 @@ body {
 .hero-icon {
   width: 84px;
   height: 84px;
-  border-radius: 1rem;
-  background: #fff;
-  border: 2px solid rgba(155, 48, 255, 0.2);
+  background: transparent;
 }
 
 .eyebrow {
